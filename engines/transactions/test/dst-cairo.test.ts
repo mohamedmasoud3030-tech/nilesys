@@ -5,7 +5,11 @@ import { withTenant } from '../../platform/src/db/with-tenant.js';
 import { catalogItems, catalogVariants } from '../../catalog/src/db/schema.js';
 import { cashShifts } from '../src/db/schema.js';
 import { checkout } from '../src/checkout.js';
-import { getDailyReport } from '../src/reports.js';
+import { cairoDayBounds, cairoOffsetMinutesForUTC, getDailyReport } from '../src/reports.js';
+
+// Day boundaries come from production (reports.ts); no local copy, so a regression
+// in getDailyReport's timezone handling fails here.
+const parseDayCairo = (day: string, end: boolean): Date => (end ? cairoDayBounds(day).end : cairoDayBounds(day).start);
 
 let opened: OpenedDatabase;
 let db: NileDb;
@@ -22,21 +26,6 @@ beforeAll(async () => {
   variant = v.id as string;
 });
 afterAll(()=> opened.close());
-
-function cairoParts(utcDate: Date){ const s=utcDate.toLocaleString('en-US',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}); const [mdy='',hms='']=s.split(', '); const [m=NaN,d=NaN,y=NaN]=mdy.split('/').map(Number); const [h=NaN,mi=NaN,sec=NaN]=hms.split(':').map(Number); return {y,m,d,h,mi,sec}; }
-function cairoOffsetMinutesForUTC(utcDate: Date): number { const p=cairoParts(utcDate); const cairoAsUTC=Date.UTC(p.y,p.m-1,p.d,p.h,p.mi,p.sec); return Math.round((cairoAsUTC-utcDate.getTime())/60000); }
-function findCairoDayStartUTC(y:number,m:number,d:number): Date {
-  const wallMidnightUTC=Date.UTC(y,m-1,d,0,0,0);
-  let best: Date|null=null;
-  for(let off=200; off>=60; off--){ const cand=new Date(wallMidnightUTC - off*60000); const pt=cairoParts(cand); if(pt.y===y && pt.m===m && pt.d===d){ if(!best || cand.getTime() < best.getTime()) best=cand; } }
-  if(best) return best;
-  const off=cairoOffsetMinutesForUTC(new Date(wallMidnightUTC)); return new Date(wallMidnightUTC - off*60000);
-}
-function parseDayCairo(s: string, end:boolean): Date {
-  const [y=NaN,m=NaN,d=NaN] = s.split('-').map(Number);
-  if(!end) return findCairoDayStartUTC(y,m,d);
-  const dt=new Date(Date.UTC(y,m-1,d+1)); return findCairoDayStartUTC(dt.getUTCFullYear(), dt.getUTCMonth()+1, dt.getUTCDate());
-}
 
 describe('Africa/Cairo DST 2026 — report day boundaries', () => {
   it('parses 2026-04-24 start with +3 after transition (23h day)', () => {
@@ -91,5 +80,28 @@ describe('Africa/Cairo DST 2026 — report day boundaries', () => {
     expect(report23.grossMinor).toBe(1000);
     expect(report24.grossMinor).toBe(2000);
     expect(report23.grossMinor + report24.grossMinor).toBe(3000);
+  });
+
+  async function saleAt(iso: string, minor: number, key: string) {
+    const { salesTransactions, payments } = await import('../src/db/schema.js');
+    await withTenant(db, tenant, async (tx: any) => {
+      const [s] = await tx.insert(salesTransactions).values({ tenantId: tenant, kind: 'sale', totalMinor: minor, idempotencyKey: key, requestHash: 'h', createdBy: tenant, createdAt: new Date(iso) }).returning({ id: salesTransactions.id });
+      await tx.insert(payments).values({ tenantId: tenant, transactionId: s.id, method: 'cash', amountMinor: minor, idempotencyKey: key + '-p', requestHash: 'h', createdBy: tenant, createdAt: new Date(iso) });
+    });
+  }
+
+  it('summer (+3) via getDailyReport: 2026-07-15T21:30Z is Cairo 07-16 00:30 and belongs to 07-16', async () => {
+    await saleAt('2026-07-15T21:30:00Z', 111, 'dst-p1-' + Date.now());
+    expect((await getDailyReport(db, tenant, { from: '2026-07-15', to: '2026-07-15' })).grossMinor).toBe(0);
+    expect((await getDailyReport(db, tenant, { from: '2026-07-16', to: '2026-07-16' })).grossMinor).toBe(111);
+  });
+
+  it('25h day 2026-10-29 via getDailyReport: 00:30 (+3) and 23:30 (+2) on 10-29; 10-30 00:00 (+2) is not', async () => {
+    await saleAt('2026-10-28T21:30:00Z', 300, 'dst-p2a-' + Date.now()); // Cairo 10-29 00:30, +3
+    await saleAt('2026-10-29T21:30:00Z', 400, 'dst-p2b-' + Date.now()); // Cairo 10-29 23:30, +2 (after fall-back)
+    await saleAt('2026-10-29T22:00:00Z', 500, 'dst-p2c-' + Date.now()); // Cairo 10-30 00:00, +2
+    expect((await getDailyReport(db, tenant, { from: '2026-10-28', to: '2026-10-28' })).grossMinor).toBe(0);
+    expect((await getDailyReport(db, tenant, { from: '2026-10-29', to: '2026-10-29' })).grossMinor).toBe(700);
+    expect((await getDailyReport(db, tenant, { from: '2026-10-30', to: '2026-10-30' })).grossMinor).toBe(500);
   });
 });

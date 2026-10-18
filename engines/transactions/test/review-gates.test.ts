@@ -275,11 +275,18 @@ describe('Gate 6 — Reporting', () => {
     expect(tomReport.refundsMinor).toBe(750);
   });
 
-  it('report timezone: UTC vs Africa/Cairo (documents risk)', async () => {
-    // Document: report uses UTC day boundaries, not Cairo. This is known risk — test documents it.
-    // We create a sale at 23:30 UTC which is 01:30 Cairo next day — would be counted on wrong day if using UTC.
-    // Since we use UTC, we acknowledge risk.
-    expect(true).toBe(true); // placeholder to document UNVERIFIED for timezone
+  it('report timezone: days are Africa/Cairo, not UTC and not a fixed +2', async () => {
+    // 2026-08-10T21:30Z is 2026-08-11 00:30 in Cairo (summer, +3).
+    // UTC day boundaries would put it on 08-10; a fixed UTC+2 offset (23:30) would too.
+    const [t] = await db.insert(organization).values({ name: 'TZGate', slug: 'tz-gate-' + Date.now() }).returning({ id: organization.id }) as [{ id: string }];
+    const { salesTransactions } = await import('../src/db/schema.js');
+    const at = new Date('2026-08-10T21:30:00.000Z');
+    await withTenant(db, t.id, async (tx: any) => {
+      const [s] = await tx.insert(salesTransactions).values({ tenantId: t.id, kind: 'sale', totalMinor: 4321, idempotencyKey: 'tz-gate-' + Date.now(), requestHash: 'h', createdBy: t.id, createdAt: at }).returning({ id: salesTransactions.id });
+      await tx.insert(payments).values({ tenantId: t.id, transactionId: s.id, method: 'cash', amountMinor: 4321, idempotencyKey: 'tz-gate-p-' + Date.now(), requestHash: 'h', createdBy: t.id, createdAt: at });
+    });
+    expect((await getDailyReport(db, t.id, { from: '2026-08-10', to: '2026-08-10' })).grossMinor).toBe(0);
+    expect((await getDailyReport(db, t.id, { from: '2026-08-11', to: '2026-08-11' })).grossMinor).toBe(4321);
   });
 });
 

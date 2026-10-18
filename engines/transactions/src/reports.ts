@@ -31,7 +31,7 @@ function cairoParts(utcDate: Date): { y: number; m: number; d: number; h: number
   return { y, m, d, h, mi, sec, s };
 }
 
-function cairoOffsetMinutesForUTC(utcDate: Date): number {
+export function cairoOffsetMinutesForUTC(utcDate: Date): number {
   const p = cairoParts(utcDate);
   const cairoAsUTC = Date.UTC(p.y, p.m - 1, p.d, p.h, p.mi, p.sec);
   return Math.round((cairoAsUTC - utcDate.getTime()) / 60000);
@@ -62,6 +62,14 @@ function parseDay(s: string, end: boolean): Date {
     const ny = dt.getUTCFullYear(), nm = dt.getUTCMonth() + 1, nd = dt.getUTCDate();
     return findCairoDayStartUTC(ny, nm, nd);
   }
+}
+
+/**
+ * The UTC instants bounding one Africa/Cairo calendar day: [start, end).
+ * Exported so tests exercise the exact code getDailyReport uses (23h/24h/25h days).
+ */
+export function cairoDayBounds(day: string): { start: Date; end: Date } {
+  return { start: parseDay(day, false), end: parseDay(day, true) };
 }
 
 export async function getDailyReport(db: AnyPgDatabase, tenantId: string, range: ReportRange): Promise<DailyReport> {
