@@ -41,11 +41,11 @@ describe('cash shifts — open / close + reconciliation', () => {
     const input = { registerCode: 'main', openingMinor: 5000, idempotencyKey: 'shift-open-001' };
     const r1 = await openShift(db, { tenantId: A, userId: A }, input);
     expect(r1.replayed).toBe(false);
-    expect(r1.shift.registerCode).toBe('main');
-    expect(r1.shift.openingMinor).toBe(5000);
+    expect(r1.shift!.registerCode).toBe('main');
+    expect(r1.shift!.openingMinor).toBe(5000);
     const r2 = await openShift(db, { tenantId: A, userId: A }, input);
     expect(r2.replayed).toBe(true);
-    expect(r2.shift.id).toBe(r1.shift.id);
+    expect(r2.shift!.id).toBe(r1.shift!.id);
   });
 
   it('rejects second open for same register while one is still open', async () => {
@@ -55,7 +55,7 @@ describe('cash shifts — open / close + reconciliation', () => {
 
   it('allows open on different registerCode concurrently', async () => {
     const r = await openShift(db, { tenantId: A, userId: A }, { registerCode: 'pos-2', openingMinor: 2000, idempotencyKey: 'shift-open-pos2' });
-    expect(r.shift.registerCode).toBe('pos-2');
+    expect(r.shift!.registerCode).toBe('pos-2');
   });
 
   it('idempotency conflict: same key different body → 409', async () => {
@@ -66,7 +66,7 @@ describe('cash shifts — open / close + reconciliation', () => {
   it('closes a shift and computes expected vs counted correctly', async () => {
     // open dedicated shift for this test on register close-test
     const { shift } = await openShift(db, { tenantId: B, userId: B }, { registerCode: 'close-test', openingMinor: 10000, idempotencyKey: 'shift-close-test-open' });
-    const shiftId = shift.id as string;
+    const shiftId = shift!.id as string;
     // make a cash sale inside this shift: 2 * 1000 = 2000
     await checkout(db, { tenantId: B, userId: B }, {
       idempotencyKey: 'chk-shift-close-001b',
@@ -92,19 +92,19 @@ describe('cash shifts — open / close + reconciliation', () => {
   it('closed shift cannot receive new cash sale', async () => {
     const { shift } = await openShift(db, { tenantId: A, userId: A }, { registerCode: 'closed-test', openingMinor: 1000, idempotencyKey: 'shift-closed-test-open' });
     const v = variantA; // belongs to A
-    await checkout(db, { tenantId: A, userId: A }, { idempotencyKey: 'chk-closed-001', shiftId: shift.id, lines: [{ variantId: v, quantity: '1' }], tenders: [{ method: 'cash', amountMinor: 1000 }] });
-    await closeShift(db, { tenantId: A, userId: A }, { shiftId: shift.id, countedMinor: 2000 });
-    try { await checkout(db, { tenantId: A, userId: A }, { idempotencyKey: 'chk-closed-002', shiftId: shift.id, lines: [{ variantId: v, quantity: '1' }], tenders: [{ method: 'cash', amountMinor: 1000 }] }); expect.fail('should throw'); } catch (e: any) { expect(e.code).toBe('shift_closed'); }
+    await checkout(db, { tenantId: A, userId: A }, { idempotencyKey: 'chk-closed-001', shiftId: shift!.id, lines: [{ variantId: v, quantity: '1' }], tenders: [{ method: 'cash', amountMinor: 1000 }] });
+    await closeShift(db, { tenantId: A, userId: A }, { shiftId: shift!.id, countedMinor: 2000 });
+    try { await checkout(db, { tenantId: A, userId: A }, { idempotencyKey: 'chk-closed-002', shiftId: shift!.id, lines: [{ variantId: v, quantity: '1' }], tenders: [{ method: 'cash', amountMinor: 1000 }] }); expect.fail('should throw'); } catch (e: any) { expect(e.code).toBe('shift_closed'); }
   });
 
   it('tenant isolation: B cannot close A shift', async () => {
     const { shift } = await openShift(db, { tenantId: A, userId: A }, { registerCode: 'iso-test', openingMinor: 500, idempotencyKey: 'shift-iso-001' });
-    try { await closeShift(db, { tenantId: B, userId: B }, { shiftId: shift.id, countedMinor: 500 }); expect.fail('should throw'); } catch (e: any) { expect(e.code).toBe('shift_not_found'); }
+    try { await closeShift(db, { tenantId: B, userId: B }, { shiftId: shift!.id, countedMinor: 500 }); expect.fail('should throw'); } catch (e: any) { expect(e.code).toBe('shift_not_found'); }
   });
 
   it('getShift returns expected cash mid-shift', async () => {
     const { shift } = await openShift(db, { tenantId: B, userId: B }, { registerCode: 'get-test', openingMinor: 1000, idempotencyKey: 'shift-get-001' });
-    const view1 = await getShift(db, B, shift.id);
+    const view1 = await getShift(db, B, shift!.id);
     expect(view1?.expectedMinor).toBe(1000);
     expect(view1?.isClosed).toBe(false);
   });

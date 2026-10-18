@@ -25,9 +25,9 @@ function cairoParts(utcDate: Date): { y: number; m: number; d: number; h: number
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
-  const [mdy, hms] = s.split(', ');
-  const [m, d, y] = mdy.split('/').map(Number);
-  const [h, mi, sec] = hms.split(':').map(Number);
+  const [mdy = '', hms = ''] = s.split(', ');
+  const [m = NaN, d = NaN, y = NaN] = mdy.split('/').map(Number);
+  const [h = NaN, mi = NaN, sec = NaN] = hms.split(':').map(Number);
   return { y, m, d, h, mi, sec, s };
 }
 

@@ -71,7 +71,7 @@ describe('refunds — partial/full, limits, stock, idempotency', () => {
       reason: 'damaged',
       shiftId,
     });
-    expect(refund.amountMinor).toBe(750);
+    expect(refund!.amountMinor).toBe(750);
     const stockAfter = await withTenant(db, A, async (tx: any) => (await tx.select({ s: catalogVariants.stock }).from(catalogVariants).where(eq(catalogVariants.id, variantA1)))[0].s);
     expect(Number(stockAfter) - Number(stockBefore)).toBe(1); // restored 1
     // cash movement out exists
@@ -101,7 +101,7 @@ describe('refunds — partial/full, limits, stock, idempotency', () => {
       items: [{ variantId: variantA1, quantity: '1' }],
       shiftId,
     });
-    expect(refund.amountMinor).toBe(750);
+    expect(refund!.amountMinor).toBe(750);
     // try to refund again same item beyond original should fail (over amount or quantity)
     try {
       await createRefund(db, { tenantId: A, userId: A }, {
@@ -165,7 +165,7 @@ describe('refunds — partial/full, limits, stock, idempotency', () => {
     expect(r1.replayed).toBe(false);
     const r2 = await createRefund(db, { tenantId: B, userId: B }, input);
     expect(r2.replayed).toBe(true);
-    expect(r2.refund.id).toBe(r1.refund.id);
+    expect(r2.refund!.id).toBe(r1.refund!.id);
     // different body same key → conflict
     try {
       await createRefund(db, { tenantId: B, userId: B }, { ...input, items: [{ variantId: variantB1, quantity: '2' }] });
@@ -244,7 +244,7 @@ describe('refunds — partial/full, limits, stock, idempotency', () => {
       paymentId: pay.id,
       items: [{ variantId: variantB1, quantity: '1' }],
     });
-    expect(refund.amountMinor).toBe(750);
+    expect(refund!.amountMinor).toBe(750);
     // no cash movement for card refund
     const moves = await withTenant(db, B, async (tx: any) => tx.select().from(stockMovements).where(eq(stockMovements.transactionId, sale.id)));
     expect(moves.some((m: any) => m.reason === 'refund')).toBe(true);

@@ -23,7 +23,7 @@ beforeAll(async () => {
 });
 afterAll(()=> opened.close());
 
-function cairoParts(utcDate: Date){ const s=utcDate.toLocaleString('en-US',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}); const [mdy,hms]=s.split(', '); const [m,d,y]=mdy.split('/').map(Number); const [h,mi,sec]=hms.split(':').map(Number); return {y,m,d,h,mi,sec}; }
+function cairoParts(utcDate: Date){ const s=utcDate.toLocaleString('en-US',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}); const [mdy='',hms='']=s.split(', '); const [m=NaN,d=NaN,y=NaN]=mdy.split('/').map(Number); const [h=NaN,mi=NaN,sec=NaN]=hms.split(':').map(Number); return {y,m,d,h,mi,sec}; }
 function cairoOffsetMinutesForUTC(utcDate: Date): number { const p=cairoParts(utcDate); const cairoAsUTC=Date.UTC(p.y,p.m-1,p.d,p.h,p.mi,p.sec); return Math.round((cairoAsUTC-utcDate.getTime())/60000); }
 function findCairoDayStartUTC(y:number,m:number,d:number): Date {
   const wallMidnightUTC=Date.UTC(y,m-1,d,0,0,0);
@@ -33,7 +33,7 @@ function findCairoDayStartUTC(y:number,m:number,d:number): Date {
   const off=cairoOffsetMinutesForUTC(new Date(wallMidnightUTC)); return new Date(wallMidnightUTC - off*60000);
 }
 function parseDayCairo(s: string, end:boolean): Date {
-  const [y,m,d] = s.split('-').map(Number);
+  const [y=NaN,m=NaN,d=NaN] = s.split('-').map(Number);
   if(!end) return findCairoDayStartUTC(y,m,d);
   const dt=new Date(Date.UTC(y,m-1,d+1)); return findCairoDayStartUTC(dt.getUTCFullYear(), dt.getUTCMonth()+1, dt.getUTCDate());
 }

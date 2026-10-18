@@ -39,8 +39,8 @@ describe('integration — checkout → refund → shift close → report (isolat
     const today = todayStr();
     // 1. open shift 5000
     const { shift } = await openShift(db, { tenantId: A, userId: A }, { registerCode: 'main', openingMinor: 5000, idempotencyKey: 'integ-shift-001' });
-    const shiftId = shift.id as string;
-    expect(shift.openingMinor).toBe(5000);
+    const shiftId = shift!.id as string;
+    expect(shift!.openingMinor).toBe(5000);
 
     // 2. checkout cash 3 units = 3000
     const c1 = await checkout(db, { tenantId: A, userId: A }, {
@@ -86,7 +86,7 @@ describe('integration — checkout → refund → shift close → report (isolat
       items: [{ variantId: vA, quantity: '1' }],
       shiftId,
     });
-    expect(refund.amountMinor).toBe(1000);
+    expect(refund!.amountMinor).toBe(1000);
     // stock restored 45 ->46
     stock = await withTenant(db, A, async (tx: any) => {
       const { eq } = await import('drizzle-orm');

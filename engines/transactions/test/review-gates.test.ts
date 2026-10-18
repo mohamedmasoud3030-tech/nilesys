@@ -131,7 +131,7 @@ describe('Gate 2 — Concurrency (single-connection PGlite limitations noted)', 
       const [s]= await tx.insert(cashShifts).values({ tenantId: A, registerCode: 'conc-idem', openedBy: A, openingMinor:0, idempotencyKey:'conc-idem-shift-'+Date.now(), requestHash:'h' }).returning({ id: cashShifts.id });
       return s.id as string;
     });
-    const input = { idempotencyKey: 'conc-idem-001', shiftId, lines:[{ variantId: vA, quantity:'1' }], tenders:[{ method:'cash', amountMinor:750 }] };
+    const input = { idempotencyKey: 'conc-idem-001', shiftId, lines:[{ variantId: vA, quantity:'1' }], tenders:[{ method:'cash' as const, amountMinor:750 }] };
     const p1 = checkout(db, { tenantId: A, userId: A }, input);
     const p2 = checkout(db, { tenantId: A, userId: A }, input);
     const [r1,r2] = await Promise.all([p1,p2]);
