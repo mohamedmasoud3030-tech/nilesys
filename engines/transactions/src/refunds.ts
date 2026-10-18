@@ -10,6 +10,7 @@ import { catalogVariants } from '../../catalog/src/db/schema.js';
 import { cashMovements, cashShiftClosures, cashShifts, payments, refunds, salesTransactions, stockMovements, transactionLines } from './db/schema.js';
 import { DomainError } from './line.js';
 import { priceSale } from './sale.js';
+import { lockShift } from './shifts.js';
 
 export interface RefundActor { tenantId: string; userId: string; }
 export interface RefundItem { variantId: string; quantity: string; }
@@ -87,7 +88,7 @@ export async function createRefund(db: AnyPgDatabase, actor: RefundActor, input:
     return await withTenant(db, actor.tenantId, async (tx: any) => {
       // Serialize refunds per payment to prevent over-refund race (advisory lock, not FOR UPDATE which needs UPDATE privilege)
       await advisoryLock(tx, `refund:${actor.tenantId}:${input.paymentId}`);
-      if (input.shiftId) await advisoryLock(tx, `shift:${actor.tenantId}:${input.shiftId}`);
+      if (input.shiftId) await lockShift(tx, actor.tenantId, input.shiftId);
       const replay = await replayOrConflict(tx);
       if (replay) return replay;
 

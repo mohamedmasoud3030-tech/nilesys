@@ -38,6 +38,21 @@ function advisoryKey(str: string): number {
   for (let i = 0; i < str.length; i++) h = ((h * 31) + str.charCodeAt(i)) >>> 0;
   return h;
 }
+/**
+ * The ONE advisory-lock key for every cash operation on a shift: cash sale
+ * (checkout), cash refund and close. They must share it, or a sale can commit
+ * into a shift whose closure has already summed the movements without it.
+ * (Row locks are unavailable: nile_app has no UPDATE, which FOR UPDATE needs.)
+ */
+export function shiftLockKey(tenantId: string, shiftId: string): number {
+  return advisoryKey(`shift:${tenantId}:${shiftId}`);
+}
+
+/** Serialises cash operations on one shift until the transaction ends. */
+export async function lockShift(tx: any, tenantId: string, shiftId: string): Promise<void> {
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(${shiftLockKey(tenantId, shiftId)})`);
+}
+
 async function advisoryLock(tx: any, key: string) {
   const k = advisoryKey(key);
   await tx.execute(sql`SELECT pg_advisory_xact_lock(${k})`);
@@ -104,7 +119,7 @@ export async function closeShift(db: AnyPgDatabase, actor: ShiftActor, input: Cl
   if (input.countedMinor < 0 || input.countedMinor > 100_000_000_00) throw new DomainError('invalid_amount', 'المبلغ المعدود غير صالح');
 
   return withTenant(db, actor.tenantId, async (tx: any) => {
-    await advisoryLock(tx, `shift-close:${actor.tenantId}:${input.shiftId}`);
+    await lockShift(tx, actor.tenantId, input.shiftId);
     const [shift] = await tx.select().from(cashShifts).where(and(eq(cashShifts.id, input.shiftId), eq(cashShifts.tenantId, actor.tenantId))).limit(1);
     if (!shift) throw new DomainError('shift_not_found', 'الوردية غير موجودة');
     const [already] = await tx.select().from(cashShiftClosures).where(eq(cashShiftClosures.shiftId, input.shiftId)).limit(1);

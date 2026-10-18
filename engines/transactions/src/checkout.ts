@@ -11,6 +11,7 @@ import { cashMovements, cashShiftClosures, cashShifts, payments, salesTransactio
 import { DomainError } from './line.js';
 import { mergeSaleLines, priceSale, type PricedLineInput } from './sale.js';
 import type { CreateSaleInput } from './contracts.js';
+import { lockShift } from './shifts.js';
 
 export type TenderMethod = 'cash' | 'card' | 'wallet' | 'transfer';
 
@@ -125,7 +126,7 @@ export async function checkout(
   try {
     return await withTenant(db, actor.tenantId, async (tx: any) => {
       // Serialize cash operations per shift to prevent close vs sale race (needs advisory lock, not row lock due to REVOKE UPDATE)
-      if (input.shiftId) await advisoryLock(tx, `shift:${actor.tenantId}:${input.shiftId}`);
+      if (input.shiftId) await lockShift(tx, actor.tenantId, input.shiftId);
       const replay = await replayOrConflict(tx);
       if (replay) return replay;
 
