@@ -142,6 +142,7 @@ export const SYSTEMS = [
       'apps/api/test/e2e-sale.test.ts',
       'prototypes/nilesys/public/systems/pos.html',
       'prototypes/nilesys/REVIEW.md',
+      'prototypes/nilesys/tests/regression.test.js',
     ],
     engines: [
       { path: 'engines/transactions/src/sale-service.ts', provides: 'persisted, idempotent, atomic sale with lines, stock movements and audit row' },
@@ -152,7 +153,7 @@ export const SYSTEMS = [
     mustNotClaim: [
       NO_LIVE_DEMO,
       'payments, refunds or shifts on the production path (payments engine is on unmerged branch feat/nile-payments-engine)',
-      'that the legacy prototype is production (it has 6 confirmed defects in REVIEW.md, reproduced 2026-10-18)',
+      'that the legacy prototype is production: it is a single-process JSON-file demo. The 6 REVIEW.md defects (PERM-3, SALE-2, SALE-3, SALE-6, SHIFT-2, RESET-2) are fixed with regression tests (prototypes/nilesys/tests/regression.test.js), but plaintext passwords (C1), no tenants (C2), global reset (C3), gross report totals after partial returns (H1/DIAG-2), no idempotency (H3), in-memory sessions (H4) and non-atomic saves (H5) remain open',
     ],
     nextStep: 'Owned by the primary agent (payments → payments API → cashier UI). Not in this registry\'s scope.',
     blockedBy: null,
@@ -226,7 +227,7 @@ export const SYSTEMS = [
     prototype: 'card-only',
     owner: 'parallel-agent',
     destination: null,
-    evidence: [PROTOTYPE_HOME, DEMO_SEED, 'engines/people/test/people.test.ts', 'engines/people/src/people-service.ts', 'engines/people/test/people-service.test.ts'],
+    evidence: [PROTOTYPE_HOME, DEMO_SEED, 'engines/people/test/people.test.ts', 'engines/people/src/people-service.ts', 'engines/people/test/people-service.test.ts', 'engines/people/test/people-service.pg.test.ts'],
     engines: [
       { path: 'engines/people/src/attendance.ts', provides: 'work hours, lateness and overtime minutes' },
       { path: 'engines/people/src/payroll.ts', provides: 'leave balances, loan schedules, payslips' },
@@ -248,7 +249,7 @@ export const SYSTEMS = [
     prototype: 'card-only',
     owner: 'parallel-agent',
     destination: null,
-    evidence: [PROTOTYPE_HOME, DEMO_SEED, 'engines/catalog/src/lead-service.ts', 'engines/catalog/test/lead-service.test.ts'],
+    evidence: [PROTOTYPE_HOME, DEMO_SEED, 'engines/catalog/src/lead-service.ts', 'engines/catalog/test/lead-service.test.ts', 'engines/catalog/test/lead-service.pg.test.ts'],
     engines: [
       { path: 'engines/catalog/src/catalog.ts', provides: 'lead pipeline: all 7 site sources → one inbox, stage transitions' },
       { path: 'engines/catalog/src/lead-service.ts', provides: 'tenant-scoped captureLead / listLeads / moveLead' },
