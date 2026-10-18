@@ -195,10 +195,10 @@ export async function checkout(
       // Payments + cash movements
       const payRows: any[] = [];
       const cashMoves: any[] = [];
-      for (const t of input.tenders) {
+      for (const [i, t] of input.tenders.entries()) {
         const change = t.method === 'cash' && t.tenderedMinor !== undefined ? t.tenderedMinor - t.amountMinor : null;
         const [p] = await tx.insert(payments).values({
-          tenantId: actor.tenantId, transactionId: header.id, method: t.method, amountMinor: t.amountMinor, tenderedMinor: t.tenderedMinor ?? null, changeMinor: change, externalRef: t.externalRef ?? null, shiftId: t.method === 'cash' ? input.shiftId as string : null, idempotencyKey: `${input.idempotencyKey}#pay:${t.method}:${t.amountMinor}`, requestHash: createHash('sha256').update(JSON.stringify(t)).digest('hex'), createdBy: actor.userId,
+          tenantId: actor.tenantId, transactionId: header.id, method: t.method, amountMinor: t.amountMinor, tenderedMinor: t.tenderedMinor ?? null, changeMinor: change, externalRef: t.externalRef ?? null, shiftId: t.method === 'cash' ? input.shiftId as string : null, idempotencyKey: `${input.idempotencyKey}#pay:${i}:${t.method}:${t.amountMinor}` /* position makes identical split tenders distinct */, requestHash: createHash('sha256').update(JSON.stringify(t)).digest('hex'), createdBy: actor.userId,
         }).returning({ id: payments.id });
         payRows.push({ id: p.id, method: t.method, amountMinor: t.amountMinor, changeMinor: change });
         if (t.method === 'cash') {
