@@ -163,8 +163,38 @@ export async function listEmployees(db: AnyPgDatabase, tenantId: string, opts: {
  * The merged row must still satisfy check-out > check-in, otherwise the whole
  * write rolls back.
  */
+/** True when `e` (or a wrapped cause) is the employee-day unique violation. */
+function isEmployeeDayConflict(e: unknown): boolean {
+  for (let c: any = e; c; c = c.cause) {
+    if (c.code === '23505' && c.constraint === 'attendance_tenant_emp_day_uq') return true;
+  }
+  return false;
+}
+
+/**
+ * Concurrency (proven on real PostgreSQL in people-service.pg.test.ts; PGlite
+ * is single-connection and cannot show it):
+ *  - an existing employee-day row is read FOR UPDATE, so concurrent partial
+ *    updates (check-in vs check-out) are serialised and merge, never lose a field;
+ *  - when two requests create the same employee-day at once, the loser hits
+ *    attendance_tenant_emp_day_uq; the winner has committed by then, so ONE retry
+ *    takes the update path and merges instead of failing with a raw SQL error.
+ */
 export async function recordAttendance(db: AnyPgDatabase, tenantId: string, input: unknown): Promise<AttendanceView> {
   const data = parse(recordAttendanceInputSchema, input);
+  try {
+    return await recordAttendanceTx(db, tenantId, data);
+  } catch (e) {
+    if (!isEmployeeDayConflict(e)) throw e;
+    return recordAttendanceTx(db, tenantId, data);
+  }
+}
+
+function recordAttendanceTx(
+  db: AnyPgDatabase,
+  tenantId: string,
+  data: z.output<typeof recordAttendanceInputSchema>,
+): Promise<AttendanceView> {
   return withTenant(db, tenantId, async (tx: any) => {
     // RLS hides other tenants' employees, so their ids are simply "not found";
     // the composite FK (tenant_id, employee_id) is a second, database-level guard.
@@ -174,7 +204,8 @@ export async function recordAttendance(db: AnyPgDatabase, tenantId: string, inpu
       .select()
       .from(attendanceRecords)
       .where(and(eq(attendanceRecords.employeeId, data.employeeId), eq(attendanceRecords.day, data.day)))
-      .limit(1);
+      .limit(1)
+      .for('update');
 
     const clearsTimes = NO_TIMES.includes(data.status);
     const merged = {
