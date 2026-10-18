@@ -5,7 +5,7 @@
  */
 /**
  * Decimal primitives — the only place arithmetic on money or weight is allowed.
- * Contract: docs/adr/0004-decimal-arithmetic.md, docs/FINANCIAL_RULES.md §1
+ * Contract: docs/adr/kayyal-core/0004-decimal-arithmetic.md, docs/FINANCIAL_RULES.md §1
  *
  * RULES ENFORCED HERE:
  *  - No JS `number` ever holds a money or weight value.
