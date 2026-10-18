@@ -8,7 +8,7 @@ import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swagger';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { CatalogController, HealthController, MeController, SalesController } from './controllers.js';
+import { CatalogController, CheckoutController, HealthController, MeController, RefundsController, ReportsController, SalesController, ShiftsController } from './controllers.js';
 import { DEPS, type Deps } from './deps.js';
 import { webHeaders } from './http.js';
 
@@ -17,7 +17,7 @@ class AppModule {
   static register(deps: Deps): DynamicModule {
     return {
       module: AppModule,
-      controllers: [HealthController, MeController, CatalogController, SalesController],
+      controllers: [HealthController, MeController, CatalogController, SalesController, CheckoutController, ShiftsController, RefundsController, ReportsController],
       providers: [{ provide: DEPS, useValue: deps }],
     };
   }
