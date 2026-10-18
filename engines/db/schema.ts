@@ -7,5 +7,6 @@ export * from '../platform/src/auth/schema.js';
 export * from '../platform/src/db/schema.js';
 export * from '../catalog/src/db/schema.js';
 export * from '../transactions/src/db/schema.js';
+export * from '../transactions/src/db/payments-schema.js';
 export * from '../booking/src/db/schema.js';
 export * from '../people/src/db/schema.js';
