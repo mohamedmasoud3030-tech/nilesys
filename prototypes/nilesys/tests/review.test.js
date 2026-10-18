@@ -153,8 +153,10 @@ test('SALE-2: البيع بأكثر من المخزون (هل السيرفر ي�
   const before = p.stock;
   const r = await req('POST', '/api/sales', { cookie: l.cookie, body: { items: [{ productId: p.id, qty: before + 999 }], method: 'cash' } });
   const after = (await req('GET', '/api/products', { cookie: l.cookie })).data.products.find((x) => x.id === p.id);
-  record('SALE-2', r.status !== 201,
-    `status=${r.status} qty sold=${before + 999} stock after=${after.stock} → ${r.status === 201 ? 'السيرفر قبل بيع أكتر من المخزون' : 'ممنوع'}`);
+  // الحكم المطبوع = شرط التأكيد نفسه بالضبط (409 + المخزون لم يتغير)؛ أي كود آخر (مثلاً 500) = FAIL
+  const ok = r.status === 409 && after.stock === before;
+  const verdict = r.status === 201 ? 'السيرفر قبل بيع أكتر من المخزون' : ok ? 'ممنوع (409)' : `استجابة غير متوقعة (${r.status}) أو المخزون اتغير`;
+  record('SALE-2', ok, `status=${r.status} qty sold=${before + 999} stock ${before}→${after.stock} → ${verdict}`);
   assert.equal(r.status, 409); assert.equal(after.stock, before);
 });
 
@@ -162,9 +164,10 @@ test('SALE-3: المبلغ المستلم أقل من الإجمالي (هل ا�
   const l = await login('pos', 'manager');
   const p = (await req('GET', '/api/products', { cookie: l.cookie })).data.products[0];
   const r = await req('POST', '/api/sales', { cookie: l.cookie, body: { items: [{ productId: p.id, qty: 1 }], method: 'cash', paid: 1 } });
-  const accepted = r.status === 201 && r.data.sale.paid < r.data.sale.total;
-  record('SALE-3', !accepted,
-    `status=${r.status} price=${p.price} paid=1 → ${accepted ? 'السيرفر قبل نقص في الدفع' : 'مرفوض'}`);
+  // سياسة معتمدة: رفض الدفع الناقص بـ 400. الحكم = شرط التأكيد؛ لا قراءة لـ data.sale من استجابة خطأ
+  const ok = r.status === 400;
+  const verdict = r.status === 201 ? 'السيرفر قبل نقص في الدفع' : ok ? 'مرفوض (400)' : `استجابة غير متوقعة (${r.status})`;
+  record('SALE-3', ok, `status=${r.status} price=${p.price} paid=1 → ${verdict}`);
   assert.equal(r.status, 400);
 });
 
@@ -194,7 +197,10 @@ test('SALE-6: باركود مكرر مسموح (تحقق المدخلات)', asy
   const p = (await req('GET', '/api/products', { cookie: l.cookie })).data.products[0];
   const r = await req('POST', '/api/products', { cookie: l.cookie, body: { name: 'صنف اختبار', price: 10, cost: 5, stock: 5, barcode: p.barcode } });
   const dup = (await req('GET', '/api/products', { cookie: l.cookie })).data.products.filter((x) => x.barcode === p.barcode).length;
-  record('SALE-6', r.status !== 201, `status=${r.status} duplicates=${dup} → ${r.status === 201 ? 'مسموح بباركود مكرر' : 'مرفوض'}`);
+  // الحكم = شرط التأكيد (409 + لا يوجد تكرار)
+  const ok = r.status === 409 && dup === 1;
+  const verdict = r.status === 201 ? 'مسموح بباركود مكرر' : ok ? 'مرفوض (409)' : `استجابة غير متوقعة (${r.status}) أو تكرار=${dup}`;
+  record('SALE-6', ok, `status=${r.status} duplicates=${dup} → ${verdict}`);
   assert.equal(r.status, 409); assert.equal(dup, 1);
 });
 
