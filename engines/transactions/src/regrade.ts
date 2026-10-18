@@ -5,8 +5,17 @@
  */
 /**
  * Regrade allocation by relative sales value, with snapshots and deferred resolution.
- * Contract: docs/FINANCIAL_RULES.md §6 and §7, docs/adr/0007-regrade-allocation.md.
- * Golden examples G-8 (allocation) and G-9 (deferred resolution).
+ * Contract in this repository: the golden suite
+ * `engines/transactions/test/golden.test.ts` — G-8 (allocation) and G-9
+ * (deferred resolution). Those golden results may never change without an ADR
+ * (see docs/REUSE.md).
+ * Provenance note: the extraction source cited `docs/FINANCIAL_RULES.md` §6–§7
+ * and `docs/adr/0007-regrade-allocation.md`. Neither exists in this repository,
+ * and ADR-0007 here is "Roles and permissions via Better Auth access control",
+ * not regrade allocation. Do not follow those paths; see the "Numbering notes"
+ * in docs/DECISIONS.md. This is not unique to this file: `docs/FINANCIAL_RULES.md`
+ * and source-repo ADR numbers 0004/0006/0008/0009 are cited across
+ * `engines/transactions/` and are pending an owner decision.
  */
 import {
   Decimal, type EGP, type EGPPerKg, type Kg,
@@ -54,7 +63,9 @@ export function conserveWeight(sourceKg: Kg, outputs: readonly { kg: Kg }[], los
 /**
  * Distribute `consumedValue` across outputs by relative sales value.
  * The residue from rounding is absorbed by the LAST output so that
- * Σ allocatedValue === consumedValue exactly (FINANCIAL_RULES §6, invariant DB-9).
+ * Σ allocatedValue === consumedValue exactly (pinned by golden example G-8 in
+ * `test/golden.test.ts`; the source's "FINANCIAL_RULES §6 / invariant DB-9"
+ * document is not in this repository).
  */
 function distribute(consumedValue: EGP, weights: readonly Decimal[], outputs: readonly RegradeOutputInput[], method: AllocationMethod): AllocatedOutput[] {
   const total = weights.reduce<Decimal>((a, w) => a.plus(w), new Decimal(0));

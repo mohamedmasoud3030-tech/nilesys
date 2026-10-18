@@ -14,6 +14,8 @@ folder containing a `SKILL.md`.
 | `systematic-debugging` | any bug, test failure, or unexpected behavior | `systematic-debugging/SKILL.md` |
 | `code-review` | reviewing a completed change | `code-review/SKILL.md` |
 | `verification-before-completion` | before claiming any work is complete | `verification-before-completion/SKILL.md` |
+| `security-review` | a change touches authentication, authorization, organization or tenant context, PostgreSQL RLS, secrets, untrusted input, external integrations, sensitive data or any other trust boundary; or an explicit security audit or threat review is requested | `security-review/SKILL.md` |
+| `source-driven-development` | relying on version-specific framework, library, tool or external API behaviour, adding or upgrading a dependency, or making any claim whose correctness can change across versions | `source-driven-development/SKILL.md` |
 
 ## Discovery and activation
 

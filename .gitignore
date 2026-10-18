@@ -16,7 +16,6 @@ dist/
 # Local backups
 *.tar.gz
 !docs/**/*.tar.gz
-node_modules/
 .local/
 *.tsbuildinfo
 
