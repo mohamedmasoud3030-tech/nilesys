@@ -1,21 +1,31 @@
-# بيانات التشغيل المحلية (تُولَّد تلقائياً من البذور)
+# Local runtime data (regenerated from seeds)
 prototypes/*/data/db.json
 prototypes/*/data/*.json
 
-# سجلات وملفات مؤقتة
+# Logs and temporary files
 *.log
 .DS_Store
 Thumbs.db
 
-# تبعيات (عند إدخال pnpm/Nx لاحقاً حسب ADR-0001)
+# Dependencies and build output (.nx/.pnpm-store reserved for ADR-0001 tooling)
 node_modules/
 dist/
 .nx/
 .pnpm-store/
 
-# نسخ احتياطية محلية
+# Local backups
 *.tar.gz
 !docs/**/*.tar.gz
 node_modules/
 .local/
 *.tsbuildinfo
+
+# Local scratch, probes and credential-bearing files (never commit)
+.env
+.env.*
+!.env.example
+.scratch/
+.scratch-*/
+.probe/
+.list.mts
+*.bundle

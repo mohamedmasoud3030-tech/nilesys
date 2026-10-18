@@ -1,5 +1,11 @@
 # Mohamed App Factory — Architecture Assessment
 
+> **Status: HISTORICAL (archived 2026-10-14).** This was the pre-implementation consultation that led to
+> ADR-0001..0003. It predates the Nile engines, the database layer and all code, so its "current state",
+> "no application code" and "Sales / Property & Rental" framing are out of date. It never overrides an
+> ADR or [`AGENTS.md`](../../AGENTS.md). Current architecture: [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md).
+> It was moved from `docs/architecture-assessment.md` without changes to its content.
+
 - **Date:** 2026-09-04
 - **Status:** Draft — for review by Mohamed and ChatGPT
 - **Author:** Arena (senior implementation / architecture reviewer)

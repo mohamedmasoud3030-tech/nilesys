@@ -1,20 +1,22 @@
 # Nile Engines
 
-Framework-agnostic domain cores for the Nile demo platform. Pure TypeScript —
-no DB, no HTTP, no UI. Persistence (Drizzle + PostgreSQL RLS, ADR-0004/0005),
-API (NestJS/Fastify REST + OpenAPI, ADR-0001/0006) and apps plug in behind
-these contracts. **Rule: no product screen is built before its engine exists
-and is tested.**
+Domain cores for the Nile demo platform. The domain files (`engines/*/src/*.ts`)
+are pure TypeScript with no DB, HTTP or UI. Persistence lives next to them in
+`engines/*/src/db/` and `engines/db/` (Drizzle + PostgreSQL RLS, ADR-0004/0005),
+and the HTTP API in `apps/api` (NestJS/Fastify REST + OpenAPI, ADR-0001/0006).
+Current implementation status and gaps: [`docs/STATUS.md`](../docs/STATUS.md).
+
+**Rule: no product screen is built before its engine exists and is tested.**
 
 | Engine | What it owns | Main sources |
 |---|---|---|
 | `platform/` | Tenant context (fail-closed, ADR-0002/0005), command idempotency, visitor branding, Arabic/date/phone locale utils | Terranex, starting, ADR-0005 |
 | `transactions/` | Exact money (integer minor units = canonical storage; Decimal = in-domain arithmetic, bridged in `money-bridge.ts`), invoice lines, weighted-average costing, cash drawer/shifts, regrade allocation | bug-free-garbanzo (kayyal), Terranex |
-| `booking/` | Resources, availability slots, double-booking prevention, booking lifecycle state machine, booking codes, day grouping (Africa/Cairo) | larabeauty-, starting |
+| `booking/` | Resources, availability slots, domain-level overlap check (**not yet enforced by the database**: no `EXCLUDE` constraint, gate finding G-10), booking lifecycle state machine, booking codes, day grouping (Africa/Cairo) | larabeauty-, starting |
 | `catalog/` | Items/variants/stock states, discounts, installment calculators, storefront validation, lead pipeline (all sites → one admin inbox) | starting, Nile benchmark |
 | `people/` | Attendance/lateness/overtime, leave balances, loan schedules, payslips | larabeauty- |
 
-## Persistence, auth & the first operational path (done)
+## Persistence, auth & the first operational path (implemented on `main`)
 
 - `engines/*/src/db/schema.ts` — module-owned Drizzle schemas (ADR-0004);
   tenant tables use `tenancy.ts` helpers (tenant FK, fail-closed policy,
@@ -43,4 +45,9 @@ npm run api:dev     # API on :3000 with demo tenant (PGlite on disk)
 npm run api:smoke   # live: cashier login → sale → receipt
 ```
 
-Extraction provenance for every file: `docs/REUSE.md`.
+Extraction provenance for every file: [`docs/REUSE.md`](../docs/REUSE.md).
+
+**Citations inside extracted files** (for example `docs/adr/0009-cash-reconciliation.md`,
+`docs/FINANCIAL_RULES.md`, `ADR-0008`, decision IDs such as `D32`, golden IDs such as `G-10`) refer to the
+**source repository** named in each file's provenance header, **not** to this repository's ADRs, documents
+or findings. This repository's decisions are only those in [`docs/DECISIONS.md`](../docs/DECISIONS.md).

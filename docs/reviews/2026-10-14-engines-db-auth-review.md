@@ -1,5 +1,10 @@
 # Review: engines ↔ database integration, auth, permissions, tenant isolation
 
+> **Status: HISTORICAL (note added 2026-10-14).** Reviewed `main` after PR #1 and PR #2 (`0811ae0`); its
+> findings (F-n) were addressed by PR #3. An independent, overlapping review of the same commit is
+> [`0001-nile-engines-db-auth-review.md`](0001-nile-engines-db-auth-review.md) (H-n). Live status of every
+> open finding is kept only in [`docs/STATUS.md`](../STATUS.md) §6.
+
 - **Date:** 2026-10-14
 - **Scope:** everything merged in PR #1 (engine cores) and PR #2 (DB layer),
   reviewed before building the first operational path (login → saved sale).

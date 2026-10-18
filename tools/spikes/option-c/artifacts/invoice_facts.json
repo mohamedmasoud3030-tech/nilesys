@@ -1,0 +1,11 @@
+{
+ "company": "Spike Egypt LLC",
+ "customer": "شركة النيل للمقاولات",
+ "customer_vat": "100987654321",
+ "invoice_name": false,
+ "invoice_date": "2026-10-01",
+ "untaxed": 10000.0,
+ "tax": 1400.0,
+ "total": 11400.0,
+ "line": "إيجار شهر أكتوبر ٢٠٢٦ — وحدة ٥"
+}

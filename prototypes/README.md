@@ -1,5 +1,12 @@
 # prototypes/ — نماذج أولية ومراجع
 
+> **Status: HISTORICAL / REFERENCE (English summary, 2026-10-14).** `prototypes/nilesys` is the first
+> working Nile demo: plain Node.js, JSON-file storage, no tenancy. It is **not** the production code path;
+> that path is `engines/` + `apps/api` (see [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)). It stays as
+> the reference for Arabic/RTL UX, the bilingual dictionary and cashier behaviour, to be reused when
+> product UIs are built on top of tested engines. It does not override any ADR. The Arabic text below is
+> the original; an English translation is a tracked follow-up in [`docs/STATUS.md`](../docs/STATUS.md).
+
 هذا المجلد يحتوي **نماذج أولية عاملة (prototypes)** بُنيت لدراسة المتطلبات
 واستخلاص القرارات المعمارية. **ليست هي كود الإنتاج.**
 

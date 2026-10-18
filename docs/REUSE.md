@@ -6,6 +6,11 @@ or (b) newly written generic code whose patterns are credited below.
 Excluded by design: `teste` (third-party MIT template by JCodesMore — a tool,
 not a company asset) and `Test` (457-line experiment with tracked ZIPs).
 
+> **Citations inside extracted files** (`docs/adr/000N-…`, `docs/FINANCIAL_RULES.md`, `ADR-000N`, `D32`,
+> golden `G-n`, defect `D17`) refer to the **source repository** listed below, not to this repository. This
+> repository's decisions are only those indexed in [`DECISIONS.md`](DECISIONS.md). The source documents are
+> not copied here.
+
 ## Extracted verbatim (provenance header inside each file)
 
 | Nile file | Source repo / path |
@@ -36,15 +41,17 @@ not a company asset) and `Test` (457-line experiment with tracked ZIPs).
 
 ## Not yet extracted (next phases, in order)
 
-1. ~~DB layer per engine~~ — DONE: Drizzle schemas → generated migrations
+> Extraction history only. The canonical roadmap and task status is [`STATUS.md`](STATUS.md).
+
+1. ~~DB layer per engine~~ — MERGED IN `main` (PR #2): Drizzle schemas → generated migrations
    (`engines/db/migrations/`, RLS, composite tenant FKs, runtime role),
    patterns from `bug-free-garbanzo/db/migrations/0002-0005`; proven by
    PGlite RLS tests running as a non-superuser runtime role. Delegated
    permissions from `starting` migration 0079 remain for the API phase.
-2. ~~Auth~~ — DONE: Better Auth + Organization plugin (ADR-0005), roles via
+2. ~~Auth~~ — MERGED IN `main` (PR #3): Better Auth + Organization plugin (ADR-0005), roles via
    Better Auth access control (ADR-0007), demo accounts provisioned on boot.
    Daily demo-data reset job still pending.
-3. API service: first slice DONE (`apps/api`: auth, me, catalog, sales, OpenAPI).
+3. API service: first slice MERGED IN `main` (PR #3; `apps/api`: auth, me, catalog, sales, OpenAPI).
    Still to adopt: `platform` repo's
    `lib/api-zod` + `tools/verify-*` + `pnpm-workspace.yaml` supply-chain
    hardening when the workspace moves to Nx + pnpm (ADR-0001).

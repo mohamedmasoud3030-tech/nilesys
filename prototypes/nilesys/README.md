@@ -1,5 +1,11 @@
 # Nile Systems — منصة الأنظمة والمواقع الجاهزة (نسخة تعليمية)
 
+> **Status: HISTORICAL (English note, 2026-10-14).** This documents the plain-Node prototype as of
+> 2026-10-13. Paths such as `/home/user/nilesys` and backup archives refer to a local machine and are not in
+> this repository. Statements about "current" behaviour, plans or stack choices describe the prototype only,
+> not Nile's production path. See [`prototypes/README.md`](../README.md) and
+> [`docs/STATUS.md`](../../docs/STATUS.md).
+
 منصة موحّدة على غرار `marketing-app.runasp.net` (ديمو كود ماتريكس): موقع تسويقي يعرض أنظمة إدارة ومواقع جاهزة، مع **ديمو حقيقي شغال** — نفس تجربة الأصل: حسابات تجربة بضغطة واحدة، بيانات حقيقية بتتحفظ، عربي/إنجليزي بتبديل كامل.
 
 > **الفرق الجوهري عن الموقع الأصلي:** هنا الكود مفتوح بالكامل وبني بأبسط تقنية ممكنة تشتغل فوراً — **Node.js خالص بدون أي مكتبات خارجية** (zero npm dependencies). مفيش `npm install`، ومفيش قاعدة بيانات خارجية: البيانات في ملف JSON واحد سهل الاستبدال بـ SQLite/MySQL لاحقاً.

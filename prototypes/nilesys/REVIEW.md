@@ -1,5 +1,11 @@
 # التقرير الهندسي — مراجعة المرحلة 1 (منصة نيل سيستمز)
 
+> **Status: HISTORICAL (English note, 2026-10-14).** This documents the plain-Node prototype as of
+> 2026-10-13. Paths such as `/home/user/nilesys` and backup archives refer to a local machine and are not in
+> this repository. Statements about "current" behaviour, plans or stack choices describe the prototype only,
+> not Nile's production path. See [`prototypes/README.md`](../README.md) and
+> [`docs/STATUS.md`](../../docs/STATUS.md).
+
 **المشروع:** `/home/user/nilesys/` · **تاريخ المراجعة:** 13 أكتوبر 2026
 **النسخة الآمنة:** `/home/user/nilesys-backup-phase1.tar.gz` (sha256: `1fa8a354…d02f`)
 **حالة التطوير:** ⏸️ متوقف — لم يُعدَّل أي كود تطبيقي خلال هذه المراجعة. التغيير الوحيد: إضافة مجلد `tests/` (أدوات مراجعة، مش ميزة).
