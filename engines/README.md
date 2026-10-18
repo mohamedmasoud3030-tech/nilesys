@@ -47,7 +47,7 @@ npm run api:smoke   # live: cashier login → sale → receipt
 
 Extraction provenance for every file: [`docs/REUSE.md`](../docs/REUSE.md).
 
-**Citations inside extracted files** (for example `docs/adr/0009-cash-reconciliation.md`,
+**Citations inside extracted files** (for example `docs/adr/kayyal-core/0009-cash-reconciliation.md`,
 `docs/FINANCIAL_RULES.md`, `ADR-0008`, decision IDs such as `D32`, golden IDs such as `G-10`) refer to the
 **source repository** named in each file's provenance header, **not** to this repository's ADRs, documents
 or findings. This repository's decisions are only those in [`docs/DECISIONS.md`](../docs/DECISIONS.md).
