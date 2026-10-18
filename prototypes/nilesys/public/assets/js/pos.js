@@ -380,7 +380,8 @@
     const { sales } = await api('/api/sales?limit=200');
     const cashSince = (from) => sales.filter((s) => s.method === 'cash' && s.status !== 'returned' && new Date(s.createdAt) >= new Date(from)).reduce((a, s) => a + s.total, 0);
     if (openShift) {
-      const expected = openShift.startingCash + cashSince(openShift.openedAt);
+      // SHIFT-2: المتوقع يُحسب على السيرفر (يشمل خصم المرتجعات الجزئية)؛ الحساب المحلي احتياطي فقط
+      const expected = typeof openShift.expectedCashNow === 'number' ? openShift.expectedCashNow : openShift.startingCash + cashSince(openShift.openedAt);
       $('#shiftBox').innerHTML = `<div class="card card-pad" style="max-width:430px">
         <div class="row between mb-2"><b>● ${t('pos.shiftOpen')}</b><span class="badge badge-ok mono">${hm(openShift.openedAt)}</span></div>
         <div class="line" style="display:flex;justify-content:space-between;padding:6px 0"><span>${t('pos.startingCash')}</span><b class="mono">${money(openShift.startingCash)}</b></div>

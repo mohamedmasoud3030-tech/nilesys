@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 /**
- * Nile Systems — اختبارات المراجعة الهندسية (المرحلة 1) — v2
+ * Nile Systems — اختبارات المراجعة الهندسية (المرحلة 1) — v3
+ *
+ * v3: بعد إصلاح PERM-3 / SALE-2 / SALE-3 / SALE-6 / SHIFT-2 / RESET-2 صارت التأكيدات
+ * تتحقق من السلوك الصحيح بدل توثيق الخلل (كانت تأكيدات INFO). RET-4 كان تأكيده قديماً
+ * (السلوك سليم أصلاً) فتم تصحيحه. اختبارات الانحدار المعزولة: tests/regression.test.js
  * التشغيل:  BASE=http://localhost:3210 node --test tests/review.test.js
  *
  * كل اختبار بيسجّل نتيجة صريحة: PASS / FAIL / INFO
@@ -43,7 +47,7 @@ test('SETUP: إعادة ضبط بيانات الديمو قبل الاختبار
   assert.equal(l.status, 200);
   const r = await req('POST', '/api/reset', { cookie: l.cookie });
   assert.equal(r.status, 200);
-  const l2 = await login('pos', 'manager'); // الجلسة اتكسرت بعد الإعادة (مشكلة مؤكدة C3)
+  const l2 = await login('pos', 'manager'); // (v3: الجلسة بقت تنجو من الإعادة — RESET-2؛ الدخول من جديد غير ضروري)
   const sales = await req('GET', '/api/sales?limit=100', { cookie: l2.cookie });
   const products = await req('GET', '/api/products', { cookie: l2.cookie });
   record('SETUP', sales.status === 200 && products.data.products.length === 26,
@@ -123,8 +127,10 @@ test('PERM-3: عزل الأنظمة — موظف HR يوصل لبيانات ال
   const report = await req('GET', '/api/reports/summary', { cookie: hr.cookie });
   const posProducts = (await login('pos', 'manager'), await req('GET', '/api/products', { cookie: (await login('pos', 'manager')).cookie })).data.products;
   const sale = await req('POST', '/api/sales', { cookie: hr.cookie, body: { items: [{ productId: posProducts[0].id, qty: 1 }], method: 'cash' } });
-  record('PERM-3', false,
-    `HR employee: GET products=${products.status} (${products.data.products?.length ?? 0} صنف) | POST sale=${sale.status} | report=${report.status} → تسريب كامل بين الأنظمة`);
+  const isolated = products.status === 403 && sale.status === 403 && report.status === 403;
+  record('PERM-3', isolated,
+    `HR employee: GET products=${products.status} (${products.data.products?.length ?? 0} صنف) | POST sale=${sale.status} | report=${report.status} → ${isolated ? 'معزول' : 'تسريب كامل بين الأنظمة'}`);
+  assert.ok(isolated);
 });
 
 /* ================= 3) سلامة البيع ================= */
@@ -149,16 +155,17 @@ test('SALE-2: البيع بأكثر من المخزون (هل السيرفر ي�
   const after = (await req('GET', '/api/products', { cookie: l.cookie })).data.products.find((x) => x.id === p.id);
   record('SALE-2', r.status !== 201,
     `status=${r.status} qty sold=${before + 999} stock after=${after.stock} → ${r.status === 201 ? 'السيرفر قبل بيع أكتر من المخزون' : 'ممنوع'}`);
-  assert.equal(r.status, 201, 'INFO: oversell accepted by server');
+  assert.equal(r.status, 409); assert.equal(after.stock, before);
 });
 
 test('SALE-3: المبلغ المستلم أقل من الإجمالي (هل السيرفر يمنع؟)', async () => {
   const l = await login('pos', 'manager');
   const p = (await req('GET', '/api/products', { cookie: l.cookie })).data.products[0];
   const r = await req('POST', '/api/sales', { cookie: l.cookie, body: { items: [{ productId: p.id, qty: 1 }], method: 'cash', paid: 1 } });
-  record('SALE-3', r.data.sale.paid >= r.data.sale.total,
-    `total=${r.data.sale.total} paid=${r.data.sale.paid} → ${r.data.sale.paid < r.data.sale.total ? 'السيرفر قبل نقص في الدفع' : 'مرفوض'}`);
-  assert.ok(r.data.sale.paid < r.data.sale.total, 'INFO: underpayment accepted');
+  const accepted = r.status === 201 && r.data.sale.paid < r.data.sale.total;
+  record('SALE-3', !accepted,
+    `status=${r.status} price=${p.price} paid=1 → ${accepted ? 'السيرفر قبل نقص في الدفع' : 'مرفوض'}`);
+  assert.equal(r.status, 400);
 });
 
 test('SALE-4: 20 عملية بيع متزامنة على نفس الصنف', async () => {
@@ -188,7 +195,7 @@ test('SALE-6: باركود مكرر مسموح (تحقق المدخلات)', asy
   const r = await req('POST', '/api/products', { cookie: l.cookie, body: { name: 'صنف اختبار', price: 10, cost: 5, stock: 5, barcode: p.barcode } });
   const dup = (await req('GET', '/api/products', { cookie: l.cookie })).data.products.filter((x) => x.barcode === p.barcode).length;
   record('SALE-6', r.status !== 201, `status=${r.status} duplicates=${dup} → ${r.status === 201 ? 'مسموح بباركود مكرر' : 'مرفوض'}`);
-  assert.ok(dup >= 2, 'INFO: duplicate barcode accepted');
+  assert.equal(r.status, 409); assert.equal(dup, 1);
 });
 
 test('SALE-7: سعر/تكلفة سالبة أو صفرية', async () => {
@@ -244,7 +251,7 @@ test('RET-4: التقارير بعد مرتجع — هل المبلغ المرت
   const expected = 0; // مرتجع كامل → المفروض مبيعات اليوم ماتتغيرش
   record('RET-4', Math.abs(delta - expected) < 1,
     `salesTotal ${before.salesTotal} →(+sale) ${afterSale.salesTotal} →(+مرتجع كامل) ${afterRet.salesTotal} | Δ=${delta} المتوقع ${expected}`);
-  assert.ok(delta > 1, 'INFO: returned amount still counted in reports');
+  assert.ok(Math.abs(delta - expected) < 1);
 });
 
 /* ================= 5) الورديات ================= */

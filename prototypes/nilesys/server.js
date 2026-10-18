@@ -15,7 +15,8 @@ const crypto = require('crypto');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
-const DB_FILE = path.join(ROOT, 'data', 'db.json');
+// DB_FILE قابل للتغيير عبر متغير بيئة (للاختبارات المعزولة خارج المستودع)
+const DB_FILE = process.env.DB_FILE ? path.resolve(process.env.DB_FILE) : path.join(ROOT, 'data', 'db.json');
 const PORT = Number(process.env.PORT || 3000);
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -29,9 +30,16 @@ function daysAgo(d, h, m) {
 const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+// RESET-2: معرّف ثابت لكل حساب ديمو (مشتق من النظام + اسم المستخدم) حتى لا
+// تنكسر الجلسات المفتوحة عند إعادة ضبط الديمو (الجلسة مربوطة بـ userId).
+function stableUserId(system, username) {
+  const h = crypto.createHash('sha256').update(`nile-demo-user:${system}:${username}`).digest('hex');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+}
+
 function seedUsers() {
   const mk = (system, username, name, role) => ({
-    id: crypto.randomUUID(), system, username, password: 'demo1234', name, role,
+    id: stableUserId(system, username), system, username, password: 'demo1234', name, role,
   });
   return [
     mk('pos', 'manager', 'أحمد سامي', 'manager'),
@@ -131,7 +139,8 @@ function seedSales(users, products) {
       const discount = 0;
       sales.push({
         id: crypto.randomUUID(), no: no++, system: 'pos',
-        userId: cashier.id, createdAt: daysAgo(0, h, rnd(0, 59)), items,
+        // SEED-1: لا تولّد مبيعات بتاريخ مستقبلي (كانت تقع داخل أي وردية تُفتح الآن وتضخّم النقدية المتوقعة)
+        userId: cashier.id, createdAt: new Date(Math.min(Date.parse(daysAgo(0, h, rnd(0, 59))), Date.now() - 60 * 1000)).toISOString(), items,
         subtotal, discount, total: subtotal,
         profit: items.reduce((s, it) => s + (it.price - it.cost) * it.qty, 0),
         method: Math.random() < 0.7 ? 'cash' : 'card', status: 'completed', returned: [],
@@ -243,6 +252,25 @@ function saleTotals(items, discount) {
   return { subtotal, discount: d, total: subtotal - d, profit };
 }
 
+// PERM-3: مسارات بيانات نقطة البيع — مسموحة لمستخدمي نظام pos فقط
+const POS_ROUTE = /^(GET|POST|PUT|DELETE) \/api\/(products|sales|returns|shifts|reports|branding|reset)(\/|$)/;
+
+// SHIFT-2: حركة النقدية داخل نافذة الوردية = مبيعات كاش − مرتجعات كاش مدفوعة في نفس النافذة.
+// الفواتير القديمة (قبل تسجيل refunds) المرتجعة بالكامل تُستبعد كما كان السلوك السابق.
+function shiftExpectedCash(shift, untilIso) {
+  const from = new Date(shift.openedAt).getTime();
+  const until = untilIso ? new Date(untilIso).getTime() : Infinity;
+  const inWindow = (iso) => { const t = new Date(iso).getTime(); return t >= from && t <= until; };
+  let cash = 0;
+  for (const s of db.sales) {
+    if (s.system !== 'pos' || s.method !== 'cash') continue;
+    const legacyFullReturn = !Array.isArray(s.refunds) && s.status === 'returned';
+    if (!legacyFullReturn && inWindow(s.createdAt)) cash += s.total;
+    for (const r of s.refunds || []) if (inWindow(r.at)) cash -= r.amount;
+  }
+  return shift.startingCash + cash;
+}
+
 async function handleApi(req, res, url) {
   const route = `${req.method} ${url.pathname}`;
   const user = currentUser(req);
@@ -281,6 +309,9 @@ async function handleApi(req, res, url) {
   }
 
   /* ================= POS ================= */
+  if (POS_ROUTE.test(route) && user.system !== 'pos') {
+    return sendError(res, 403, 'غير مسموح: بيانات نقطة البيع لمستخدمي نظام الكاشير فقط');
+  }
   if (route === 'GET /api/products') {
     return sendJSON(res, 200, { products: db.products.filter((p) => p.active) });
   }
@@ -288,12 +319,17 @@ async function handleApi(req, res, url) {
     if (!isManager) return sendError(res, 403, 'للمدير بس');
     const b = await readBody(req);
     if (!b.name || !(b.price > 0)) return sendError(res, 400, 'الاسم والسعر مطلوبين');
+    // SALE-6: الباركود لازم يكون فريد بين الأصناف النشطة (المسح بالباركود يختار صنفاً واحداً)
+    const barcode = String(b.barcode || `622${Date.now()}`).trim().slice(0, 20);
+    if (db.products.some((x) => x.active && x.system === 'pos' && x.barcode === barcode)) {
+      return sendError(res, 409, 'الباركود مستخدم لصنف آخر');
+    }
     const p = {
       id: crypto.randomUUID(), system: 'pos', name: String(b.name).slice(0, 80),
       category: String(b.category || 'متنوع').slice(0, 40),
       cost: Number(b.cost) || 0, price: Number(b.price),
       emoji: String(b.emoji || '📦').slice(0, 4),
-      barcode: String(b.barcode || `622${Date.now()}`).slice(0, 20),
+      barcode,
       stock: Number(b.stock) || 0, active: true,
     };
     db.products.push(p); save();
@@ -331,7 +367,24 @@ async function handleApi(req, res, url) {
       return { productId: p.id, name: p.name, qty: Math.max(1, Number(it.qty) || 1), price: p.price, cost: p.cost };
     });
     if (!items.length) return sendError(res, 400, 'السلة فاضية');
+    // SALE-2: التحقق من كفاية المخزون (مع تجميع تكرار نفس الصنف في السلة) قبل أي خصم.
+    // التحقق والخصم متزامنان في نفس الدورة (Node أحادي الخيط) فلا يوجد سباق بين الطلبات.
+    const need = new Map();
+    for (const it of items) need.set(it.productId, (need.get(it.productId) || 0) + it.qty);
+    for (const [pid, qty] of need) {
+      const p = db.products.find((x) => x.id === pid);
+      if (qty > p.stock) return sendError(res, 409, `المخزون غير كافٍ: ${p.name} (المتاح ${p.stock})`);
+    }
     const t = saleTotals(items, b.discount);
+    // SALE-3: الكاش لازم يغطي الإجمالي؛ الكارت يُسجَّل بالإجمالي بالضبط.
+    const method = b.method === 'card' ? 'card' : 'cash';
+    let paid = t.total;
+    if (method === 'cash' && b.paid !== undefined && b.paid !== null && b.paid !== '') {
+      paid = Number(b.paid);
+      if (!Number.isFinite(paid) || paid < t.total) {
+        return sendError(res, 400, `المبلغ المدفوع أقل من الإجمالي (${t.total})`);
+      }
+    }
     for (const it of items) {
       const p = db.products.find((x) => x.id === it.productId);
       p.stock = Math.max(0, p.stock - it.qty);
@@ -339,8 +392,8 @@ async function handleApi(req, res, url) {
     const sale = {
       id: crypto.randomUUID(), no: (db.sales.reduce((m, s) => Math.max(m, s.no), 1000) + 1),
       system: 'pos', userId: user.id, createdAt: new Date().toISOString(),
-      items, ...t, method: b.method === 'card' ? 'card' : 'cash',
-      paid: Number(b.paid) || t.total, status: 'completed', returned: [],
+      items, ...t, method,
+      paid, status: 'completed', returned: [], refunds: [],
     };
     db.sales.push(sale); save();
     return sendJSON(res, 201, { sale });
@@ -377,7 +430,7 @@ async function handleApi(req, res, url) {
       if (p) p.stock += qty;
     }
     if (!back.length) return sendError(res, 400, 'مفيش أصناف صالحة للمرتجع');
-    const refund = back.reduce((s, r) => {
+    const gross = back.reduce((s, r) => {
       const it = sale.items.find((x) => x.productId === r.productId);
       return s + it.price * r.qty;
     }, 0);
@@ -385,6 +438,14 @@ async function handleApi(req, res, url) {
       const rr = sale.returned.find((x) => x.productId === it.productId);
       return rr && rr.qty >= it.qty;
     });
+    // SHIFT-2: المبلغ المرتجع يُسجَّل بوقته وطريقته ليُخصم من نقدية الوردية.
+    // الخصم يُوزَّع نسبياً، وآخر مرتجع يأخذ الباقي بالضبط حتى لا يتجاوز مجموع المرتجع ما دُفع.
+    if (!Array.isArray(sale.refunds)) sale.refunds = [];
+    const refundedSoFar = sale.refunds.reduce((a, r) => a + r.amount, 0);
+    const refund = allBack
+      ? Math.max(0, sale.total - refundedSoFar)
+      : (sale.subtotal > 0 ? Math.round((gross * sale.total / sale.subtotal) * 100) / 100 : 0);
+    sale.refunds.push({ at: new Date().toISOString(), amount: refund, method: sale.method });
     sale.status = allBack ? 'returned' : 'partial';
     save();
     return sendJSON(res, 201, { sale, refund });
@@ -404,13 +465,10 @@ async function handleApi(req, res, url) {
     }
     if (b.action === 'close') {
       if (!open) return sendError(res, 400, 'مفيش وردية مفتوحة');
-      const cashSales = db.sales.filter((s) =>
-        s.system === 'pos' && s.method === 'cash' && s.status !== 'returned' &&
-        new Date(s.createdAt) >= new Date(open.openedAt))
-        .reduce((sum, s) => sum + s.total, 0);
-      const expected = open.startingCash + cashSales;
+      const closedAt = new Date().toISOString();
+      const expected = shiftExpectedCash(open, closedAt);
       const counted = Number(b.countedCash) || 0;
-      open.closedAt = new Date().toISOString();
+      open.closedAt = closedAt;
       open.expectedCash = expected;
       open.countedCash = counted;
       open.diff = counted - expected;
@@ -420,7 +478,8 @@ async function handleApi(req, res, url) {
     return sendError(res, 400, 'action غلط');
   }
   if (route === 'GET /api/shifts') {
-    const open = db.shifts.find((s) => s.system === user.system && !s.closedAt) || null;
+    const found = db.shifts.find((s) => s.system === user.system && !s.closedAt);
+    const open = found ? { ...found, expectedCashNow: shiftExpectedCash(found) } : null;
     return sendJSON(res, 200, { openShift: open, shifts: db.shifts.filter((s) => s.system === 'pos').slice(-10).reverse() });
   }
   if (route === 'GET /api/reports/summary') {
