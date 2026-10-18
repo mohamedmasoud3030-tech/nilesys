@@ -15,6 +15,13 @@
       "when": 1791954025446,
       "tag": "0001_security_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791955777872,
+      "tag": "0002_ledger_append_only",
+      "breakpoints": true
     }
   ]
 }

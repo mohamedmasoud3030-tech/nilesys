@@ -248,6 +248,42 @@ describe('6. contract + session lifecycle', () => {
   });
 });
 
+describe('6b. shared demo logins cannot be hijacked by one visitor', () => {
+  // The demo password is public: every visitor shares these logins, so one
+  // visitor must not be able to lock out or deface them for everyone else.
+  const attempts: Array<[string, unknown]> = [
+    ['/api/auth/change-password', { currentPassword: 'demo1234', newPassword: 'locked-out-123', revokeOtherSessions: true }],
+    ['/api/auth/update-user', { name: 'defaced' }],
+    ['/api/auth/revoke-sessions', {}],
+    ['/api/auth/revoke-other-sessions', {}],
+    ['/api/auth/organization/leave', {}],
+  ];
+
+  it('account-mutating endpoints are refused for a shared demo login (403) and nothing changes', async () => {
+    const otherVisitor = (await login('waiter@nile.demo')).cookie;
+    const visitor = (await login('waiter@nile.demo')).cookie;
+    const me = (await http('GET', '/api/v1/me', { cookie: visitor })).body;
+    for (const [url, body] of attempts) {
+      const res = await http('POST', url, { cookie: visitor, body: url.endsWith('/leave') ? { organizationId: me.tenant.id } : body });
+      expect([url, res.status, res.body?.code]).toEqual([url, 403, 'SHARED_DEMO_ACCOUNT_LOCKED']);
+    }
+    const otherMe = await http('GET', '/api/v1/me', { cookie: otherVisitor });
+    expect(otherMe.status).toBe(200); // the other visitor was not kicked out
+    expect(otherMe.body.user.name).toBe(me.user.name); // not defaced
+    expect(otherMe.body.role).toBe('waiter'); // membership intact
+    expect((await login('waiter@nile.demo', 'demo1234')).status).toBe(200); // password unchanged
+  });
+
+  it('a real (non-demo) tenant user can still change their own password', async () => {
+    const own = (await login('cashier@other.test', 'other-pass-123')).cookie;
+    const change = (from: string, to: string) =>
+      http('POST', '/api/auth/change-password', { cookie: own, body: { currentPassword: from, newPassword: to } });
+    expect((await change('other-pass-123', 'other-pass-456')).status).toBe(200);
+    expect((await login('cashier@other.test', 'other-pass-456')).status).toBe(200);
+    expect((await change('other-pass-456', 'other-pass-123')).status).toBe(200); // restore for later suites
+  });
+});
+
 describe('7. the sale survives a server restart', () => {
   it('restart on the same data directory → log in again → the sale is still there', async () => {
     await shutdown(run);

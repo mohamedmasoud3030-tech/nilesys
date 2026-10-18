@@ -19,6 +19,7 @@ let A: string;
 let B: string;
 let saleB: string;
 let variantA: string;
+let variantB: string;
 
 const count = async (tx: any, table: any) => Number((await tx.select({ n: sql<number>`count(*)` }).from(table))[0].n);
 /** Assert a rejection carries a specific PostgreSQL SQLSTATE (not just "some error"). */
@@ -49,7 +50,7 @@ beforeAll(async () => {
   [{ id: A }] = (await db.insert(organization).values({ name: 'A', slug: 'a' }).returning({ id: organization.id })) as [{ id: string }];
   [{ id: B }] = (await db.insert(organization).values({ name: 'B', slug: 'b' }).returning({ id: organization.id })) as [{ id: string }];
   ({ variantId: variantA } = await seedSale(A, 'key-a'));
-  ({ saleId: saleB } = await seedSale(B, 'key-b'));
+  ({ saleId: saleB, variantId: variantB } = await seedSale(B, 'key-b'));
 });
 afterAll(() => opened.close());
 
@@ -99,14 +100,17 @@ describe('fail-closed invariants (ADR-0005 §9)', () => {
   });
 
   it('3b. tenant A cannot update or delete tenant B rows', async () => {
+    // Probed on a table the runtime may legitimately UPDATE/DELETE, so that a
+    // privilege error cannot mask the RLS USING filter (ledger tables are
+    // append-only since 0002 — see 'append-only ledger' below).
     await withTenant(db, A, async (tx: any) => {
-      const upd = await tx.update(salesTransactions).set({ totalMinor: 0 }).where(eq(salesTransactions.id, saleB)).returning();
-      const del = await tx.delete(salesTransactions).where(eq(salesTransactions.id, saleB)).returning();
+      const upd = await tx.update(catalogVariants).set({ stock: '0' }).where(eq(catalogVariants.id, variantB)).returning();
+      const del = await tx.delete(catalogVariants).where(eq(catalogVariants.id, variantB)).returning();
       expect(upd).toEqual([]);
       expect(del).toEqual([]);
     });
     await withTenant(db, B, async (tx: any) => {
-      expect((await tx.select().from(salesTransactions).where(eq(salesTransactions.id, saleB)))[0].totalMinor).toBe(100);
+      expect((await tx.select().from(catalogVariants).where(eq(catalogVariants.id, variantB)))[0].stock).toBe('5.000');
     });
   });
 
@@ -134,6 +138,27 @@ describe('fail-closed invariants (ADR-0005 §9)', () => {
     for (const t of [A, B, A, B]) seen.push(await withTenant(db, t, (tx: any) => count(tx, catalogItems)));
     expect(seen).toEqual([1, 1, 1, 1]);
     expect(await count(db, catalogItems)).toBe(0);
+  });
+});
+
+describe('append-only ledger and audit (0002)', () => {
+  const APPEND_ONLY = ['audit_log', 'sales_transactions', 'transaction_lines', 'stock_movements', 'cash_movements'];
+
+  it('nile_app holds SELECT + INSERT but neither UPDATE nor DELETE on ledger/audit tables', async () => {
+    for (const t of APPEND_ONLY) {
+      const res = (await db.execute(sql`
+        SELECT has_table_privilege(current_user, ${t}, 'SELECT') AS s, has_table_privilege(current_user, ${t}, 'INSERT') AS i,
+               has_table_privilege(current_user, ${t}, 'UPDATE') AS u, has_table_privilege(current_user, ${t}, 'DELETE') AS d`)) as any;
+      expect({ t, ...res.rows[0] }).toEqual({ t, s: true, i: true, u: false, d: false });
+    }
+  });
+
+  it('rewriting or erasing history inside the own tenant is refused (42501)', async () => {
+    for (const t of APPEND_ONLY) {
+      await rejectsWith(withTenant(db, A, (tx: any) => tx.execute(sql.raw(`UPDATE ${t} SET tenant_id = tenant_id`))), '42501');
+      await rejectsWith(withTenant(db, A, (tx: any) => tx.execute(sql.raw(`DELETE FROM ${t}`))), '42501');
+    }
+    await withTenant(db, A, async (tx: any) => expect(await count(tx, salesTransactions)).toBe(1));
   });
 });
 
