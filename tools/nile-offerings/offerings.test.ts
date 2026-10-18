@@ -88,11 +88,20 @@ describe('registry cannot drift from repository evidence', () => {
 });
 
 describe('status honesty rules', () => {
-  it('only POS (owned by the primary agent) is in progress; every other offering is not started', () => {
+  it('only POS (primary agent) and the admin/HR service layers (parallel agent) are in progress', () => {
     const inProgress = ALL_OFFERINGS.filter((o) => o.production === 'in-progress').map((o) => `${o.kind}:${o.id}`);
-    expect(inProgress).toEqual(['system:pos']);
+    expect(inProgress).toEqual(['system:pos', 'system:hr', 'system:admin']);
     expect(findOffering('system', 'pos')?.owner).toBe('primary-agent');
-    for (const o of ALL_OFFERINGS) if (o.production === 'in-progress') expect(o.owner).toBe('primary-agent');
+    for (const o of ALL_OFFERINGS) {
+      if (o.production === 'in-progress') expect(o.owner).not.toBe('unassigned');
+      else expect(o.owner).toBe('unassigned');
+    }
+  });
+
+  it('an in-progress claim cites at least one production-path file (engines/ or apps/) as evidence', () => {
+    for (const o of ALL_OFFERINGS.filter((x) => x.production === 'in-progress')) {
+      expect(o.evidence.some((p) => /^(engines|apps)\//.test(p)), `${o.kind}:${o.id}`).toBe(true);
+    }
   });
 
   it('only POS has a working legacy prototype screen, and that screen exists', () => {
@@ -132,10 +141,12 @@ describe('status honesty rules', () => {
 describe('cardStatus', () => {
   const fake = (patch: Partial<Offering>): Offering => ({ ...(SITES[0] as Offering), ...patch });
 
-  it('renders POS as in development and everything else as planned, with no link', () => {
-    expect(cardStatus(findOffering('system', 'pos')!, 'en')).toEqual({ tone: 'building', label: 'In development', href: null });
-    expect(cardStatus(findOffering('system', 'pos')!, 'ar').label).toBe('قيد التنفيذ');
-    for (const o of ALL_OFFERINGS.filter((x) => !(x.kind === 'system' && x.id === 'pos'))) {
+  it('renders in-progress systems as in development and everything else as planned, with no link', () => {
+    for (const id of ['pos', 'hr', 'admin']) {
+      expect(cardStatus(findOffering('system', id)!, 'en')).toEqual({ tone: 'building', label: 'In development', href: null });
+      expect(cardStatus(findOffering('system', id)!, 'ar').label).toBe('قيد التنفيذ');
+    }
+    for (const o of ALL_OFFERINGS.filter((x) => !(x.kind === 'system' && ['pos', 'hr', 'admin'].includes(x.id)))) {
       expect(cardStatus(o, 'en'), `${o.kind}:${o.id}`).toEqual({ tone: 'planned', label: 'Planned', href: null });
       expect(cardStatus(o, 'ar').label).toBe('مخطط');
     }

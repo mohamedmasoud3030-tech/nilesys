@@ -18,7 +18,7 @@
  * STATUS VOCABULARY (two independent axes — never merge them)
  *   production: is anything being built on the production path
  *               (engines/ + apps/api, ADR-0001..0007)?
- *     'in-progress'  — commits exist on main or a published branch for THIS offering.
+ *     'in-progress'  — offering-specific production code exists in the tree this file ships in.
  *     'not-started'  — no offering-specific production code. Reusable engine code
  *                      may exist (listed under `engines`) but is not the offering.
  *   prototype:  what the HISTORICAL plain-Node prototype provides.
@@ -81,7 +81,7 @@ export interface Offering {
   production: ProductionStatus;
   prototype: PrototypeStatus;
   /** Who is allowed to change implementation for this offering right now. */
-  owner: 'primary-agent' | 'unassigned';
+  owner: 'primary-agent' | 'parallel-agent' | 'unassigned';
   destination: VerifiedDestination | null;
   /** In-repo files that prove the stated status. */
   evidence: readonly RepoPath[];
@@ -222,11 +222,11 @@ export const SYSTEMS = [
     id: 'hr',
     name: { ar: 'الموارد البشرية والمرتبات', en: 'HR & Payroll' },
     purpose: 'Employees, attendance with lateness/overtime, leaves, advances, payroll slips.',
-    production: 'not-started',
+    production: 'in-progress',
     prototype: 'card-only',
-    owner: 'unassigned',
+    owner: 'parallel-agent',
     destination: null,
-    evidence: [PROTOTYPE_HOME, DEMO_SEED, 'engines/people/test/people.test.ts'],
+    evidence: [PROTOTYPE_HOME, DEMO_SEED, 'engines/people/test/people.test.ts', 'engines/people/src/people-service.ts', 'engines/people/test/people-service.test.ts'],
     engines: [
       { path: 'engines/people/src/attendance.ts', provides: 'work hours, lateness and overtime minutes' },
       { path: 'engines/people/src/payroll.ts', provides: 'leave balances, loan schedules, payslips' },
@@ -235,29 +235,30 @@ export const SYSTEMS = [
     legacyAssets: [
       { repo: 'larabeauty-', path: 'src/domain/attendance.ts', note: 'source of the people engine (see docs/REUSE.md)' },
     ],
-    mustNotClaim: [NO_LIVE_DEMO],
-    nextStep: 'Add a tenant-scoped people service (record attendance → payslip) with PGlite tests, mirroring sale-service.ts; no UI.',
-    blockedBy: null,
+    mustNotClaim: [NO_LIVE_DEMO, 'an HR API or screen (service layer only)', 'stored payroll runs or automatic loan deduction (payslips are computed, not persisted)'],
+    nextStep: 'Expose the people service through apps/api (employee:manage, attendance:record/read) with an e2e test, once routing changes are coordinated with the POS/payments work.',
+    blockedBy: 'apps/api routing is shared with the primary agent\'s payments API.',
   },
   {
     kind: 'system',
     id: 'admin',
     name: { ar: 'لوحة تحكم المواقع', en: 'Websites Control Panel' },
     purpose: 'One back office for all 7 sites: units, gym plans, customer requests inbox, site copy.',
-    production: 'not-started',
+    production: 'in-progress',
     prototype: 'card-only',
-    owner: 'unassigned',
+    owner: 'parallel-agent',
     destination: null,
-    evidence: [PROTOTYPE_HOME, DEMO_SEED],
+    evidence: [PROTOTYPE_HOME, DEMO_SEED, 'engines/catalog/src/lead-service.ts', 'engines/catalog/test/lead-service.test.ts'],
     engines: [
       { path: 'engines/catalog/src/catalog.ts', provides: 'lead pipeline: all 7 site sources → one inbox, stage transitions' },
+      { path: 'engines/catalog/src/lead-service.ts', provides: 'tenant-scoped captureLead / listLeads / moveLead' },
     ],
     legacyAssets: [
       { repo: 'platform', path: 'artifacts/api-server/src/trpc/routers/inquiries.ts', note: 'LENA inquiry inbox with rate limiting and admin CRUD — the closest working pattern' },
     ],
-    mustNotClaim: [NO_LIVE_DEMO],
-    nextStep: 'Add a lead-capture service over the existing Lead/LeadStage contract (one POST, one list), tested; this unblocks every site form.',
-    blockedBy: null,
+    mustNotClaim: [NO_LIVE_DEMO, 'a public lead form or admin inbox screen (service layer only)'],
+    nextStep: 'Expose lead capture through apps/api: authenticated list/move (lead:read/manage) plus a public POST whose tenant comes from server-side site config.',
+    blockedBy: 'Owner decision: how an anonymous public site resolves its tenant; edge rate limiting. apps/api routing is shared with the payments work.',
   },
 ] as const satisfies readonly (Offering & { id: SystemId })[];
 
@@ -273,7 +274,7 @@ const siteBase = {
   destination: null,
 } as const;
 
-const SITE_NEXT = 'Blocked on the admin lead-capture service; then one static page whose single form posts a lead.';
+const SITE_NEXT = 'Once the admin lead API is exposed: one static page whose single form posts a lead.';
 
 export const SITES = [
   {
@@ -286,7 +287,7 @@ export const SITES = [
     legacyAssets: [],
     mustNotClaim: [NO_LIVE_DEMO, 'instant confirmed booking'],
     nextStep: SITE_NEXT,
-    blockedBy: 'admin lead-capture service; courts booking service (G-10).',
+    blockedBy: 'public lead API; courts booking service (G-10).',
   },
   {
     ...siteBase,
@@ -298,7 +299,7 @@ export const SITES = [
     legacyAssets: [],
     mustNotClaim: [NO_LIVE_DEMO, 'live order tracking'],
     nextStep: SITE_NEXT,
-    blockedBy: 'admin lead-capture service.',
+    blockedBy: 'public lead API (tenant resolution decision).',
   },
   {
     ...siteBase,
@@ -310,7 +311,7 @@ export const SITES = [
     legacyAssets: [],
     mustNotClaim: [NO_LIVE_DEMO],
     nextStep: SITE_NEXT,
-    blockedBy: 'admin lead-capture service; booking service (G-10).',
+    blockedBy: 'public lead API; booking service (G-10).',
   },
   {
     ...siteBase,
@@ -324,7 +325,7 @@ export const SITES = [
     ],
     mustNotClaim: [NO_LIVE_DEMO, 'that MALEK is this website'],
     nextStep: SITE_NEXT,
-    blockedBy: 'admin lead-capture service.',
+    blockedBy: 'public lead API (tenant resolution decision).',
   },
   {
     ...siteBase,
@@ -336,7 +337,7 @@ export const SITES = [
     legacyAssets: [],
     mustNotClaim: [NO_LIVE_DEMO],
     nextStep: SITE_NEXT,
-    blockedBy: 'admin lead-capture service.',
+    blockedBy: 'public lead API (tenant resolution decision).',
   },
   {
     ...siteBase,
@@ -348,7 +349,7 @@ export const SITES = [
     legacyAssets: [],
     mustNotClaim: [NO_LIVE_DEMO, 'online checkout or payment'],
     nextStep: SITE_NEXT,
-    blockedBy: 'admin lead-capture service.',
+    blockedBy: 'public lead API (tenant resolution decision).',
   },
   {
     ...siteBase,
@@ -362,7 +363,7 @@ export const SITES = [
     ],
     mustNotClaim: [NO_LIVE_DEMO, 'online checkout or shipping'],
     nextStep: SITE_NEXT,
-    blockedBy: 'admin lead-capture service.',
+    blockedBy: 'public lead API (tenant resolution decision).',
   },
 ] as const satisfies readonly (Offering & { id: SiteId })[];
 

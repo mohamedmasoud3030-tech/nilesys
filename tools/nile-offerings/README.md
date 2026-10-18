@@ -9,7 +9,7 @@ label: **Available to try** only with a verified HTTP-200 destination, **In deve
 on the production path, otherwise **Planned**.
 
 ```bash
-npx vitest run --config tools/nile-offerings/vitest.config.ts   # 16 tests
+npx vitest run --config tools/nile-offerings/vitest.config.ts   # 17 tests
 npx tsc -p tools/nile-offerings/tsconfig.json --noEmit
 ```
 
@@ -24,7 +24,9 @@ owner-approved change.
 - System ids match `DEMO_ACCOUNTS` in the platform engine. Site ids match `LeadSource` in the catalog
   engine. Both are also enforced at compile time through `SystemId` / `SiteId`.
 - Every evidence and engine path exists.
-- Only `system:pos` is in progress (owner: primary agent). Only POS has a working legacy screen.
+- Only `system:pos` (primary agent) and the `system:admin` / `system:hr` service layers (parallel agent)
+  are in progress, and each in-progress claim must cite a file under `engines/` or `apps/`. Only POS has
+  a working legacy screen.
 - No destination exists without HTTP 200 evidence. None is verified today: `nilesys.vercel.app` returns
   404 `NOT_FOUND`.
 - Windows entries carry no size, OS, trial or download facts. The two unverified claims in the prototype
