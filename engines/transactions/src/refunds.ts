@@ -86,7 +86,13 @@ export async function createRefund(db: AnyPgDatabase, actor: RefundActor, input:
 
   try {
     return await withTenant(db, actor.tenantId, async (tx: any) => {
-      // Serialize refunds per payment to prevent over-refund race (advisory lock, not FOR UPDATE which needs UPDATE privilege)
+      // Serialize every refund of the same SALE first: the quantity limit is per sale
+      // (refunded stock movements of the transaction), so a per-payment lock alone let
+      // two refunds of one unit through two payments of a split-tender sale both pass.
+      // payment_mismatch below guarantees any refund touching this sale names it here.
+      // Lock order is always sale -> payment -> shift (checkout/close take shift only): no cycle.
+      // Advisory locks, not FOR UPDATE, which needs the UPDATE privilege nile_app lacks.
+      await advisoryLock(tx, `refund-sale:${actor.tenantId}:${input.originalTransactionId}`);
       await advisoryLock(tx, `refund:${actor.tenantId}:${input.paymentId}`);
       if (input.shiftId) await lockShift(tx, actor.tenantId, input.shiftId);
       const replay = await replayOrConflict(tx);
