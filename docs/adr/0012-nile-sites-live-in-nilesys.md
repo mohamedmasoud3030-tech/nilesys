@@ -1,6 +1,6 @@
 # ADR-0012: Nile's marketing site and system sites live in this repository; Platform (LENA) links to them
 
-- **Status:** Accepted
+- **Status:** **Superseded** by [ADR-0013](0013-marketing-site-in-lena-platform.md) on 2026-10-19 (owner correction)
 - **Date:** 2026-10-19
 - **Decided by:** the LENA integration agent, under the owner's delegation of technical decisions on
   2026-10-19. Resolves **D-F** (`PRODUCT_PLAN.md` §10).

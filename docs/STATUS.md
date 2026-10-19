@@ -67,8 +67,6 @@ None of these results comes from GitHub Actions, staging or production.
 - **ACCEPTED (technical, 2026-10-19).** The owner delegated technical decisions ("make the technical
   decisions, without creating new repositories"):
   - **D-H → npm** ([ADR-0011](adr/0011-repository-tooling-npm.md)). `pnpm-lock.yaml` is git-ignored, not deleted.
-  - **D-F → Nile sites live here** (`apps/marketing`, [ADR-0012](adr/0012-nile-sites-live-in-nilesys.md)).
-    The LENA site in `platform` only links to it.
   - **No new repositories.** Archives stay in this repository as `archive/<branch>` tags plus
     `rescue/2026-10-19-workspace-archive`. The proposed private `nilesys-archive` repository is dropped.
   - **`platform` planning documents stay in `platform`.** They are not copied into this public
@@ -81,7 +79,12 @@ None of these results comes from GitHub Actions, staging or production.
     (D-A…D-E) as its own small PR, then docs. Unique branches are resolved per §2; merged branches get an
     `archive/<branch>` tag before any deletion. Every push, PR, merge, tag or deletion still needs
     owner approval.
-- **OPEN (owner, business):** D-A…D-E, D-G and D5, listed with options in [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) §10:
+  - ~~D-F → Nile sites live here (ADR-0012)~~ **corrected by the owner the same day.** See the next bullet.
+- **ACCEPTED (owner, 2026-10-19): D-F → the marketing site is part of the LENA Digital site in `platform`**
+  ([ADR-0013](adr/0013-marketing-site-in-lena-platform.md), which supersedes ADR-0012). This repository
+  serves it over HTTP: a public readiness endpoint, lead intake and demo links. **Where the seven system
+  sites (phase 4) live is still OPEN (owner).**
+- **OPEN (owner, business):** D-A…D-E, D-G, D5 and the location of the seven system sites, listed with options in [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) §10:
   - D-A: payment model and the list of payment methods.
   - D-B: cash correction policy.
   - D-C: who may close a shift.
@@ -89,6 +92,7 @@ None of these results comes from GitHub Actions, staging or production.
   - D-E: definition of gross sales.
   - D-G: product order.
   - D5: hosting.
+  - Where the seven system sites (phase 4) live ([ADR-0013](adr/0013-marketing-site-in-lena-platform.md) §4).
 
   D2–D4 (ledger provider) remain open and block nothing in phases 0–2.
 - **ADR-vs-code gaps** (ADR-0001 Nx/pnpm/Next.js/CI, ADR-0002 per-vertical apps, ADR-0003 Milestone 1 scope):
@@ -149,8 +153,8 @@ recorded in its PR description. Nothing is merged without the owner.
 | 7 | F0-6: G-7a redesign (closed-world allow-list) and its adversarial real-PostgreSQL matrix | WAITING ON OWNER (approve the redesign) | — |
 | 8 | F0-10 / D-H: Nx + pnpm or npm | **DONE 2026-10-19: npm ([ADR-0011](adr/0011-repository-tooling-npm.md))** | — |
 | 9 | F0-7 / D5: disposable Supabase PG 17 project; read-only hosted checks; then staging | WAITING ON OWNER | Creating cloud resources needs approval |
-| 10 | Phase 1 APIs: POS-04 receipt, POS-05 sales list, POS-08 profit/top/hourly, POS-09 product writes, POS-10 branding, MKT-09 lead endpoint, POS-11 demo reset | BLOCKED BY #5 merged | One feature per PR, tests first |
-| 11 | Phase 1 UI: marketing site (MKT-*, in `apps/marketing` here per [ADR-0012](adr/0012-nile-sites-live-in-nilesys.md)) and cashier (POS-*) on Next.js, in an npm workspace | BLOCKED BY #10 and the UI blockers in §6 | — |
+| 10 | Phase 1 APIs: POS-04 receipt, POS-05 sales list, POS-08 profit/top/hourly, POS-09 product writes, POS-10 branding, MKT-09 lead endpoint (accepting the LENA site origin), a public read-only readiness/catalogue endpoint for the LENA site (ADR-0013), POS-11 demo reset | BLOCKED BY #5 merged | One feature per PR, tests first |
+| 11 | Phase 1 UI: cashier (POS-*) on Next.js here, in an npm workspace. Marketing site (MKT-*) inside the LENA site in `platform` per [ADR-0013](adr/0013-marketing-site-in-lena-platform.md); that needs the owner's approval for work in `platform` | BLOCKED BY #10 and the UI blockers in §6 | — |
 | 12 | Phase 1 acceptance (`PRODUCT_PLAN.md` §5.3) on staging; the owner tests it personally | BLOCKED BY #9, #11 | Owner sign-off |
 | 13 | Phase 2 design: purchase receipt contract over the shared stock-movement path; restaurant tables and kitchen domain | PROPOSED (design only; no code before Phase 1 acceptance) | — |
 | 14 | P4-1: tests for the remaining locked demo paths (change-email, delete-user) | PROPOSED, unblocked | — |
@@ -186,7 +190,7 @@ IDs:
 ## 7. Approvals required from the owner
 
 1. Approve or amend `PRODUCT_PLAN.md`. Once approved, mark it ACCEPTED and move it to tier 4 in `docs/README.md`.
-2. Decide D-A…D-E (task 1), then D-G and D5. (D-F and D-H were decided technically on 2026-10-19.)
+2. Decide D-A…D-E (task 1), then D-G, D5, and where the seven system sites live. (D-H was decided technically and D-F by the owner on 2026-10-19.)
 3. Approve pushing the CI workflow (task 3).
 4. Approve the G-7a redesign (task 7).
 5. Later: review and merge the integration PR (task 5); delete merged branches if wanted.
