@@ -251,8 +251,10 @@ deliverables/parity/parity-matrix-run2.txt	3f9e6fccba9991924431a088b4c599e425571
 deliverables/parity/parity-matrix-run3.txt	81e5c669f49c1807b30b4bf0b2b34b52ba0da57e9915f7f885e3bc5756f2e06b	4422	/home/user/deliverables/parity/parity-matrix-run3.txt
 deliverables/parity/run-parity.sh	7efab90326c8e6aed50ff60f85ef2835f15d57bd87bc2e1cddfb002fa012d935	4710	/home/user/deliverables/parity/run-parity.sh
 deliverables/rescue-2026-10-19/README_RESCUE.md	1beb77efeda59b7faf78dbf846feedb8a6e9847ae34e4139e499c4a3fa91f42e	2644	/home/user/deliverables/rescue-2026-10-19/README_RESCUE.md
-deliverables/rescue-2026-10-19/RESCUE_STATUS.md	07d35508a75d6c9497f9cffe0e83a2697d4da63485ba938b1c51965b90ca01e5	1367	/home/user/deliverables/rescue-2026-10-19/RESCUE_STATUS.md
+deliverables/rescue-2026-10-19/RESCUE_REPORT_ar.md	c6adf77fff0c8bf1aff33b5ea43270552219c5947f68a79f0b17b5a3ec88d693	7143	/home/user/deliverables/rescue-2026-10-19/RESCUE_REPORT_ar.md
+deliverables/rescue-2026-10-19/RESCUE_STATUS.md	5192f3c1bdf5539977e72c2f4bc2afbb33a045d886645ebb8cbe3bc20f240348	1526	/home/user/deliverables/rescue-2026-10-19/RESCUE_STATUS.md
 deliverables/rescue-2026-10-19/evidence/LOCAL_FILES_CLASSIFIED.tsv	9fa6ff556b2222087c7baa3101a338fe611158bac722a12159806ae0c3e981a2	110050	/home/user/deliverables/rescue-2026-10-19/evidence/LOCAL_FILES_CLASSIFIED.tsv
+deliverables/rescue-2026-10-19/evidence/github-verification.txt	dfe965d889384fcb0f5d013f2d56663a3055bb4fd50a71a2bdc0530eaa1c0aba	1516	/home/user/deliverables/rescue-2026-10-19/evidence/github-verification.txt
 deliverables/rescue-2026-10-19/evidence/gitleaks-backups.json	37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570	3	/home/user/deliverables/rescue-2026-10-19/evidence/gitleaks-backups.json
 deliverables/rescue-2026-10-19/evidence/gitleaks-deliverables.json	37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570	3	/home/user/deliverables/rescue-2026-10-19/evidence/gitleaks-deliverables.json
 deliverables/rescue-2026-10-19/evidence/gitleaks-tmp-rev.json	37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570	3	/home/user/deliverables/rescue-2026-10-19/evidence/gitleaks-tmp-rev.json

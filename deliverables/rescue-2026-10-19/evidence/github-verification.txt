@@ -1,0 +1,19 @@
+GitHub verification — 2026-10-19 (after push; token held in memory only, never written to disk or .git/config)
+
+Remote branches (GitHub API /branches):
+  integration/nile-2026-10-18          0207c1355a6e287f8724ff877c7c3be79fcb75ec  tree e966064f39c3bf05637c795c390d3b08cb90226c (= local 0207c13 tree)
+  rescue/2026-10-19-workspace-archive  a89a527254aef30c15abc7522cdb341c681d273a  tree 90878188130ccfee65efbe86d982727e0adfcf3f (= staging tree)
+  main                                 52af4693e53ca17883b473512f22aeb32e77672a  (unchanged)
+Push of integration: fast-forward b25cb65..0207c13 (git merge-base --is-ancestor OK; no force)
+Push of rescue: [new branch]; the ref did not exist before (ls-remote checked)
+
+Independent re-download: git clone --single-branch -b rescue/2026-10-19-workspace-archive into /tmp/verify
+  RESCUE_MANIFEST.tsv rows 288: sha256 ok 288, mismatch 0, missing 0
+  each file also re-hashed against its local original path: 0 differences
+  LOCAL_FILES_CLASSIFIED.tsv rows UPLOAD+HELD = 277: all present on GitHub with identical sha256
+
+Side effects:
+  0207c13: Vercel status "success — Deployment has completed" (automatic PREVIEW deployment of the integration branch, as on earlier pushes; not production)
+  a89a527: 0 deployments, no status (vercel.json disables rescue/* deployments)
+  GitHub Actions: no new runs (the only run in the repo is from 2026-09-04)
+  token permissions reported by the API on nilesys: admin/maintain/push (wider than the Contents:write that was asked for)
