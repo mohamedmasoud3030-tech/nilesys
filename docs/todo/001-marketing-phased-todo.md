@@ -1,3 +1,7 @@
+> **Status: SUPERSEDED (2026-10-19)** by [`docs/PRODUCT_PLAN.md`](../PRODUCT_PLAN.md), which unifies the phases, the features
+> and the decisions from this document and its siblings (`plan/001`, `prd/001`, `todo/001`, `vision/001`). Kept unchanged below
+> as history. It never authorises work (tier 5–6). Live state and next tasks: [`docs/STATUS.md`](../STATUS.md).
+
 > **NOTE (2026-10-18):** هذا الـ TODO بُني على تفسير منسوخ. الأولويات الجديدة في `docs/vision/001-...md` §6 هي المرجع حتى ADR-0011. هذا الملف محفوظ كمرجع ولا يُنفذ قبل ADR-0011.
 
 # TODO 001 — تنفيذ الموقع التسويقي كبديل لـ `platform` (5 مراحل)

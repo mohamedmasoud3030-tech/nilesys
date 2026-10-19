@@ -1,3 +1,7 @@
+> **Status: SUPERSEDED (2026-10-19)** by [`docs/PRODUCT_PLAN.md`](../PRODUCT_PLAN.md), which unifies the phases, the features
+> and the decisions from this document and its siblings (`plan/001`, `prd/001`, `todo/001`, `vision/001`). Kept unchanged below
+> as history. It never authorises work (tier 5–6). Live state and next tasks: [`docs/STATUS.md`](../STATUS.md).
+
 # الرؤية — LENA Digital House مظلة، وNile Systems يندمج داخلها
 
 **التاريخ:** 2026-10-18 (منقح 2026-10-18 v2) · **الحالة:** PROPOSED — للمراجعة، لا يأذن بتنفيذ · **يستند إلى:** الجرد السابق `proposals/0002` + `docs/REUSE.md` + `docs/STATUS.md` + `prototypes/nilesys`  

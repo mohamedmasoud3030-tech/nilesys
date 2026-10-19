@@ -1,3 +1,7 @@
+> **Status: SUPERSEDED (2026-10-19)** by [`docs/PRODUCT_PLAN.md`](../PRODUCT_PLAN.md), which unifies the phases, the features
+> and the decisions from this document and its siblings (`plan/001`, `prd/001`, `todo/001`, `vision/001`). Kept unchanged below
+> as history. It never authorises work (tier 5–6). Live state and next tasks: [`docs/STATUS.md`](../STATUS.md).
+
 # خطة تنفيذ POS داخل LENA — جاهزة للاعتماد (لا كود قبل الموافقة)
 
 **التاريخ:** 2026-10-18 · **الحالة:** PROPOSED · **النطاق:** نطاقك المعتمد 2026-10-18 — عرض المنظومة داخل LENA + إكمال POS وحده كنظام تشغيلي متكامل  

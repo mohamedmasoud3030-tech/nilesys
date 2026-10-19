@@ -1,3 +1,7 @@
+> **Status: SUPERSEDED (2026-10-19)** by [`docs/PRODUCT_PLAN.md`](../PRODUCT_PLAN.md), which unifies the phases, the features
+> and the decisions from this document and its siblings (`plan/001`, `prd/001`, `todo/001`, `vision/001`). Kept unchanged below
+> as history. It never authorises work (tier 5–6). Live state and next tasks: [`docs/STATUS.md`](../STATUS.md).
+
 > **SUPERSEDED by `docs/vision/001-lena-as-umbrella-nile-integration.md` (2026-10-18) — التفسير السابق "nilesys يحل محل platform" أُلغي. الرؤية المصححة: LENA هي البيت. هذا الملف محفوظ كمرجع فقط.**
 
 # PRD 001 — الموقع التسويقي كبديل لـ `platform` (البيت الموحّد)

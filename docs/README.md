@@ -14,8 +14,11 @@ document is not listed here, it is not authoritative. Add it here in the same PR
 | 3 | [`../engines/README.md`](../engines/README.md) | What each engine owns; persistence and API layout; run commands | CANONICAL |
 | 3 | [`REUSE.md`](REUSE.md) | Provenance of every extracted engine file; meaning of in-code citations | CANONICAL |
 | 4 | [`STATUS.md`](STATUS.md) | Verified state, PRs and branches, next task, gates, open findings register | CANONICAL (the only live status file) |
+| 4 (after owner approval) | [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) | The single product plan: catalogue (7 systems, 7 sites, 5 Windows), phases 0–5, feature IDs, acceptance criteria, owner decisions D-x | **PROPOSED** (2026-10-19); binding for scope once the owner approves |
 | — | [`../README.md`](../README.md) | Project overview, layout, setup | CANONICAL (overview only) |
 | — | [`../.agents/skills/`](../.agents/skills/README.md), [`agent-system/REFERENCES.md`](agent-system/REFERENCES.md) | Procedural skills and their external sources | CANONICAL (process) |
+| — | [`agent-system/ARENA_SANDBOX.md`](agent-system/ARENA_SANDBOX.md) | Environment facts and recipes for agents in an Arena Agent Mode sandbox (setup, real-PG tests, credentials, reporting) | CANONICAL (process; never relaxes `AGENTS.md`) |
+| — | [`owner/AGENT_PLAYBOOK_ar.md`](owner/AGENT_PLAYBOOK_ar.md) | Owner's Arabic guide: copy-paste prompts per task, safe GitHub tokens, how to check an agent's delivery | CANONICAL (owner guide; not an agent rule) |
 
 ## Evidence and proposals (tier 5, non-binding)
 
@@ -38,6 +41,8 @@ document is not listed here, it is not authoritative. Add it here in the same PR
 | --- | --- |
 | [`archive/`](archive/README.md), including the 2026-09-04 architecture assessment | HISTORICAL |
 | [`../prototypes/`](../prototypes/README.md) (plain-Node Nile demo, its README and review; Arabic) | HISTORICAL / UX reference |
+| [`plan/001`](plan/001-pos-implementation-ready.md), [`prd/001`](prd/001-marketing-site-as-platform.md), [`todo/001`](todo/001-marketing-phased-todo.md), [`vision/001`](vision/001-lena-as-umbrella-nile-integration.md) (Arabic, 2026-10-18) | SUPERSEDED by `PRODUCT_PLAN.md` |
+| `prototypes/nilesys/public/assets/js/home.js` | HISTORICAL code, but **the source of the product catalogue** (`PRODUCT_PLAN.md` §2) |
 
 ## Naming conventions
 

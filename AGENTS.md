@@ -29,6 +29,10 @@ and evidence behind them (`docs/`), and evaluation probes (`tools/spikes/`).
 1. This file, completely.
 2. [`docs/STATUS.md`](docs/STATUS.md): verified current state, active PRs and
    branches, the next authorised task, blockers and open findings.
+   Then [`docs/PRODUCT_PLAN.md`](docs/PRODUCT_PLAN.md) for the catalogue, phases,
+   feature IDs and acceptance criteria (PROPOSED until the owner approves it).
+   In an Arena sandbox, also read
+   [`docs/agent-system/ARENA_SANDBOX.md`](docs/agent-system/ARENA_SANDBOX.md).
 3. [`docs/DECISIONS.md`](docs/DECISIONS.md), then every ADR under `docs/adr/`
    that touches your task.
 4. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): current architecture,

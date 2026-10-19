@@ -1,117 +1,178 @@
 # Nile — current state, handoff and task tracker
 
 **Status:** canonical (tier 4 in `AGENTS.md`). This is the **only** live status and handoff document.
-Update it in the same PR as any change that alters what is below. Do not create per-agent status files.
+Update it in the same change as anything that alters what is below. Do not create per-agent status files.
 
-- **Last verified:** 2026-10-14 19:38 UTC, by the coordinating engineering agent, using `git ls-remote` and the
-  GitHub API against `mohamedmasoud3030-tech/Mohamed-App-Factory`.
-- **Re-verify before acting:** run `git ls-remote origin` and check open PRs. If the remote differs from
-  this file, the remote is right; fix this file.
-- **Published vs. candidate:** only `main` and PR #4 were on GitHub when this file was last edited. Every
-  other branch in §2 is a **candidate that is not merged into `main`**. This file was written before those
-  candidates were pushed, so confirm each one with `git ls-remote origin`; a branch that is absent there is
-  not published.
+- **Last verified:** 2026-10-19, by the LENA integration agent (Arena Agent Mode), using
+  `git ls-remote https://github.com/mohamedmasoud3030-tech/nilesys.git` and the GitHub REST API.
+  Earlier editions of this file referred to the repository by its old name `Mohamed-App-Factory`.
+- **Re-verify before acting:** run `git ls-remote origin` and list the PRs. If the remote differs from this
+  file, the remote is right, so fix this file.
+- **What to build and in which order:** [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) holds the catalogue, the
+  phases 0–5, feature IDs (`F0-n`, `MKT-n`, `POS-n`, …) and acceptance criteria. It is PROPOSED until the
+  owner approves it. This file says **what is allowed right now**.
+- **Agents working in an Arena sandbox:** read [`agent-system/ARENA_SANDBOX.md`](agent-system/ARENA_SANDBOX.md)
+  first. The owner's guide is [`owner/AGENT_PLAYBOOK_ar.md`](owner/AGENT_PLAYBOOK_ar.md).
 
-## 1. Repository state
+## 1. Repository state (2026-10-19)
 
 | Item | Value | Verified how |
 | --- | --- | --- |
-| `main` | `ebcfe722ebeaba1ed4eebef1c42eae9a7cb399a8` (merge of PR #3) | `git ls-remote` |
-| CI | **None.** There is no `.github/` workflow, so PRs show no checks | repository tree; GitHub API: 0 check runs on PR #4 |
-| Tests on `main` | typecheck exit 0; `npm test` 9 files, 91/91 | run locally 2026-10-14 |
-| Schema drift on `main` | `drizzle-kit check`: fine; `generate`: no changes | run locally 2026-10-14 |
-| Hosting and production PostgreSQL | **UNRESOLVED.** No host, PostgreSQL major version or pooler has been chosen. Supabase was assessed as *conditionally viable, not chosen*; see D5 in §3 | review `2026-10-14-supabase-feasibility.md` (branch `handoff/2026-10-14-evidence`) |
+| `main` | `52af4693e53ca17883b473512f22aeb32e77672a`: merge of PR #4 (on 2026-10-18), which also contains the `docs/source-of-truth-cleanup` merge `0369716` | `git ls-remote`; GitHub API (PR #4 `merged_at` 2026-10-18T05:45:19Z) |
+| `integration/nile-2026-10-18` | `0207c1355a6e287f8724ff877c7c3be79fcb75ec`: **all POS engine work, not merged into `main`** (see §2) | `git ls-remote` |
+| CI | **None on GitHub.** There is no `.github/workflows` file. A reviewed draft exists on branch `rescue/2026-10-19-workspace-archive`, at `deliverables/ci/nilesys-ci.yml` | repository tree |
+| Hosting | **UNRESOLVED (D5).** The Vercel project builds previews on every push, but `https://nilesys.vercel.app` returns 404 (there is no web app) | `curl` 2026-10-19 |
+| Production database | Not chosen. The target candidate is Supabase PostgreSQL 17 (conditionally viable, **not chosen**) | `docs/reviews/2026-10-14-supabase-feasibility.md` (branch `handoff/2026-10-14-evidence`) |
+| Toolchain | npm with `package-lock.json` v3, Node `>=20`. There is an untracked `pnpm-lock.yaml` in one sandbox; it is not committed and its future is D-H | `package.json`; `PRODUCT_PLAN.md` F0-10 |
 
-## 2. Pull requests and branches
+### Verification evidence for the integration branch (local sandboxes only, never CI)
+
+| Commit | Command and result |
+| --- | --- |
+| `b25cb65` | `npm run typecheck` exit 0 · full suite on real PostgreSQL 17: 230/230 · prototype parity 30/30 · `npm run api:smoke` 5/5 · gitleaks 0 findings |
+| `d90b7c9` | full suite on real PostgreSQL 17: 236/236 · refund concurrency tests A–F: 6/6, three runs each |
+| `0207c13` | `npm run typecheck` exit 0 · `refund-concurrency.pg.test.ts` 7/7 · refund-related tests 57/57 · mutation check: only test G fails · **2026-10-19 re-run: full suite on real PostgreSQL 17.11 (fresh cluster, `--maxWorkers=1`): 25 files, 237/237, 0 skipped, 4 real-PG files / 22 real-PG tests, 0 leftover test databases** |
+
+None of these results comes from GitHub Actions, staging or production.
+
+## 2. Branches and pull requests
 
 | Ref | Head | State | Notes |
 | --- | --- | --- | --- |
-| PR #4 `fix/nile-gate-ledger-append-only-demo-lock` | `784e50c` (base `ebcfe72`) | **OPEN, not merged**; 0 GitHub reviews | Fixes G-1, G-2. **Limitation: the only review is by the PR's author** ([APPROVE, author re-review](reviews/2026-10-14-pr4-review.md)); no independent reviewer was available. Known gaps, not merge blockers: 3 of the 8 locked demo paths (change-email, delete-user, revoke-session) have no committed test (P4-1); tables added later inherit UPDATE/DELETE for `nile_app` unless their migration revokes it (P4-4). Review-request text for the owner: [review §5](reviews/2026-10-14-pr4-review.md#5-independent-review-request-text-for-the-owner-to-post). **Merge needs the owner's authorisation** |
-| `investigation/g7-runtime-role-boundary-incomplete` (same commit as the local-only branch `fix/g7-runtime-role-assertion`) | `60342be` (base `ebcfe72`) | **CANDIDATE, INCOMPLETE. Not merged into `main`; no PR.** | **Not a security fix.** It closes the unawaited `SET ROLE` and the table-owning-login cases, but the 2026-10-14 adversarial review found that its startup check still accepts runtime logins holding extra powers (17 of 18 tested vectors on PostgreSQL 17.10 and 18.4, including running OS commands through `pg_execute_server_program`). Decision: **REVISE**. Redesign: `docs/reviews/2026-10-14-g7-redesign-design-review.md` (PROPOSED) on branch `handoff/2026-10-14-evidence` |
-| `docs/source-of-truth-cleanup` | its own head (check `git ls-remote`) | **Candidate, not merged into `main`. No PR has been opened.** | Documentation cleanup (this file, `AGENTS.md`, ADR-0010, evidence consolidation). Based on `ebcfe72`. Contains the three Odoo-evidence consolidation commits `d81cf97`, `bf23dad`, `ce6f328` (local branch `docs/consolidate-option-c-evidence` is an ancestor and needs no separate publication) |
-| `handoff/2026-10-14-evidence` | its own head (check `git ls-remote`) | **Candidate, not merged into `main`; no PR.** Built on top of `docs/source-of-truth-cleanup` | Reviews (Supabase feasibility, G-7 redesign, publication audit), raw test evidence with checksums under `tools/spikes/`, sanitized scratch probes, and archived agent reports |
-| `arena/bfcb5ed1-mohamed-app-factory` | `e61cd06` | Odoo evaluation branch; **HISTORICAL evidence, never merge wholesale** | Forked at `bb0cb4f`, 16 commits behind `main`. Its relevant files are imported (with provenance) by the cleanup branch. Keep the branch |
-| `arena/01a06b01-…`, `feat/nile-engines-v1`, `feat/nile-engines-wave2-db`, `feat/nile-e2e-auth-sale` | `e74167b`, `3916924`, `949228f`, `b602a57` | **MERGED IN `main`** (each is an ancestor of `ebcfe72`) | Proposed for deletion; needs owner approval (see the cleanup inventory) |
+| `main` | `52af469` | default | Production branch of the Vercel project (404, no app) |
+| `integration/nile-2026-10-18` | `0207c13` | **CANDIDATE. Not merged; no PR** | Built from `main` by fast-forwarding to `feat/nile-mission3-pos-fixes-pg-tests`, then merging `feat/nile-pos-dst-2026-10-18` (`5dd1f7d`), then fixes F1–F5 (`dcca705`, `3499550`, `0b271af`, `69b3310`, `b25cb65`), the C4 refund lock `d90b7c9` and test G `0207c13`. Contains: checkout and split tenders, refunds, cash shifts, daily report (Africa/Cairo, DST-safe), migrations `0003`/`0004`, lead and people services, prototype fixes, the offerings registry |
+| `feat/nile-pos-dst-2026-10-18`, `feat/nile-mission3-pos-fixes-pg-tests`, `feat/nile-lead-people-services`, `feat/nile-offerings-readiness` | `e94ecc4`, `c72f746`, `099dc14`, `c910b57` | contained in the integration branch | Keep them. Delete only with the owner's approval |
+| `feat/nile-payments-engine` | `c489a23` | **Alternative, not merged** | A second implementation of proposal 0007 with a different model. It is option (3) of decision D-A |
+| `fix/nile-pool-error-listener` | `29390fa` | **CANDIDATE for N-1, not merged** | Task F0-5 |
+| `investigation/g7-runtime-role-boundary-incomplete` | `60342be` | **INCOMPLETE, not a fix** | See G-7a. The redesign is in `docs/reviews/2026-10-14-g7-redesign-design-review.md` (branch `handoff/2026-10-14-evidence`) |
+| `handoff/2026-10-14-evidence` | `315ebe7` | evidence, not merged | Supabase feasibility, G-7 redesign, publication audit, archived agent reports |
+| `docs/resolve-source-of-truth-citations` | `ac1f367` | not merged | `docs/FINANCIAL_RULES.md` and `docs/adr/kayyal-core/*` (source-repository decisions) |
+| `docs/skill-manifest-and-dead-refs` | `a8bbd9d` | not merged | — |
+| PR #5 `docs/2026-10-15-autonomous-execution-protocol` | `644f7f6` | **OPEN** | Autonomous execution protocol |
+| `rescue/2026-10-19-workspace-archive` | `27bf9b3` | **archive only; never merge** | Byte-identical copies of the sandbox's local reports, evidence, backups and the CI draft (290 files, `RESCUE_MANIFEST.tsv`) |
+| `arena/bfcb5ed1-mohamed-app-factory` | `e61cd06` | HISTORICAL | Odoo evaluation. Never merge it wholesale |
+| `arena/01a06b01-…`, `feat/nile-engines-v1`, `feat/nile-engines-wave2-db`, `feat/nile-e2e-auth-sale`, `fix/nile-gate-ledger-append-only-demo-lock`, `docs/source-of-truth-cleanup` | — | **MERGED IN `main`** | Deleting them needs the owner's approval |
+| PR #1–#4 | — | merged | — |
 
 ## 3. Decisions
 
-- **ACCEPTED:** ADR-0001…0007, ADR-0009, ADR-0010. ADR-0010 records the owner's D1: engines continue
-  while the ledger provider is open.
-- **PROPOSED:** ADR-0008 (build vs. adopt; Odoo conditionally recommended, **not adopted**); proposals
-  0002–0007.
-- **OPEN (owner):** D2 (ERPNext measurement), D3 (ETA credential ownership and a pilot), D4 (ledger budget
-  and licence). See [proposal 0006](architecture/proposals/0006-ledger-decision-memo.md) §9.
-- **OPEN (owner): D5 hosting.** No host is chosen. Supabase is *conditionally viable, not chosen*: its free
-  IPv4 pooler (Supavisor) drops the `-c role=nile_app` startup option, so G-7's role switch needs either a
-  direct (IPv6-only on Free) connection or an owner-approved `ALTER ROLE … IN DATABASE … SET role`; Data API
-  exposure must be off; use PostgreSQL 17; no backups on Free. A test on a **disposable** project needs owner
-  approval. Neon was not tested. Details: `docs/reviews/2026-10-14-supabase-feasibility.md` on branch
-  `handoff/2026-10-14-evidence`.
-- **ADR-vs-code gaps** (ADR-0001 Nx/pnpm/CI, ADR-0002 per-vertical apps, ADR-0003 Milestone 1 scope):
+- **ACCEPTED:** ADR-0001…0007, ADR-0009, ADR-0010.
+- **ACCEPTED (owner, 2026-10-18), recorded from the session reports:**
+  - The v3 regression contract.
+  - Prototype SALE-3 returns 400.
+  - Salary is never below zero.
+  - UPDATE stays allowed on leads and attendance.
+  - LENA is the umbrella brand and Nile is integrated into it.
+- **PROPOSED:** ADR-0008; proposals 0002–0007; `PRODUCT_PLAN.md`.
+- **OPEN (owner):** D-A…D-H and D5, listed with options in [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) §10:
+  - D-A: payment model and the list of payment methods.
+  - D-B: cash correction policy.
+  - D-C: who may close a shift.
+  - D-D: who may read the daily report.
+  - D-E: definition of gross sales.
+  - D-F: where the marketing site lives.
+  - D-G: product order.
+  - D-H: Nx + pnpm or npm.
+  - D5: hosting.
+
+  D2–D4 (ledger provider) remain open and block nothing in phases 0–2.
+- **ADR-vs-code gaps** (ADR-0001 Nx/pnpm/Next.js/CI, ADR-0002 per-vertical apps, ADR-0003 Milestone 1 scope):
   [`ARCHITECTURE.md`](ARCHITECTURE.md) §3.
 
-## 4. Implementation status (from code at `ebcfe72`)
+## 4. Implementation status
 
-- **Implemented on `main` and tested:** tenancy with fail-closed RLS; Better Auth organizations and 14
-  demo roles; the sale path (login → permission → tenant → persisted sale with lines, stock movements and
-  an audit row; idempotent; atomic); catalog listing; generated migrations and runtime-role hardening.
-- **Domain code only (no service, no API):** booking, people.
-- **Not implemented:** payments (G-3), refunds, cash shifts, daily demo reset, any product UI, CI.
+- **Implemented on `main` and tested:**
+  - Tenancy with fail-closed RLS.
+  - Better Auth organisations and 14 demo roles.
+  - The sale path (idempotent, atomic, audited).
+  - Catalog listing.
+  - Append-only ledger for the runtime role, and locked demo logins (PR #4).
+- **Implemented on `integration/nile-2026-10-18` only (not merged):**
+  - Checkout with split tenders.
+  - Refunds, serialised per sale.
+  - Cash shifts with a locked close.
+  - Daily report (Africa/Cairo).
+  - Lead capture service and people service.
+  - API endpoints:
+    - `POST /api/v1/checkout`
+    - `POST /api/v1/sales`
+    - `GET /api/v1/sales/:id`
+    - `POST /api/v1/shifts`
+    - `POST /api/v1/shifts/:id/close`
+    - `GET /api/v1/shifts/:id`
+    - `POST /api/v1/refunds`
+    - `GET /api/v1/reports/daily`
+    - `GET /api/v1/catalog/items`
+- **Domain code only:** booking.
+- **Not implemented anywhere:**
+  - Any product UI (no Next.js app).
+  - Receipt endpoint.
+  - Sales list.
+  - Product create, update and delete.
+  - Branding API.
+  - Lead endpoint.
+  - Daily demo reset.
+  - Profit, top-seller and hourly reports.
+  - Inventory/purchasing and restaurant engines.
+  - CI.
+
+  The feature-by-feature table is in `PRODUCT_PLAN.md` §5.
 
 ## 5. Next work, in order
 
+Task IDs match `PRODUCT_PLAN.md`. Each task needs its own branch, its own commit(s) with tests, and evidence
+recorded in its PR description. Nothing is merged without the owner.
+
 | # | Task | Status | Gate |
 | --- | --- | --- | --- |
-| 1 | Owner reviews and authorises: PR #4 merge; whether to open a PR for `docs/source-of-truth-cleanup` (none opened yet); the deletion proposals | WAITING ON OWNER | — |
-| 2 | **G-7:** fail explicitly unless the runtime role is exactly `nile_app`, and refuse a runtime login that could gain anything `nile_app` lacks; tests for wrong logins | **CANDIDATE, INCOMPLETE (REVISE)** on `investigation/g7-runtime-role-boundary-incomplete` `60342be`; not merged; not a fix | Candidate results: 6 PGlite + 14 real-PostgreSQL tests pass (111/111 on 15.18 rerun, 17.10 and 18.4; 115/115 merged with PR #4). These tests do **not** cover the adversarial vectors: the escalation matrix shows 17 of 18 accepted on 17.10/18.4 (15 accepted on 15.18, where 2 vectors do not exist). Next: owner approves the redesign, then implement it with the proposed real-PostgreSQL tests and an independent review |
-| 2a | **N-1:** add a pool `error` listener in `openPostgres` (log and let the pool replace the client) with a real-PostgreSQL test that terminates an idle connection | PROPOSED: the next unblocked engine task (no migration) | Separate branch from `main`; not part of G-7 |
-| 2b | **D5 hosting:** run the read-only hosted checks (role attributes, pooler role behaviour, grants to `anon`/`authenticated`, catalog inventory, dump/restore) on a disposable free Supabase project on PostgreSQL 17 with Data API exposure off | WAITING ON OWNER (creating cloud resources needs approval; nobody may use an existing project) | Plan in the Supabase feasibility review §6 |
-| 3 | Payment engine per [proposal 0007](architecture/proposals/0007-payment-engine.md) (tests first; real-PG concurrency tests) | BLOCKED BY PR #4 merge | New branch from the then-current `main` |
-| 4 | G-4 CHECK constraints; G-10 booking `EXCLUDE` constraint | BLOCKED BY PR #4 merge | Migration numbering: PR #4 owns `0002`; generate new migrations only after it merges |
-| 5 | Add the 3 untested locked paths to `e2e-sale.test.ts` §6b (PR #4 review, risk 1) | BLOCKED BY PR #4 merge | — |
-| 6 | CI workflow (typecheck, tests, drizzle check); closes part of the ADR-0001/0003 gap | PROPOSED | Pushing workflows needs owner action |
-| 7 | Translate `prototypes/*` Arabic documents to English | PROPOSED | Low priority |
-| 8 | Cashier UI | BLOCKED BY #3 merged and tested, plus the UI blockers in §6 | — |
+| 1 | **Owner decisions D-A…D-E** (payments, cash correction, shift close, report access, gross) | WAITING ON OWNER | — |
+| 2 | F0-2: implement D-A…D-E on a branch from `integration/nile-2026-10-18` (for example migration `0005`, the method list and permissions), failing-test-first; full suite on real PostgreSQL | BLOCKED BY #1 | — |
+| 3 | F0-3: add the CI workflow from the draft; first green run on GitHub Actions | PROPOSED, unblocked | The owner approves pushing a workflow file |
+| 4 | F0-9: update `tools/nile-offerings/offerings.ts`, whose POS `mustNotClaim` still says payments live on an unmerged branch | PROPOSED, unblocked | — |
+| 5 | F0-4: open a PR from the integration branch (after #2 and #3) and request review | BLOCKED BY #2, #3 | The owner alone merges |
+| 6 | F0-5: N-1 pool `error` listener (rebase `29390fa` onto the then-current base), with a real-PostgreSQL test | PROPOSED, unblocked | — |
+| 7 | F0-6: G-7a redesign (closed-world allow-list) and its adversarial real-PostgreSQL matrix | WAITING ON OWNER (approve the redesign) | — |
+| 8 | F0-10 / D-H: Nx + pnpm or npm, decided by ADR **before** the first UI app | WAITING ON OWNER | Blocks #10 |
+| 9 | F0-7 / D5: disposable Supabase PG 17 project; read-only hosted checks; then staging | WAITING ON OWNER | Creating cloud resources needs approval |
+| 10 | Phase 1 APIs: POS-04 receipt, POS-05 sales list, POS-08 profit/top/hourly, POS-09 product writes, POS-10 branding, MKT-09 lead endpoint, POS-11 demo reset | BLOCKED BY #5 merged | One feature per PR, tests first |
+| 11 | Phase 1 UI: marketing site (MKT-*) and cashier (POS-*) on Next.js | BLOCKED BY #8, #10, D-F, and the UI blockers in §6 | — |
+| 12 | Phase 1 acceptance (`PRODUCT_PLAN.md` §5.3) on staging; the owner tests it personally | BLOCKED BY #9, #11 | Owner sign-off |
+| 13 | Phase 2 design: purchase receipt contract over the shared stock-movement path; restaurant tables and kitchen domain | PROPOSED (design only; no code before Phase 1 acceptance) | — |
+| 14 | P4-1: tests for the remaining locked demo paths (change-email, delete-user) | PROPOSED, unblocked | — |
 
 ## 6. Open findings register
 
-IDs: **G-n** = [post-merge security gate](reviews/2026-10-14-post-merge-security-gate.md); **H-n** =
-[review 0001](reviews/0001-nile-engines-db-auth-review.md) (disposition in
-[`architecture/README.md`](architecture/README.md) §5); **P4-n** = [PR #4 review](reviews/2026-10-14-pr4-review.md) §3;
-**N-n** = found after those reviews and recorded only here, with its evidence.
+IDs:
+- **G-n** = [post-merge security gate](reviews/2026-10-14-post-merge-security-gate.md).
+- **H-n** = [review 0001](reviews/0001-nile-engines-db-auth-review.md).
+- **P4-n** = [PR #4 review](reviews/2026-10-14-pr4-review.md) §3.
+- **N-n** = found later and recorded only here.
+- **C-n** = integration-branch review findings, 2026-10-18 (reports on the rescue branch under `deliverables/`).
 
 | ID | Severity | Summary | Status |
 | --- | --- | --- | --- |
-| G-1 (= H4) | High | Runtime role could rewrite or delete ledger and audit rows | FIXED ON PR #4 `784e50c`; OPEN on `main` |
-| G-2 | High | One visitor could lock out or deface shared demo logins | FIXED ON PR #4 `784e50c`; OPEN on `main` |
-| G-3 | Medium | A sale stores no payment | OPEN: payment engine (task 3). **Cashier-UI blocker** |
-| G-4 (= H7) | Medium | No CHECK constraints on money, quantity and enum columns | OPEN (task 4). Required before public exposure |
-| G-5 | Medium | Dev mode trusts any origin; per-boot secret; insecure cookies; no rate limit | OPEN: deployment configuration. Required before public exposure |
-| G-6 | Low | Origin/CSRF checks are skipped under `NODE_ENV=test` | OPEN |
-| G-7 | Low | Unawaited `SET ROLE` (a wrong login exits through unhandled rejections); the assertion accepts any non-bypass role, including a table-owning login; `RESET ROLE` reverts to the login (verified 2026-10-14 on PostgreSQL 18.4 at `ebcfe72`) | OPEN on `main`. Candidate `60342be` (`investigation/g7-runtime-role-boundary-incomplete`) is **INCOMPLETE, not a fix**: see G-7a |
-| G-7a | High | The G-7 candidate's startup check accepts runtime logins that hold or can gain powers `nile_app` lacks: `pg_execute_server_program` (OS commands), `pg_read/write_server_files`, `pg_signal_backend`, CREATEROLE, CREATEDB, REPLICATION, MAINTAIN/`pg_maintain`, `SET` on `session_replication_role`, column/sequence/function grants; and it never bounds `nile_app` itself. On PostgreSQL 17.10 the check accepted 17 of 18 tested vectors, and in 15 of those the extra power was usable after `SET ROLE NONE` (adversarial review 2026-10-14; also run on 15.18 and 18.4) | OPEN: redesign PROPOSED (closed-world allow-list); needs owner approval |
-| G-8 | Low | A failed `set-active` clears the caller's own active org | OPEN (fail-closed) |
-| G-9 | Low | Idempotency keys are per tenant, not per user | OPEN (document) |
-| G-10 (= H9) | Low | Booking overlap not enforced by the database | OPEN (task 4); before any booking API |
-| G-11 | Low | OpenAPI document is public | OPEN (decide) |
-| G-12…G-15 | Low/Info | `drizzle-kit push` false drift; no `db:migrate` script; dev-only audit warnings; non-uniform 400 body | OPEN |
-| H12, H13 | Low | Deep cross-engine imports; modelling gaps | OPEN |
-| P4-1 | — | Demo lock: change-email, delete-user and revoke-session are locked in code but have no committed test (scratch tests passed during review) | OPEN: task 5, after PR #4 merges |
-| P4-4 | — | REVOKE applies only to the 5 tables listed in migration `0002`; any table created later inherits UPDATE/DELETE for `nile_app` | OPEN: rule in `AGENTS.md`; each new append-only table's migration must REVOKE |
-| P4-2, P4-3, P4-5, P4-6 | — | No row locks (`FOR UPDATE`/`SHARE`) on append-only tables, so use advisory locks; append-only status transitions; `list-sessions` token exposure; reset must run as owner | OPEN: handled by task 3 and the rules in `AGENTS.md` |
-| N-1 | Low | The runtime pool has no `error` listener: when PostgreSQL terminates an idle pooled connection (restart, admin kill), Node raises an unhandled `error` event and the API process exits (observed 2026-10-14, PostgreSQL 18.4, pg 8.23.1, `57P01`) | OPEN (task 2a) |
-| E-receipt | — | Egyptian B2C e-receipts (the cashier tax regime) never measured for any provider | OPEN (evaluation) |
+| G-1 (= H4) | High | Runtime role could rewrite or delete ledger and audit rows | MERGED IN `52af469` (PR #4) |
+| G-2 | High | One visitor could lock out or deface shared demo logins | MERGED IN `52af469` (PR #4) |
+| G-3 | Medium | A sale stores no payment | FIXED ON `integration/nile-2026-10-18` `0207c13`; OPEN on `main`. **Cashier-UI blocker until merged** |
+| G-4 (= H7) | Medium | Missing CHECK constraints on money, quantity and enum columns | OPEN, not re-verified since 2026-10-14. Option (1) of D-A adds the payment constraints (`0005`). Required before public exposure |
+| G-5 | Medium | Dev mode trusts any origin; per-boot secret; insecure cookies; no rate limit | OPEN (F0-8). **UI/public blocker** |
+| G-6 | Low | Origin/CSRF checks skipped under `NODE_ENV=test` | OPEN |
+| G-7 / G-7a | Low / **High** | Runtime-role assertion; the candidate `60342be` accepts 17 of 18 escalation vectors on PG 17.10/18.4 | OPEN. Redesign PROPOSED (task 7). **Public blocker** |
+| G-8, G-9, G-11…G-15 | Low/Info | See the gate report | OPEN |
+| G-10 (= H9) | Low | Booking overlap not enforced by the database | OPEN. Needed before any booking API (phases 2–3) |
+| C4 | High | Two concurrent refunds of the same sale could refund one unit twice | FIXED ON `integration/nile-2026-10-18` `d90b7c9` (tests A–F); `payment_mismatch` pinned by test G (`0207c13`) |
+| C-res | Low | 32-bit advisory-lock key collisions can serialise unrelated work (no correctness loss); not verified on PG 18 | OPEN (accepted risk, document) |
+| P4-1 | — | Locked demo paths change-email and delete-user have no committed test (revoke-sessions is covered in `e2e-sale.test.ts`) | OPEN (task 14) |
+| P4-4 | — | Each new append-only table's migration must REVOKE UPDATE/DELETE from `nile_app` | Rule in `AGENTS.md` |
+| N-1 | Low | The runtime pool has no `error` listener, so an idle-connection kill crashes the API | OPEN. Candidate `29390fa` (task 6) |
+| DOC-1 | Low | `cash.ts` cites `docs/adr/0009-cash-reconciliation.md` and `money-by-currency.ts` cites `docs/OPEN_BUSINESS_DECISIONS.md`. Neither exists in this repository; they are source-repository citations (`docs/REUSE.md`) | OPEN (document) |
+| E-receipt | — | Egyptian B2C e-receipts never measured | OPEN (evaluation) |
 
 ## 7. Approvals required from the owner
 
-1. Merge PR #4, ideally after a second, independent reviewer (post the request text in
-   [review §5](reviews/2026-10-14-pr4-review.md#5-independent-review-request-text-for-the-owner-to-post)).
-2. G-7: do **not** merge or present `60342be` as a fix. Approve (or reject) the redesign in
-   `docs/reviews/2026-10-14-g7-redesign-design-review.md`; the candidate stays on
-   `investigation/g7-runtime-role-boundary-incomplete` for reference.
-3. Decide whether to open a PR for `docs/source-of-truth-cleanup` (none exists yet) and then merge it.
-4. Delete the four merged branches listed in §2, if wanted (optional; GitHub keeps PR refs).
-5. Decide D2–D4 when ready. None of them blocks tasks 2–5.
-6. D5 hosting: approve (or not) a disposable free Supabase test project (PostgreSQL 17, Data API exposure
-   off); never an existing project.
-7. Revoke any previously exposed GitHub tokens.
+1. Approve or amend `PRODUCT_PLAN.md`. Once approved, mark it ACCEPTED and move it to tier 4 in `docs/README.md`.
+2. Decide D-A…D-E (task 1), then D-F, D-G, D-H and D5.
+3. Approve pushing the CI workflow (task 3).
+4. Approve the G-7a redesign (task 7).
+5. Later: review and merge the integration PR (task 5); delete merged branches if wanted.
+6. Revoke every GitHub token that was ever pasted into a chat, including the one used on 2026-10-19.
