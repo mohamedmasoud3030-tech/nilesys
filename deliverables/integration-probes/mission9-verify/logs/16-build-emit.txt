@@ -1,0 +1,6 @@
+$ npx tsc -p tsconfig.json --noEmit false --outDir /tmp/v/build-out
+exit=0
+emitted .js files: 85
+apps
+drizzle.config.js
+engines

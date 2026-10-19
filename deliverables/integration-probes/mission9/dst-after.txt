@@ -1,0 +1,17 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/home/user/repos/nilesys[39m
+
+[90mstdout[2m | engines/transactions/test/review-gates.test.ts[2m > [22m[2mGate 1 — Accounting[2m > [22m[2mchange counts toward drawer not revenue (F3)
+[22m[39mGATE1 change drawer expected [33m10750[39m sumIn [33m1000[39m sumOut [33m250[39m
+
+[90mstdout[2m | engines/transactions/test/review-gates.test.ts[2m > [22m[2mGate 2 — Concurrency (single-connection PGlite limitations noted)[2m > [22m[2mopen shift concurrent same register: only one should succeed (requires advisory lock — expected to fail without fix)
+[22m[39mGATE2 open concurrent results [ [32m'9ab7cd63'[39m, [32m'shift_already_open'[39m ]
+
+ [32m✓[39m engines/transactions/test/review-gates.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 3228[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/dst-cairo.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 3119[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m25 passed[39m[22m[90m (25)[39m
+[2m   Start at [22m 13:45:09
+[2m   Duration [22m 7.12s[2m (transform 230ms, setup 0ms, import 515ms, tests 6.35s, environment 0ms)[22m
+

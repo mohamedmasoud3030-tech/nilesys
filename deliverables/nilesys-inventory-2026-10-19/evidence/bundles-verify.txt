@@ -1,0 +1,32 @@
+== backups/session-2026-10-18/nilesys-all-local-branches.bundle
+The bundle uses this hash algorithm: sha1
+52af4693e53ca17883b473512f22aeb32e77672a refs/heads/main
+c910b5777c89aabc9feb92aa816ff64caf488504 refs/heads/feat/nil
+099dc1431a43e18abac88f8f33b5645a9001f611 refs/heads/feat/nil
+c72f7461397f9ef69db05ed614919de8cca1f351 refs/heads/feat/nil
+== backups/session-2026-10-18/nilesys-feat-nile-lead-people-services.bundle
+The bundle uses this hash algorithm: sha1
+099dc1431a43e18abac88f8f33b5645a9001f611 refs/heads/feat/nil
+== backups/session-2026-10-18/nilesys-feat-nile-mission3-pos-fixes-pg-tests.bundle
+The bundle uses this hash algorithm: sha1
+c72f7461397f9ef69db05ed614919de8cca1f351 refs/heads/feat/nil
+== backups/session-2026-10-18/nilesys-feat-nile-offerings-readiness.bundle
+The bundle uses this hash algorithm: sha1
+c910b5777c89aabc9feb92aa816ff64caf488504 refs/heads/feat/nil
+== deliverables/nilesys-feat-nile-lead-people-services.bundle
+The bundle uses this hash algorithm: sha1
+099dc1431a43e18abac88f8f33b5645a9001f611 refs/heads/feat/nil
+c910b5777c89aabc9feb92aa816ff64caf488504 refs/heads/feat/nil
+== deliverables/nilesys-feat-nile-mission3-pos-fixes-pg-tests-c72f746.bundle
+The bundle uses this hash algorithm: sha1
+c72f7461397f9ef69db05ed614919de8cca1f351 refs/heads/feat/nil
+099dc1431a43e18abac88f8f33b5645a9001f611 refs/heads/feat/nil
+c910b5777c89aabc9feb92aa816ff64caf488504 refs/heads/feat/nil
+== deliverables/nilesys-feat-nile-mission3-pos-fixes-pg-tests.bundle
+The bundle uses this hash algorithm: sha1
+3e9469acd42dff74783a4a981158cd05a23be22b refs/heads/feat/nil
+099dc1431a43e18abac88f8f33b5645a9001f611 refs/heads/feat/nil
+c910b5777c89aabc9feb92aa816ff64caf488504 refs/heads/feat/nil
+== deliverables/nilesys-feat-nile-offerings-readiness.bundle
+The bundle uses this hash algorithm: sha1
+c910b5777c89aabc9feb92aa816ff64caf488504 refs/heads/feat/nil

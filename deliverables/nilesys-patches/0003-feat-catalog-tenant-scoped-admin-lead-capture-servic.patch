@@ -1,0 +1,350 @@
+From a03cca9fe64529958d5989b797a678aa2e37b285 Mon Sep 17 00:00:00 2001
+From: LENA parallel agent <lena-parallel-agent@users.noreply.local>
+Date: Sun, 18 Oct 2026 08:00:21 +0000
+Subject: [PATCH 3/5] feat(catalog): tenant-scoped admin lead capture service
+
+captureLead / listLeads / moveLead over the EXISTING createLeadSchema contract,
+Lead/LeadStage/canMoveLead domain and the leads table (migration 0000).
+No schema, migration, auth, routing or with-tenant change.
+
+- Strict, normalising refinement of createLeadSchema: client-supplied tenantId,
+  stage, id or createdAt are rejected; name/message trimmed; phone stored as
+  digits with optional '+'.
+- Every query runs in withTenant under nile_app, so isolation is enforced by
+  RLS; another tenant's lead is indistinguishable from a missing one.
+- moveLead follows canMoveLead and updates conditionally on the stage read.
+- Errors are DomainError codes (validation_failed, lead_not_found,
+  invalid_lead_transition, lead_stage_conflict) so apps/api toHttp maps them.
+
+19 PGlite tests: valid capture, 13 invalid inputs, RLS isolation (list,
+no-context, WITH CHECK 42501, cross-tenant move), filters, transitions.
+Not wired to apps/api: routing is shared with the POS/payments work.
+---
+ engines/catalog/src/lead-service.ts       | 150 +++++++++++++++++++++
+ engines/catalog/test/lead-service.test.ts | 157 ++++++++++++++++++++++
+ 2 files changed, 307 insertions(+)
+ create mode 100644 engines/catalog/src/lead-service.ts
+ create mode 100644 engines/catalog/test/lead-service.test.ts
+
+diff --git a/engines/catalog/src/lead-service.ts b/engines/catalog/src/lead-service.ts
+new file mode 100644
+index 0000000..393c225
+--- /dev/null
++++ b/engines/catalog/src/lead-service.ts
+@@ -0,0 +1,150 @@
++/**
++ * Admin lead capture — every public site → one tenant-scoped inbox.
++ *
++ * Built on the EXISTING contract and table only:
++ *   - contract: `createLeadSchema` (./contracts.ts), `Lead` / `LeadStage` / `canMoveLead` (./catalog.ts)
++ *   - table:    `leads` (./db/schema.ts, migration 0000; RLS enabled + forced, tenant_isolation policy)
++ * No schema or migration change.
++ *
++ * Tenant isolation is enforced by the database, not by this file: every query
++ * runs inside `withTenant` (transaction-local `app.tenant_id`) under the
++ * non-bypass runtime role, so another tenant's rows are invisible and an
++ * insert carrying another tenant id fails RLS WITH CHECK.
++ *
++ * The tenant id is ALWAYS supplied by the server (session context for the
++ * admin inbox; server-side site configuration for public forms). The input
++ * contract is strict: a body carrying `tenantId`, `stage`, `id` or
++ * `createdAt` is rejected, never silently honoured.
++ *
++ * Not in scope here (surfaced, not decided): how a public site resolves its
++ * tenant without a session, and edge rate limiting for anonymous submissions.
++ */
++import { and, desc, eq } from 'drizzle-orm';
++import { z } from 'zod';
++import { withTenant, type AnyPgDatabase } from '../../platform/src/db/with-tenant.js';
++import { DomainError } from '../../transactions/src/line.js';
++import { canMoveLead, type Lead, type LeadSource, type LeadStage } from './catalog.js';
++import { createLeadSchema } from './contracts.js';
++import { leads } from './db/schema.js';
++
++const LEAD_STAGES = ['NEW', 'CONTACTED', 'QUALIFIED', 'WON', 'LOST'] as const satisfies readonly LeadStage[];
++const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
++
++/**
++ * Phone accepted as international or national digits with common separators.
++ * Stored as digits with an optional leading '+'. Market-specific validation
++ * (EG / OM / SA) is a product decision and deliberately not guessed here.
++ */
++const phone = z
++  .string()
++  .trim()
++  .transform((s) => s.replace(/[\s\-().]/g, ''))
++  .pipe(z.string().regex(/^\+?\d{8,15}$/, 'phone must be 8–15 digits, optionally starting with +'));
++
++/** Strict, normalising refinement of the existing public contract. */
++export const captureLeadSchema = createLeadSchema
++  .extend({
++    customerName: z.string().trim().min(2).max(120),
++    customerPhone: phone,
++    message: z
++      .string()
++      .trim()
++      .max(1000)
++      .optional()
++      .transform((m) => (m ? m : undefined)),
++  })
++  .strict();
++
++export const listLeadsQuerySchema = z
++  .object({
++    stage: z.enum(LEAD_STAGES).optional(),
++    source: createLeadSchema.shape.source.optional(),
++    limit: z.number().int().min(1).max(200).default(50),
++  })
++  .strict();
++export type ListLeadsQuery = z.input<typeof listLeadsQuerySchema>;
++
++function validation(err: z.ZodError): DomainError {
++  const details: Record<string, string> = {};
++  for (const issue of err.issues) details[issue.path.join('.') || '_'] = issue.message;
++  return new DomainError('validation_failed', 'بيانات غير صالحة', details);
++}
++
++function parse<S extends z.ZodType>(schema: S, input: unknown): z.output<S> {
++  const r = schema.safeParse(input);
++  if (!r.success) throw validation(r.error);
++  return r.data;
++}
++
++function toLead(row: typeof leads.$inferSelect): Lead {
++  return {
++    id: row.id,
++    tenantId: row.tenantId,
++    source: row.source as LeadSource,
++    customerName: row.customerName,
++    customerPhone: row.customerPhone,
++    ...(row.message ? { message: row.message } : {}),
++    stage: row.stage as LeadStage,
++    createdAt: new Date(row.createdAt).toISOString(),
++  };
++}
++
++/** Capture one lead into the tenant's inbox. Always starts at stage NEW. */
++export async function captureLead(db: AnyPgDatabase, tenantId: string, input: unknown): Promise<Lead> {
++  const data = parse(captureLeadSchema, input);
++  return withTenant(db, tenantId, async (tx: any) => {
++    const [row] = await tx
++      .insert(leads)
++      .values({
++        tenantId,
++        source: data.source,
++        customerName: data.customerName,
++        customerPhone: data.customerPhone,
++        message: data.message ?? null,
++        stage: 'NEW',
++      })
++      .returning();
++    return toLead(row);
++  });
++}
++
++/** Newest first, tenant-scoped by RLS; optional stage/source filters. */
++export async function listLeads(db: AnyPgDatabase, tenantId: string, query: ListLeadsQuery = {}): Promise<Lead[]> {
++  const q = parse(listLeadsQuerySchema, query);
++  return withTenant(db, tenantId, async (tx: any) => {
++    const filters = [q.stage ? eq(leads.stage, q.stage) : undefined, q.source ? eq(leads.source, q.source) : undefined].filter(Boolean);
++    const rows = await tx
++      .select()
++      .from(leads)
++      .where(filters.length ? and(...filters) : undefined)
++      .orderBy(desc(leads.createdAt), desc(leads.id))
++      .limit(q.limit);
++    return rows.map(toLead);
++  });
++}
++
++/**
++ * Move a lead along the pipeline (`canMoveLead`). The UPDATE is conditional
++ * on the stage that was read, so two admins racing on the same lead cannot
++ * both win; the loser gets `lead_stage_conflict`. Another tenant's lead is
++ * indistinguishable from a missing one.
++ */
++export async function moveLead(db: AnyPgDatabase, tenantId: string, leadId: string, to: unknown): Promise<Lead> {
++  if (!UUID_RE.test(leadId)) throw new DomainError('lead_not_found', 'الطلب غير موجود');
++  const target = parse(z.enum(LEAD_STAGES), to);
++  return withTenant(db, tenantId, async (tx: any) => {
++    const [current] = await tx.select().from(leads).where(eq(leads.id, leadId)).limit(1);
++    if (!current) throw new DomainError('lead_not_found', 'الطلب غير موجود');
++    const from = current.stage as LeadStage;
++    if (!canMoveLead(from, target)) {
++      throw new DomainError('invalid_lead_transition', 'لا يمكن نقل الطلب لهذه المرحلة', { from, to: target });
++    }
++    const [row] = await tx
++      .update(leads)
++      .set({ stage: target })
++      .where(and(eq(leads.id, leadId), eq(leads.stage, from)))
++      .returning();
++    if (!row) throw new DomainError('lead_stage_conflict', 'تم تعديل الطلب بواسطة مستخدم آخر', { from, to: target });
++    return toLead(row);
++  });
++}
+diff --git a/engines/catalog/test/lead-service.test.ts b/engines/catalog/test/lead-service.test.ts
+new file mode 100644
+index 0000000..5cda680
+--- /dev/null
++++ b/engines/catalog/test/lead-service.test.ts
+@@ -0,0 +1,157 @@
++/**
++ * Lead capture on real PostgreSQL (PGlite) through the production path
++ * (open.ts: migrations as owner, queries as the non-bypass role nile_app).
++ */
++import { sql } from 'drizzle-orm';
++import { afterAll, beforeAll, describe, expect, it } from 'vitest';
++import { openPglite, type NileDb, type OpenedDatabase } from '../../db/open.js';
++import { organization } from '../../platform/src/auth/schema.js';
++import { TenantScopeError, withTenant } from '../../platform/src/db/with-tenant.js';
++import { DomainError } from '../../transactions/src/line.js';
++import { leads } from '../src/db/schema.js';
++import { captureLead, listLeads, moveLead } from '../src/lead-service.js';
++
++let opened: OpenedDatabase;
++let db: NileDb;
++let A: string;
++let B: string;
++
++const valid = { source: 'clinic', customerName: '  منى أحمد ', customerPhone: '+20 100-123-4567', message: 'أريد حجز كشف' } as const;
++
++async function domainCode(p: Promise<unknown>): Promise<string | undefined> {
++  const e = await p.then(() => null, (x) => x);
++  expect(e, 'expected a rejection').toBeInstanceOf(DomainError);
++  return (e as DomainError).code;
++}
++async function sqlState(p: Promise<unknown>): Promise<string | undefined> {
++  let e: any = await p.then(() => null, (x) => x);
++  while (e && !e.code) e = e.cause;
++  return e?.code;
++}
++const rawCount = async (tenantId: string) =>
++  withTenant(db, tenantId, async (tx: any) => Number((await tx.select({ n: sql<number>`count(*)` }).from(leads))[0].n));
++
++beforeAll(async () => {
++  opened = await openPglite();
++  db = opened.db;
++  [{ id: A }] = (await db.insert(organization).values({ name: 'A', slug: 'lead-a' }).returning({ id: organization.id })) as [{ id: string }];
++  [{ id: B }] = (await db.insert(organization).values({ name: 'B', slug: 'lead-b' }).returning({ id: organization.id })) as [{ id: string }];
++});
++afterAll(() => opened.close());
++
++describe('captureLead — valid requests', () => {
++  it('stores a normalised lead at stage NEW in the caller tenant', async () => {
++    const lead = await captureLead(db, A, valid);
++    expect(lead).toMatchObject({
++      tenantId: A,
++      source: 'clinic',
++      customerName: 'منى أحمد',
++      customerPhone: '+201001234567',
++      message: 'أريد حجز كشف',
++      stage: 'NEW',
++    });
++    expect(lead.id).toMatch(/^[0-9a-f-]{36}$/);
++    expect(Number.isNaN(Date.parse(lead.createdAt))).toBe(false);
++  });
++
++  it('accepts every one of the 7 site sources and treats a blank message as absent', async () => {
++    for (const source of ['courts', 'restaurant', 'clinic', 'realestate', 'gym', 'mobile', 'fashion']) {
++      const lead = await captureLead(db, B, { source, customerName: 'Ali', customerPhone: '91234567', message: '   ' });
++      expect(lead.source).toBe(source);
++      expect(lead).not.toHaveProperty('message');
++    }
++  });
++});
++
++describe('captureLead — invalid input is rejected before any write', () => {
++  const cases: Array<[string, Record<string, unknown>]> = [
++    ['unknown source', { ...valid, source: 'casino' }],
++    ['name too short after trim', { ...valid, customerName: ' a ' }],
++    ['phone with letters', { ...valid, customerPhone: '0100-CALL-ME' }],
++    ['phone too short', { ...valid, customerPhone: '12345' }],
++    ['message over 1000 chars', { ...valid, message: 'x'.repeat(1001) }],
++    ['client-supplied tenantId', { ...valid, tenantId: '00000000-0000-4000-8000-000000000001' }],
++    ['client-supplied stage', { ...valid, stage: 'WON' }],
++    ['missing phone', { source: 'gym', customerName: 'Sara' }],
++  ];
++
++  it.each(cases)('%s → validation_failed', async (_label, body) => {
++    const before = await rawCount(A);
++    expect(await domainCode(captureLead(db, A, body))).toBe('validation_failed');
++    expect(await rawCount(A)).toBe(before);
++  });
++
++  it('non-object bodies are rejected', async () => {
++    for (const body of [null, undefined, 'lead', 42, []]) expect(await domainCode(captureLead(db, A, body))).toBe('validation_failed');
++  });
++
++  it('missing or malformed tenant id fails before touching the database', async () => {
++    await expect(captureLead(db, '', valid)).rejects.toBeInstanceOf(TenantScopeError);
++    await expect(captureLead(db, "x' OR 1=1 --", valid)).rejects.toBeInstanceOf(TenantScopeError);
++  });
++});
++
++describe('cross-tenant isolation (enforced by RLS, not by filters)', () => {
++  it('each tenant lists only its own leads', async () => {
++    const a = await listLeads(db, A);
++    const b = await listLeads(db, B);
++    expect(a.length).toBeGreaterThan(0);
++    expect(b.length).toBeGreaterThan(0);
++    expect(a.every((l) => l.tenantId === A)).toBe(true);
++    expect(b.every((l) => l.tenantId === B)).toBe(true);
++    const aIds = new Set(a.map((l) => l.id));
++    expect(b.some((l) => aIds.has(l.id))).toBe(false);
++  });
++
++  it('without tenant context the runtime role sees zero leads', async () => {
++    expect(Number((await db.select({ n: sql<number>`count(*)` }).from(leads))[0]!.n)).toBe(0);
++  });
++
++  it('a direct insert carrying another tenant id is refused by RLS WITH CHECK (42501)', async () => {
++    expect(
++      await sqlState(
++        withTenant(db, A, (tx: any) => tx.insert(leads).values({ tenantId: B, source: 'gym', customerName: 'evil', customerPhone: '12345678' })),
++      ),
++    ).toBe('42501');
++  });
++
++  it('tenant A cannot move, and cannot learn about, tenant B lead', async () => {
++    const [bLead] = await listLeads(db, B, { limit: 1 });
++    expect(await domainCode(moveLead(db, A, bLead!.id, 'CONTACTED'))).toBe('lead_not_found');
++    const after = (await listLeads(db, B, { limit: 200 })).find((l) => l.id === bLead!.id);
++    expect(after?.stage).toBe('NEW');
++  });
++});
++
++describe('listing filters', () => {
++  it('filters by stage and source, newest first, and bounds the limit', async () => {
++    const t = A;
++    const first = await captureLead(db, t, { source: 'gym', customerName: 'Gym One', customerPhone: '01000000001' });
++    const second = await captureLead(db, t, { source: 'gym', customerName: 'Gym Two', customerPhone: '01000000002' });
++    const gym = await listLeads(db, t, { source: 'gym' });
++    expect(gym.map((l) => l.id).slice(0, 2)).toEqual([second.id, first.id]);
++    expect((await listLeads(db, t, { limit: 1 })).length).toBe(1);
++    expect(await domainCode(listLeads(db, t, { limit: 0 }))).toBe('validation_failed');
++    expect(await domainCode(listLeads(db, t, { limit: 201 }))).toBe('validation_failed');
++    expect(await domainCode(listLeads(db, t, { stage: 'ARCHIVED' as never }))).toBe('validation_failed');
++  });
++});
++
++describe('moveLead — pipeline transitions', () => {
++  it('follows canMoveLead and refuses skips, reversals and terminal moves', async () => {
++    const lead = await captureLead(db, A, { source: 'realestate', customerName: 'Owner', customerPhone: '96891234567' });
++    expect(await domainCode(moveLead(db, A, lead.id, 'WON'))).toBe('invalid_lead_transition');
++    expect((await moveLead(db, A, lead.id, 'CONTACTED')).stage).toBe('CONTACTED');
++    expect(await domainCode(moveLead(db, A, lead.id, 'NEW'))).toBe('invalid_lead_transition');
++    expect((await moveLead(db, A, lead.id, 'QUALIFIED')).stage).toBe('QUALIFIED');
++    expect((await moveLead(db, A, lead.id, 'WON')).stage).toBe('WON');
++    expect(await domainCode(moveLead(db, A, lead.id, 'LOST'))).toBe('invalid_lead_transition');
++    expect((await listLeads(db, A, { stage: 'WON' })).map((l) => l.id)).toContain(lead.id);
++  });
++
++  it('rejects unknown stages and malformed ids without a database round-trip', async () => {
++    const lead = await captureLead(db, A, { source: 'mobile', customerName: 'Buyer', customerPhone: '0501234567' });
++    expect(await domainCode(moveLead(db, A, lead.id, 'ARCHIVED'))).toBe('validation_failed');
++    expect(await domainCode(moveLead(db, A, 'not-a-uuid', 'CONTACTED'))).toBe('lead_not_found');
++  });
++});
+-- 
+2.47.3
+

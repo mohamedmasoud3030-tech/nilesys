@@ -1,0 +1,51 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/wt-pay[39m
+
+(node:13147) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[90mstdout[2m | engines/transactions/test/zz-constraints.pg.test.ts[2m > [22m[2mconstraint probe[2m > [22m[2mruns
+[22m[39mROW|pay|payment amount = 0|REJECTED 23514 payment_tenders_amount_positive
+
+[90mstdout[2m | engines/transactions/test/zz-constraints.pg.test.ts[2m > [22m[2mconstraint probe[2m > [22m[2mruns
+[22m[39mROW|pay|payment amount < 0|REJECTED 23514 payment_tenders_amount_positive
+
+[90mstdout[2m | engines/transactions/test/zz-constraints.pg.test.ts[2m > [22m[2mconstraint probe[2m > [22m[2mruns
+[22m[39mROW|pay|payment unknown method|REJECTED 23514 payment_tenders_method_known
+
+[90mstdout[2m | engines/transactions/test/zz-constraints.pg.test.ts[2m > [22m[2mconstraint probe[2m > [22m[2mruns
+[22m[39mROW|pay|payment change < 0|REJECTED 23514 payment_tenders_change_non_negative
+
+[90mstdout[2m | engines/transactions/test/zz-constraints.pg.test.ts[2m > [22m[2mconstraint probe[2m > [22m[2mruns
+[22m[39mROW|pay|change > tendered / tendered < amount|REJECTED 23514 payment_tenders_change_ne_exceeds_amount
+
+[90mstdout[2m | engines/transactions/test/zz-constraints.pg.test.ts[2m > [22m[2mconstraint probe[2m > [22m[2mruns
+[22m[39mROW|pay|change on non-cash|ACCEPTED
+
+[90mstdout[2m | engines/transactions/test/zz-constraints.pg.test.ts[2m > [22m[2mconstraint probe[2m > [22m[2mruns
+[22m[39mROW|pay|refund amount = 0|REJECTED 23514 refunds_amount_positive
+
+[90mstdout[2m | engines/transactions/test/zz-constraints.pg.test.ts[2m > [22m[2mconstraint probe[2m > [22m[2mruns
+[22m[39mROW|pay|refund unknown method|REJECTED 23514 refunds_method_known
+
+[90mstdout[2m | engines/transactions/test/zz-constraints.pg.test.ts[2m > [22m[2mconstraint probe[2m > [22m[2mruns
+[22m[39mROW|pay|shift opening < 0|REJECTED 23514 cash_shifts_float_non_negative
+
+[90mstdout[2m | engines/transactions/test/zz-constraints.pg.test.ts[2m > [22m[2mconstraint probe[2m > [22m[2mruns
+[22m[39mROW|pay|closure counted < 0|REJECTED 23514 shift_closures_counted_non_negative
+
+[90mstdout[2m | engines/transactions/test/zz-constraints.pg.test.ts[2m > [22m[2mconstraint probe[2m > [22m[2mruns
+[22m[39mROW|pay|closure difference inconsistent|REJECTED 23514 shift_closures_difference_consistent
+
+[90mstdout[2m | engines/transactions/test/zz-constraints.pg.test.ts[2m > [22m[2mconstraint probe[2m > [22m[2mruns
+[22m[39mROW|pay|second closure same shift|REJECTED 23505 shift_closures_tenant_shift_uq
+
+[90mstdout[2m | engines/transactions/test/zz-constraints.pg.test.ts[2m > [22m[2mconstraint probe[2m > [22m[2mruns
+[22m[39mROW|pay|UPDATE payments (append-only)|REJECTED 42501 
+
+ [32m✓[39m engines/transactions/test/zz-constraints.pg.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 203[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m   Start at [22m 13:33:19
+[2m   Duration [22m 608ms[2m (transform 131ms, setup 0ms, import 279ms, tests 203ms, environment 0ms)[22m
+

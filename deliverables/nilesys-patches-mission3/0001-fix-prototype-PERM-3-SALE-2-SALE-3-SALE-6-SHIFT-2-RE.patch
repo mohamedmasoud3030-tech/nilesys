@@ -1,0 +1,600 @@
+From 43af873b41083c9a0cef844c7d60dae3c85d16ca Mon Sep 17 00:00:00 2001
+From: LENA parallel agent <lena-parallel-agent@users.noreply.local>
+Date: Sun, 18 Oct 2026 08:16:27 +0000
+Subject: [PATCH 1/3] fix(prototype): PERM-3, SALE-2, SALE-3, SALE-6, SHIFT-2,
+ RESET-2 with regression tests
+
+Legacy prototypes/nilesys only (no engine, API, auth, tenancy or migration file touched).
+- PERM-3: POS data routes require user.system === 'pos' (403 otherwise)
+- SALE-2: stock sufficiency checked (aggregated per product) before deduction -> 409
+- SALE-3: cash paid must cover total -> 400; card recorded at exact total
+- SALE-6: unique barcode among active products -> 409
+- SHIFT-2: refunds recorded per return (time/amount/method, discount pro rata);
+  expected cash = start + cash sales - cash refunds in the shift window;
+  shift screen uses server-computed expectedCashNow
+- RESET-2: deterministic demo user ids so sessions survive a reset
+- SEED-1 (found while testing SHIFT-2): no future-dated seeded sales
+- DB_FILE env var so tests run against a throwaway data file
+tests/regression.test.js: 16 self-contained node:test cases (13/15 original cases fail on the old server).
+tests/review.test.js v3: characterization (INFO) asserts now assert the fixed behaviour; stale RET-4 assert corrected.
+---
+ prototypes/nilesys/REVIEW.md                |  25 ++
+ prototypes/nilesys/public/assets/js/pos.js  |   3 +-
+ prototypes/nilesys/server.js                |  87 +++++--
+ prototypes/nilesys/tests/regression.test.js | 254 ++++++++++++++++++++
+ prototypes/nilesys/tests/review.test.js     |  27 ++-
+ 5 files changed, 371 insertions(+), 25 deletions(-)
+ create mode 100644 prototypes/nilesys/tests/regression.test.js
+
+diff --git a/prototypes/nilesys/REVIEW.md b/prototypes/nilesys/REVIEW.md
+index b61e119..9a7976a 100644
+--- a/prototypes/nilesys/REVIEW.md
++++ b/prototypes/nilesys/REVIEW.md
+@@ -246,3 +246,28 @@ cp -r /home/user/nilesys /tmp/nilesys-review && cd /tmp/nilesys-review
+ PORT=3210 node server.js &
+ BASE=http://localhost:3210 node --test tests/review.test.js
+ ```
++
++---
++
++## حالة الإصلاح — 2026-10-18 (الوكيل الموازي)
++
++النص أعلاه هو المراجعة التاريخية كما هي. تم إصلاح العيوب الستة المؤكدة مع اختبارات انحدار معزولة
++(`node --test tests/regression.test.js` — يشغّل سيرفر خاص على منفذ عشوائي و`DB_FILE` مؤقت):
++
++| المعرّف | الإصلاح | الاستجابة الآن |
++|---|---|---|
++| PERM-3 | مسارات بيانات نقطة البيع (products/sales/returns/shifts/reports/branding/reset) لمستخدمي `system = pos` فقط | `403` لأي نظام آخر (يشمل مدير HR) |
++| SALE-2 | تحقق كفاية المخزون قبل الخصم مع تجميع تكرار نفس الصنف | `409` والمخزون لا يتغير |
++| SALE-3 | الكاش لازم يغطي الإجمالي؛ الكارت يُسجَّل بالإجمالي بالضبط | `400` |
++| SALE-6 | تفرّد الباركود بين الأصناف النشطة | `409` |
++| SHIFT-2 | كل مرتجع يُسجَّل في `sale.refunds` (وقت/مبلغ/طريقة)؛ المتوقع = بداية + مبيعات كاش − مرتجعات كاش داخل الوردية؛ الخصم يُوزَّع نسبياً على المرتجع؛ الواجهة تعرض قيمة السيرفر `expectedCashNow` | فرق = 0 |
++| RESET-2 | معرّفات ثابتة لحسابات الديمو (مشتقة من النظام + اسم المستخدم) | الجلسة سليمة بعد الإعادة |
++| SEED-1 (جديد) | مبيعات بذور اليوم كانت تُولَّد بأوقات مستقبلية فتدخل في أي وردية تُفتح الآن | لا مبيعات مستقبلية |
++
++`tests/review.test.js` صار v3: التأكيدات التي كانت توثّق الخلل (INFO) تتحقق الآن من السلوك الصحيح، و RET-4
++كان تأكيده قديماً (السلوك سليم أصلاً) فتم تصحيحه. النتيجة: 30/30 سلوك سليم.
++ملاحظة تشغيل: شغّله بـ `node tests/review.test.js` (وليس `node --test`) — مشغّل Node 20 يفشل أحياناً في
++فك رسائل الطفل مع مخرجات عربية (`Unable to deserialize cloned data`)؛ هذا عيب في المشغّل وليس في الاختبار.
++
++ما زال مفتوحاً (خارج نطاق هذه الدفعة): C1 كلمات مرور نص صريح · C2 لا مستأجرين · C3 الإعادة عامة لكل الأنظمة ·
++H1 التقارير ما زالت إجمالية بعد المرتجع الجزئي (DIAG-2) · H3 idempotency · H4 جلسات في الذاكرة · H5 حفظ غير ذري · M2–M7 · L1–L5.
+diff --git a/prototypes/nilesys/public/assets/js/pos.js b/prototypes/nilesys/public/assets/js/pos.js
+index a06894d..5acfe4f 100644
+--- a/prototypes/nilesys/public/assets/js/pos.js
++++ b/prototypes/nilesys/public/assets/js/pos.js
+@@ -380,7 +380,8 @@
+     const { sales } = await api('/api/sales?limit=200');
+     const cashSince = (from) => sales.filter((s) => s.method === 'cash' && s.status !== 'returned' && new Date(s.createdAt) >= new Date(from)).reduce((a, s) => a + s.total, 0);
+     if (openShift) {
+-      const expected = openShift.startingCash + cashSince(openShift.openedAt);
++      // SHIFT-2: المتوقع يُحسب على السيرفر (يشمل خصم المرتجعات الجزئية)؛ الحساب المحلي احتياطي فقط
++      const expected = typeof openShift.expectedCashNow === 'number' ? openShift.expectedCashNow : openShift.startingCash + cashSince(openShift.openedAt);
+       $('#shiftBox').innerHTML = `<div class="card card-pad" style="max-width:430px">
+         <div class="row between mb-2"><b>● ${t('pos.shiftOpen')}</b><span class="badge badge-ok mono">${hm(openShift.openedAt)}</span></div>
+         <div class="line" style="display:flex;justify-content:space-between;padding:6px 0"><span>${t('pos.startingCash')}</span><b class="mono">${money(openShift.startingCash)}</b></div>
+diff --git a/prototypes/nilesys/server.js b/prototypes/nilesys/server.js
+index 94919be..7e6ecb2 100644
+--- a/prototypes/nilesys/server.js
++++ b/prototypes/nilesys/server.js
+@@ -15,7 +15,8 @@ const crypto = require('crypto');
+ 
+ const ROOT = __dirname;
+ const PUBLIC_DIR = path.join(ROOT, 'public');
+-const DB_FILE = path.join(ROOT, 'data', 'db.json');
++// DB_FILE قابل للتغيير عبر متغير بيئة (للاختبارات المعزولة خارج المستودع)
++const DB_FILE = process.env.DB_FILE ? path.resolve(process.env.DB_FILE) : path.join(ROOT, 'data', 'db.json');
+ const PORT = Number(process.env.PORT || 3000);
+ const DAY = 24 * 60 * 60 * 1000;
+ 
+@@ -29,9 +30,16 @@ function daysAgo(d, h, m) {
+ const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+ 
++// RESET-2: معرّف ثابت لكل حساب ديمو (مشتق من النظام + اسم المستخدم) حتى لا
++// تنكسر الجلسات المفتوحة عند إعادة ضبط الديمو (الجلسة مربوطة بـ userId).
++function stableUserId(system, username) {
++  const h = crypto.createHash('sha256').update(`nile-demo-user:${system}:${username}`).digest('hex');
++  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
++}
++
+ function seedUsers() {
+   const mk = (system, username, name, role) => ({
+-    id: crypto.randomUUID(), system, username, password: 'demo1234', name, role,
++    id: stableUserId(system, username), system, username, password: 'demo1234', name, role,
+   });
+   return [
+     mk('pos', 'manager', 'أحمد سامي', 'manager'),
+@@ -131,7 +139,8 @@ function seedSales(users, products) {
+       const discount = 0;
+       sales.push({
+         id: crypto.randomUUID(), no: no++, system: 'pos',
+-        userId: cashier.id, createdAt: daysAgo(0, h, rnd(0, 59)), items,
++        // SEED-1: لا تولّد مبيعات بتاريخ مستقبلي (كانت تقع داخل أي وردية تُفتح الآن وتضخّم النقدية المتوقعة)
++        userId: cashier.id, createdAt: new Date(Math.min(Date.parse(daysAgo(0, h, rnd(0, 59))), Date.now() - 60 * 1000)).toISOString(), items,
+         subtotal, discount, total: subtotal,
+         profit: items.reduce((s, it) => s + (it.price - it.cost) * it.qty, 0),
+         method: Math.random() < 0.7 ? 'cash' : 'card', status: 'completed', returned: [],
+@@ -243,6 +252,25 @@ function saleTotals(items, discount) {
+   return { subtotal, discount: d, total: subtotal - d, profit };
+ }
+ 
++// PERM-3: مسارات بيانات نقطة البيع — مسموحة لمستخدمي نظام pos فقط
++const POS_ROUTE = /^(GET|POST|PUT|DELETE) \/api\/(products|sales|returns|shifts|reports|branding|reset)(\/|$)/;
++
++// SHIFT-2: حركة النقدية داخل نافذة الوردية = مبيعات كاش − مرتجعات كاش مدفوعة في نفس النافذة.
++// الفواتير القديمة (قبل تسجيل refunds) المرتجعة بالكامل تُستبعد كما كان السلوك السابق.
++function shiftExpectedCash(shift, untilIso) {
++  const from = new Date(shift.openedAt).getTime();
++  const until = untilIso ? new Date(untilIso).getTime() : Infinity;
++  const inWindow = (iso) => { const t = new Date(iso).getTime(); return t >= from && t <= until; };
++  let cash = 0;
++  for (const s of db.sales) {
++    if (s.system !== 'pos' || s.method !== 'cash') continue;
++    const legacyFullReturn = !Array.isArray(s.refunds) && s.status === 'returned';
++    if (!legacyFullReturn && inWindow(s.createdAt)) cash += s.total;
++    for (const r of s.refunds || []) if (inWindow(r.at)) cash -= r.amount;
++  }
++  return shift.startingCash + cash;
++}
++
+ async function handleApi(req, res, url) {
+   const route = `${req.method} ${url.pathname}`;
+   const user = currentUser(req);
+@@ -281,6 +309,9 @@ async function handleApi(req, res, url) {
+   }
+ 
+   /* ================= POS ================= */
++  if (POS_ROUTE.test(route) && user.system !== 'pos') {
++    return sendError(res, 403, 'غير مسموح: بيانات نقطة البيع لمستخدمي نظام الكاشير فقط');
++  }
+   if (route === 'GET /api/products') {
+     return sendJSON(res, 200, { products: db.products.filter((p) => p.active) });
+   }
+@@ -288,12 +319,17 @@ async function handleApi(req, res, url) {
+     if (!isManager) return sendError(res, 403, 'للمدير بس');
+     const b = await readBody(req);
+     if (!b.name || !(b.price > 0)) return sendError(res, 400, 'الاسم والسعر مطلوبين');
++    // SALE-6: الباركود لازم يكون فريد بين الأصناف النشطة (المسح بالباركود يختار صنفاً واحداً)
++    const barcode = String(b.barcode || `622${Date.now()}`).trim().slice(0, 20);
++    if (db.products.some((x) => x.active && x.system === 'pos' && x.barcode === barcode)) {
++      return sendError(res, 409, 'الباركود مستخدم لصنف آخر');
++    }
+     const p = {
+       id: crypto.randomUUID(), system: 'pos', name: String(b.name).slice(0, 80),
+       category: String(b.category || 'متنوع').slice(0, 40),
+       cost: Number(b.cost) || 0, price: Number(b.price),
+       emoji: String(b.emoji || '📦').slice(0, 4),
+-      barcode: String(b.barcode || `622${Date.now()}`).slice(0, 20),
++      barcode,
+       stock: Number(b.stock) || 0, active: true,
+     };
+     db.products.push(p); save();
+@@ -331,7 +367,24 @@ async function handleApi(req, res, url) {
+       return { productId: p.id, name: p.name, qty: Math.max(1, Number(it.qty) || 1), price: p.price, cost: p.cost };
+     });
+     if (!items.length) return sendError(res, 400, 'السلة فاضية');
++    // SALE-2: التحقق من كفاية المخزون (مع تجميع تكرار نفس الصنف في السلة) قبل أي خصم.
++    // التحقق والخصم متزامنان في نفس الدورة (Node أحادي الخيط) فلا يوجد سباق بين الطلبات.
++    const need = new Map();
++    for (const it of items) need.set(it.productId, (need.get(it.productId) || 0) + it.qty);
++    for (const [pid, qty] of need) {
++      const p = db.products.find((x) => x.id === pid);
++      if (qty > p.stock) return sendError(res, 409, `المخزون غير كافٍ: ${p.name} (المتاح ${p.stock})`);
++    }
+     const t = saleTotals(items, b.discount);
++    // SALE-3: الكاش لازم يغطي الإجمالي؛ الكارت يُسجَّل بالإجمالي بالضبط.
++    const method = b.method === 'card' ? 'card' : 'cash';
++    let paid = t.total;
++    if (method === 'cash' && b.paid !== undefined && b.paid !== null && b.paid !== '') {
++      paid = Number(b.paid);
++      if (!Number.isFinite(paid) || paid < t.total) {
++        return sendError(res, 400, `المبلغ المدفوع أقل من الإجمالي (${t.total})`);
++      }
++    }
+     for (const it of items) {
+       const p = db.products.find((x) => x.id === it.productId);
+       p.stock = Math.max(0, p.stock - it.qty);
+@@ -339,8 +392,8 @@ async function handleApi(req, res, url) {
+     const sale = {
+       id: crypto.randomUUID(), no: (db.sales.reduce((m, s) => Math.max(m, s.no), 1000) + 1),
+       system: 'pos', userId: user.id, createdAt: new Date().toISOString(),
+-      items, ...t, method: b.method === 'card' ? 'card' : 'cash',
+-      paid: Number(b.paid) || t.total, status: 'completed', returned: [],
++      items, ...t, method,
++      paid, status: 'completed', returned: [], refunds: [],
+     };
+     db.sales.push(sale); save();
+     return sendJSON(res, 201, { sale });
+@@ -377,7 +430,7 @@ async function handleApi(req, res, url) {
+       if (p) p.stock += qty;
+     }
+     if (!back.length) return sendError(res, 400, 'مفيش أصناف صالحة للمرتجع');
+-    const refund = back.reduce((s, r) => {
++    const gross = back.reduce((s, r) => {
+       const it = sale.items.find((x) => x.productId === r.productId);
+       return s + it.price * r.qty;
+     }, 0);
+@@ -385,6 +438,14 @@ async function handleApi(req, res, url) {
+       const rr = sale.returned.find((x) => x.productId === it.productId);
+       return rr && rr.qty >= it.qty;
+     });
++    // SHIFT-2: المبلغ المرتجع يُسجَّل بوقته وطريقته ليُخصم من نقدية الوردية.
++    // الخصم يُوزَّع نسبياً، وآخر مرتجع يأخذ الباقي بالضبط حتى لا يتجاوز مجموع المرتجع ما دُفع.
++    if (!Array.isArray(sale.refunds)) sale.refunds = [];
++    const refundedSoFar = sale.refunds.reduce((a, r) => a + r.amount, 0);
++    const refund = allBack
++      ? Math.max(0, sale.total - refundedSoFar)
++      : (sale.subtotal > 0 ? Math.round((gross * sale.total / sale.subtotal) * 100) / 100 : 0);
++    sale.refunds.push({ at: new Date().toISOString(), amount: refund, method: sale.method });
+     sale.status = allBack ? 'returned' : 'partial';
+     save();
+     return sendJSON(res, 201, { sale, refund });
+@@ -404,13 +465,10 @@ async function handleApi(req, res, url) {
+     }
+     if (b.action === 'close') {
+       if (!open) return sendError(res, 400, 'مفيش وردية مفتوحة');
+-      const cashSales = db.sales.filter((s) =>
+-        s.system === 'pos' && s.method === 'cash' && s.status !== 'returned' &&
+-        new Date(s.createdAt) >= new Date(open.openedAt))
+-        .reduce((sum, s) => sum + s.total, 0);
+-      const expected = open.startingCash + cashSales;
++      const closedAt = new Date().toISOString();
++      const expected = shiftExpectedCash(open, closedAt);
+       const counted = Number(b.countedCash) || 0;
+-      open.closedAt = new Date().toISOString();
++      open.closedAt = closedAt;
+       open.expectedCash = expected;
+       open.countedCash = counted;
+       open.diff = counted - expected;
+@@ -420,7 +478,8 @@ async function handleApi(req, res, url) {
+     return sendError(res, 400, 'action غلط');
+   }
+   if (route === 'GET /api/shifts') {
+-    const open = db.shifts.find((s) => s.system === user.system && !s.closedAt) || null;
++    const found = db.shifts.find((s) => s.system === user.system && !s.closedAt);
++    const open = found ? { ...found, expectedCashNow: shiftExpectedCash(found) } : null;
+     return sendJSON(res, 200, { openShift: open, shifts: db.shifts.filter((s) => s.system === 'pos').slice(-10).reverse() });
+   }
+   if (route === 'GET /api/reports/summary') {
+diff --git a/prototypes/nilesys/tests/regression.test.js b/prototypes/nilesys/tests/regression.test.js
+new file mode 100644
+index 0000000..5645a8c
+--- /dev/null
++++ b/prototypes/nilesys/tests/regression.test.js
+@@ -0,0 +1,254 @@
++#!/usr/bin/env node
++/**
++ * Nile Systems prototype — regression tests for the defects fixed after the
++ * engineering review (REVIEW.md): PERM-3, SALE-2, SALE-3, SALE-6, SHIFT-2, RESET-2.
++ *
++ * Self-contained: spawns its own `node server.js` on a random port with DB_FILE
++ * pointing at a throwaway temp directory, so it never touches data/db.json.
++ *
++ *   node --test tests/regression.test.js
++ */
++'use strict';
++const { test, before, after } = require('node:test');
++const assert = require('node:assert');
++const { spawn } = require('node:child_process');
++const fs = require('node:fs');
++const os = require('node:os');
++const path = require('node:path');
++
++const PORT = 20000 + Math.floor(Math.random() * 20000);
++const BASE = `http://127.0.0.1:${PORT}`;
++const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'nilesys-regression-'));
++let server;
++
++async function req(method, p, { body, cookie } = {}) {
++  const res = await fetch(BASE + p, {
++    method,
++    headers: {
++      ...(body ? { 'Content-Type': 'application/json' } : {}),
++      ...(cookie ? { Cookie: cookie } : {}),
++    },
++    body: body ? JSON.stringify(body) : undefined,
++  });
++  const setCookie = res.headers.get('set-cookie');
++  let data = null;
++  try { data = await res.json(); } catch { /* non-json */ }
++  return { status: res.status, data, cookie: setCookie ? setCookie.split(';')[0] : null };
++}
++const login = async (system, username) => {
++  const r = await req('POST', '/api/login', { body: { system, username, password: 'demo1234' } });
++  assert.equal(r.status, 200, `login ${system}/${username}`);
++  return r.cookie;
++};
++const products = async (cookie) => (await req('GET', '/api/products', { cookie })).data.products;
++const productById = async (cookie, id) => (await products(cookie)).find((x) => x.id === id);
++
++before(async () => {
++  server = spawn(process.execPath, [path.join(__dirname, '..', 'server.js')], {
++    env: { ...process.env, PORT: String(PORT), DB_FILE: path.join(TMP, 'db.json') },
++    stdio: ['ignore', 'pipe', 'pipe'],
++  });
++  await new Promise((resolve, reject) => {
++    const t = setTimeout(() => reject(new Error('server did not start')), 10000);
++    server.stdout.on('data', (d) => { if (String(d).includes('Nile Systems')) { clearTimeout(t); resolve(); } });
++    server.on('exit', (c) => { clearTimeout(t); reject(new Error(`server exited ${c}`)); });
++  });
++});
++
++after(() => {
++  if (server) server.kill();
++  fs.rmSync(TMP, { recursive: true, force: true });
++});
++
++/* ---------------- PERM-3: system isolation ---------------- */
++
++test('PERM-3: HR employee cannot read POS products, create POS sales, or read POS reports', async () => {
++  const hr = await login('hr', 'employee');
++  const pos = await login('pos', 'manager');
++  const p = (await products(pos))[0];
++  const before = p.stock;
++
++  assert.equal((await req('GET', '/api/products', { cookie: hr })).status, 403);
++  assert.equal((await req('GET', '/api/reports/summary', { cookie: hr })).status, 403);
++  assert.equal((await req('GET', '/api/sales', { cookie: hr })).status, 403);
++  const sale = await req('POST', '/api/sales', { cookie: hr, body: { items: [{ productId: p.id, qty: 1 }], method: 'cash' } });
++  assert.equal(sale.status, 403);
++  assert.equal((await productById(pos, p.id)).stock, before, 'blocked sale must not move stock');
++});
++
++test('PERM-3: a manager of another system is not a POS manager', async () => {
++  const hrManager = await login('hr', 'manager');
++  const pos = await login('pos', 'manager');
++  const p = (await products(pos))[0];
++  assert.equal((await req('PUT', '/api/products/' + p.id, { cookie: hrManager, body: { price: 1 } })).status, 403);
++  assert.equal((await req('POST', '/api/reset', { cookie: hrManager })).status, 403);
++  assert.equal((await req('PUT', '/api/branding', { cookie: hrManager, body: { storeName: 'x' } })).status, 403);
++  assert.equal((await productById(pos, p.id)).price, p.price);
++});
++
++test('PERM-3: POS users keep access; non-POS users keep their generic bootstrap', async () => {
++  const cashier = await login('pos', 'cashier');
++  assert.equal((await req('GET', '/api/products', { cookie: cashier })).status, 200);
++  const hr = await login('hr', 'employee');
++  assert.equal((await req('GET', '/api/bootstrap', { cookie: hr })).status, 200);
++});
++
++/* ---------------- SALE-2: stock sufficiency ---------------- */
++
++test('SALE-2: selling more than stock is rejected with 409 and stock is unchanged', async () => {
++  const pos = await login('pos', 'manager');
++  const p = (await products(pos))[0];
++  const r = await req('POST', '/api/sales', { cookie: pos, body: { items: [{ productId: p.id, qty: p.stock + 999 }], method: 'cash' } });
++  assert.equal(r.status, 409);
++  assert.equal((await productById(pos, p.id)).stock, p.stock);
++});
++
++test('SALE-2: repeated lines of the same product are aggregated before the stock check', async () => {
++  const pos = await login('pos', 'manager');
++  const p = (await products(pos)).find((x) => x.stock >= 4);
++  const half = Math.ceil(p.stock / 2) + 1; // two lines whose sum exceeds stock
++  const r = await req('POST', '/api/sales', {
++    cookie: pos,
++    body: { items: [{ productId: p.id, qty: half }, { productId: p.id, qty: half }], method: 'cash' },
++  });
++  assert.equal(r.status, 409);
++  assert.equal((await productById(pos, p.id)).stock, p.stock);
++});
++
++test('SALE-2: selling exactly the remaining stock is allowed and leaves stock at 0', async () => {
++  const pos = await login('pos', 'manager');
++  const p = (await products(pos)).find((x) => x.stock > 0);
++  const r = await req('POST', '/api/sales', { cookie: pos, body: { items: [{ productId: p.id, qty: p.stock }], method: 'card' } });
++  assert.equal(r.status, 201);
++  assert.equal((await productById(pos, p.id)).stock, 0);
++  const again = await req('POST', '/api/sales', { cookie: pos, body: { items: [{ productId: p.id, qty: 1 }], method: 'card' } });
++  assert.equal(again.status, 409);
++});
++
++test('SALE-2: concurrent sales never oversell (sum of accepted qty == stock consumed)', async () => {
++  const pos = await login('pos', 'manager');
++  const p = (await products(pos)).find((x) => x.stock >= 8);
++  const attempts = p.stock + 10;
++  const rs = await Promise.all(Array.from({ length: attempts }, () =>
++    req('POST', '/api/sales', { cookie: pos, body: { items: [{ productId: p.id, qty: 1 }], method: 'card' } })));
++  const created = rs.filter((r) => r.status === 201).length;
++  assert.equal(created, p.stock);
++  assert.equal(rs.filter((r) => r.status === 409).length, attempts - p.stock);
++  assert.equal((await productById(pos, p.id)).stock, 0);
++});
++
++/* ---------------- SALE-3: payment sufficiency ---------------- */
++
++test('SALE-3: cash paid below total is rejected with 400 and stock is unchanged', async () => {
++  const pos = await login('pos', 'manager');
++  const p = (await products(pos)).find((x) => x.stock > 2 && x.price > 1);
++  const r = await req('POST', '/api/sales', { cookie: pos, body: { items: [{ productId: p.id, qty: 1 }], method: 'cash', paid: 1 } });
++  assert.equal(r.status, 400);
++  assert.equal((await productById(pos, p.id)).stock, p.stock);
++});
++
++test('SALE-3: cash paid >= total is stored; omitted paid defaults to total; card is always exact', async () => {
++  const pos = await login('pos', 'manager');
++  const p = (await products(pos)).find((x) => x.stock > 3);
++  const over = await req('POST', '/api/sales', { cookie: pos, body: { items: [{ productId: p.id, qty: 1 }], method: 'cash', paid: p.price + 50 } });
++  assert.equal(over.status, 201);
++  assert.equal(over.data.sale.paid, p.price + 50);
++  const omitted = await req('POST', '/api/sales', { cookie: pos, body: { items: [{ productId: p.id, qty: 1 }], method: 'cash' } });
++  assert.equal(omitted.data.sale.paid, omitted.data.sale.total);
++  const card = await req('POST', '/api/sales', { cookie: pos, body: { items: [{ productId: p.id, qty: 1 }], method: 'card', paid: 1 } });
++  assert.equal(card.status, 201);
++  assert.equal(card.data.sale.paid, card.data.sale.total);
++});
++
++/* ---------------- SALE-6: unique barcode ---------------- */
++
++test('SALE-6: creating a product with an existing active barcode is rejected with 409', async () => {
++  const pos = await login('pos', 'manager');
++  const p = (await products(pos))[0];
++  const r = await req('POST', '/api/products', { cookie: pos, body: { name: 'dup', price: 10, cost: 5, stock: 5, barcode: p.barcode } });
++  assert.equal(r.status, 409);
++  assert.equal((await products(pos)).filter((x) => x.barcode === p.barcode).length, 1);
++});
++
++test('SALE-6: unique barcodes are accepted; a deactivated product frees its barcode', async () => {
++  const pos = await login('pos', 'manager');
++  const a = await req('POST', '/api/products', { cookie: pos, body: { name: 'A', price: 10, stock: 1, barcode: '9990000000001' } });
++  assert.equal(a.status, 201);
++  assert.equal((await req('DELETE', '/api/products/' + a.data.product.id, { cookie: pos })).status, 200);
++  const b = await req('POST', '/api/products', { cookie: pos, body: { name: 'B', price: 10, stock: 1, barcode: '9990000000001' } });
++  assert.equal(b.status, 201);
++});
++
++/* ---------------- SHIFT-2: partial returns reduce expected cash ---------------- */
++
++test('SHIFT-2: a partial cash return during the shift is deducted from expected cash', async () => {
++  const pos = await login('pos', 'manager');
++  assert.equal((await req('POST', '/api/shifts', { cookie: pos, body: { action: 'open', startingCash: 1000 } })).status, 201);
++  const p = (await products(pos)).find((x) => x.stock > 4);
++  const sale = (await req('POST', '/api/sales', { cookie: pos, body: { items: [{ productId: p.id, qty: 2 }], method: 'cash' } })).data.sale;
++  const ret = await req('POST', '/api/returns', { cookie: pos, body: { saleId: sale.id, items: [{ productId: p.id, qty: 1 }] } });
++  assert.equal(ret.status, 201);
++  assert.equal(ret.data.refund, p.price, 'no-discount refund stays price × qty');
++
++  const live = (await req('GET', '/api/shifts', { cookie: pos })).data.openShift;
++  assert.equal(live.expectedCashNow, 1000 + p.price, 'shift screen value matches server close value');
++
++  const close = await req('POST', '/api/shifts', { cookie: pos, body: { action: 'close', countedCash: 1000 + p.price } });
++  assert.equal(close.data.shift.expectedCash, 1000 + p.price);
++  assert.equal(close.data.shift.diff, 0);
++});
++
++test('SHIFT-2: discounted sale returned in two steps nets to zero cash; card refunds do not touch the drawer', async () => {
++  const pos = await login('pos', 'manager');
++  await req('POST', '/api/shifts', { cookie: pos, body: { action: 'open', startingCash: 500 } });
++  const p = (await products(pos)).find((x) => x.stock > 4 && x.price >= 10);
++  const discount = 7;
++  const sale = (await req('POST', '/api/sales', { cookie: pos, body: { items: [{ productId: p.id, qty: 3 }], discount, method: 'cash' } })).data.sale;
++  assert.equal(sale.total, p.price * 3 - discount);
++  const r1 = await req('POST', '/api/returns', { cookie: pos, body: { saleId: sale.id, items: [{ productId: p.id, qty: 1 }] } });
++  const r2 = await req('POST', '/api/returns', { cookie: pos, body: { saleId: sale.id, items: [{ productId: p.id, qty: 2 }] } });
++  assert.equal(r2.data.sale.status, 'returned');
++  assert.ok(Math.abs(r1.data.refund + r2.data.refund - sale.total) < 1e-9, 'total refunded == amount actually paid');
++  assert.ok(r1.data.refund < p.price, 'discount is shared pro rata');
++
++  const q = (await products(pos)).find((x) => x.stock > 2 && x.id !== p.id);
++  const cardSale = (await req('POST', '/api/sales', { cookie: pos, body: { items: [{ productId: q.id, qty: 2 }], method: 'card' } })).data.sale;
++  await req('POST', '/api/returns', { cookie: pos, body: { saleId: cardSale.id, items: [{ productId: q.id, qty: 1 }] } });
++
++  const close = await req('POST', '/api/shifts', { cookie: pos, body: { action: 'close', countedCash: 500 } });
++  assert.ok(Math.abs(close.data.shift.expectedCash - 500) < 1e-9, `expected 500, got ${close.data.shift.expectedCash}`);
++});
++
++/* ---------------- RESET-2: sessions survive a demo reset ---------------- */
++
++test('RESET-2: the resetting manager and other users keep valid sessions after reset', async () => {
++  const manager = await login('pos', 'manager');
++  const cashier = await login('pos', 'cashier');
++  const beforeMe = (await req('GET', '/api/session', { cookie: manager })).data.user;
++  assert.equal((await req('POST', '/api/reset', { cookie: manager })).status, 200);
++  const afterMe = (await req('GET', '/api/session', { cookie: manager })).data.user;
++  assert.notEqual(afterMe, null);
++  assert.equal(afterMe.id, beforeMe.id);
++  assert.notEqual((await req('GET', '/api/session', { cookie: cashier })).data.user, null);
++  assert.equal((await req('GET', '/api/products', { cookie: manager })).data.products.length, 26);
++});
++
++test('RESET-2: demo user ids are deterministic across resets', async () => {
++  const manager = await login('pos', 'manager');
++  const id1 = (await req('GET', '/api/session', { cookie: manager })).data.user.id;
++  await req('POST', '/api/reset', { cookie: manager });
++  await req('POST', '/api/reset', { cookie: manager });
++  const fresh = await login('pos', 'manager');
++  assert.equal((await req('GET', '/api/session', { cookie: fresh })).data.user.id, id1);
++});
++
++/* ---------------- SEED-1 (found while testing SHIFT-2) ---------------- */
++
++test('SEED-1: seeded demo sales are never timestamped in the future', async () => {
++  const manager = await login('pos', 'manager');
++  await req('POST', '/api/reset', { cookie: manager });
++  const sales = (await req('GET', '/api/sales?limit=300', { cookie: manager })).data.sales;
++  assert.ok(sales.length > 30);
++  const now = Date.now();
++  assert.deepEqual(sales.filter((s) => Date.parse(s.createdAt) > now).map((s) => s.no), []);
++});
+diff --git a/prototypes/nilesys/tests/review.test.js b/prototypes/nilesys/tests/review.test.js
+index 0a25519..fe643af 100644
+--- a/prototypes/nilesys/tests/review.test.js
++++ b/prototypes/nilesys/tests/review.test.js
+@@ -1,6 +1,10 @@
+ #!/usr/bin/env node
+ /**
+- * Nile Systems — اختبارات المراجعة الهندسية (المرحلة 1) — v2
++ * Nile Systems — اختبارات المراجعة الهندسية (المرحلة 1) — v3
++ *
++ * v3: بعد إصلاح PERM-3 / SALE-2 / SALE-3 / SALE-6 / SHIFT-2 / RESET-2 صارت التأكيدات
++ * تتحقق من السلوك الصحيح بدل توثيق الخلل (كانت تأكيدات INFO). RET-4 كان تأكيده قديماً
++ * (السلوك سليم أصلاً) فتم تصحيحه. اختبارات الانحدار المعزولة: tests/regression.test.js
+  * التشغيل:  BASE=http://localhost:3210 node --test tests/review.test.js
+  *
+  * كل اختبار بيسجّل نتيجة صريحة: PASS / FAIL / INFO
+@@ -43,7 +47,7 @@ test('SETUP: إعادة ضبط بيانات الديمو قبل الاختبار
+   assert.equal(l.status, 200);
+   const r = await req('POST', '/api/reset', { cookie: l.cookie });
+   assert.equal(r.status, 200);
+-  const l2 = await login('pos', 'manager'); // الجلسة اتكسرت بعد الإعادة (مشكلة مؤكدة C3)
++  const l2 = await login('pos', 'manager'); // (v3: الجلسة بقت تنجو من الإعادة — RESET-2؛ الدخول من جديد غير ضروري)
+   const sales = await req('GET', '/api/sales?limit=100', { cookie: l2.cookie });
+   const products = await req('GET', '/api/products', { cookie: l2.cookie });
+   record('SETUP', sales.status === 200 && products.data.products.length === 26,
+@@ -123,8 +127,10 @@ test('PERM-3: عزل الأنظمة — موظف HR يوصل لبيانات ال
+   const report = await req('GET', '/api/reports/summary', { cookie: hr.cookie });
+   const posProducts = (await login('pos', 'manager'), await req('GET', '/api/products', { cookie: (await login('pos', 'manager')).cookie })).data.products;
+   const sale = await req('POST', '/api/sales', { cookie: hr.cookie, body: { items: [{ productId: posProducts[0].id, qty: 1 }], method: 'cash' } });
+-  record('PERM-3', false,
+-    `HR employee: GET products=${products.status} (${products.data.products?.length ?? 0} صنف) | POST sale=${sale.status} | report=${report.status} → تسريب كامل بين الأنظمة`);
++  const isolated = products.status === 403 && sale.status === 403 && report.status === 403;
++  record('PERM-3', isolated,
++    `HR employee: GET products=${products.status} (${products.data.products?.length ?? 0} صنف) | POST sale=${sale.status} | report=${report.status} → ${isolated ? 'معزول' : 'تسريب كامل بين الأنظمة'}`);
++  assert.ok(isolated);
+ });
+ 
+ /* ================= 3) سلامة البيع ================= */
+@@ -149,16 +155,17 @@ test('SALE-2: البيع بأكثر من المخزون (هل السيرفر ي
+   const after = (await req('GET', '/api/products', { cookie: l.cookie })).data.products.find((x) => x.id === p.id);
+   record('SALE-2', r.status !== 201,
+     `status=${r.status} qty sold=${before + 999} stock after=${after.stock} → ${r.status === 201 ? 'السيرفر قبل بيع أكتر من المخزون' : 'ممنوع'}`);
+-  assert.equal(r.status, 201, 'INFO: oversell accepted by server');
++  assert.equal(r.status, 409); assert.equal(after.stock, before);
+ });
+ 
+ test('SALE-3: المبلغ المستلم أقل من الإجمالي (هل السيرفر يمنع؟)', async () => {
+   const l = await login('pos', 'manager');
+   const p = (await req('GET', '/api/products', { cookie: l.cookie })).data.products[0];
+   const r = await req('POST', '/api/sales', { cookie: l.cookie, body: { items: [{ productId: p.id, qty: 1 }], method: 'cash', paid: 1 } });
+-  record('SALE-3', r.data.sale.paid >= r.data.sale.total,
+-    `total=${r.data.sale.total} paid=${r.data.sale.paid} → ${r.data.sale.paid < r.data.sale.total ? 'السيرفر قبل نقص في الدفع' : 'مرفوض'}`);
+-  assert.ok(r.data.sale.paid < r.data.sale.total, 'INFO: underpayment accepted');
++  const accepted = r.status === 201 && r.data.sale.paid < r.data.sale.total;
++  record('SALE-3', !accepted,
++    `status=${r.status} price=${p.price} paid=1 → ${accepted ? 'السيرفر قبل نقص في الدفع' : 'مرفوض'}`);
++  assert.equal(r.status, 400);
+ });
+ 
+ test('SALE-4: 20 عملية بيع متزامنة على نفس الصنف', async () => {
+@@ -188,7 +195,7 @@ test('SALE-6: باركود مكرر مسموح (تحقق المدخلات)', asy
+   const r = await req('POST', '/api/products', { cookie: l.cookie, body: { name: 'صنف اختبار', price: 10, cost: 5, stock: 5, barcode: p.barcode } });
+   const dup = (await req('GET', '/api/products', { cookie: l.cookie })).data.products.filter((x) => x.barcode === p.barcode).length;
+   record('SALE-6', r.status !== 201, `status=${r.status} duplicates=${dup} → ${r.status === 201 ? 'مسموح بباركود مكرر' : 'مرفوض'}`);
+-  assert.ok(dup >= 2, 'INFO: duplicate barcode accepted');
++  assert.equal(r.status, 409); assert.equal(dup, 1);
+ });
+ 
+ test('SALE-7: سعر/تكلفة سالبة أو صفرية', async () => {
+@@ -244,7 +251,7 @@ test('RET-4: التقارير بعد مرتجع — هل المبلغ المرت
+   const expected = 0; // مرتجع كامل → المفروض مبيعات اليوم ماتتغيرش
+   record('RET-4', Math.abs(delta - expected) < 1,
+     `salesTotal ${before.salesTotal} →(+sale) ${afterSale.salesTotal} →(+مرتجع كامل) ${afterRet.salesTotal} | Δ=${delta} المتوقع ${expected}`);
+-  assert.ok(delta > 1, 'INFO: returned amount still counted in reports');
++  assert.ok(Math.abs(delta - expected) < 1);
+ });
+ 
+ /* ================= 5) الورديات ================= */
+-- 
+2.47.3
+

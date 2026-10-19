@@ -1,0 +1,20 @@
+$ gitleaks dir <negative-control: 4 planted secrets + 1 fixture file> [default config]
+exit=1
+  caught: github-pat leak.ts
+  caught: aws-access-token sameline.test.ts
+  caught: generic-api-key other.test.ts
+  caught: generic-api-key pw.test.ts
+  caught: generic-api-key fixture.test.ts
+  caught: generic-api-key fixture.test.ts
+  caught: generic-api-key fixture.test.ts
+$ gitleaks dir <negative-control: 4 planted secrets + 1 fixture file> [proposed config]
+exit=1
+  caught: github-pat leak.ts
+  caught: aws-access-token sameline.test.ts
+  caught: generic-api-key other.test.ts
+  caught: generic-api-key pw.test.ts
+
+$ gitleaks git --config gitleaks.toml --log-opts=--all (full history, all refs)
+6:48PM INF scanned ~4818389 bytes (4.82 MB) in 369ms
+6:48PM INF no leaks found
+exit=0

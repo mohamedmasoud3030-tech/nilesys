@@ -1,0 +1,14 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/home/user/repos/nilesys[39m
+
+(node:6327) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m engines/transactions/test/refund-concurrency.pg.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 1426[2mms[22m[39m
+     [33m[2m✓[22m[39m A: card + card — the same unit refunded through both payments at once is refunded once (x20) [33m 721[2mms[22m[39m
+     [33m[2m✓[22m[39m B: card + cash — different methods (and different locks) still refund the unit once (x20) [33m 425[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m6 passed[39m[22m[90m (6)[39m
+[2m   Start at [22m 08:54:11
+[2m   Duration [22m 1.87s[2m (transform 181ms, setup 0ms, import 330ms, tests 1.43s, environment 0ms)[22m
+

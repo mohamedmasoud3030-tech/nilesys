@@ -1,0 +1,76 @@
+
+>>> [security] step 3: npm ci
+$ npm ci
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.hirok.io
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.hirok.io
+
+added 187 packages in 5s
+<<< step 3 exit=0
+
+>>> [security] step 4: npm audit (fail on high/critical)
+$ npm audit --audit-level=high
+# npm audit report
+
+esbuild  <=0.24.2
+Severity: moderate
+esbuild enables any website to send any requests to the development server and read the response - https://github.com/advisories/GHSA-67mh-4wv8-2f99
+fix available via `npm audit fix --force`
+Will install drizzle-kit@0.18.1, which is a breaking change
+node_modules/@esbuild-kit/core-utils/node_modules/esbuild
+  @esbuild-kit/core-utils  *
+  Depends on vulnerable versions of esbuild
+  node_modules/@esbuild-kit/core-utils
+    @esbuild-kit/esm-loader  *
+    Depends on vulnerable versions of @esbuild-kit/core-utils
+    node_modules/@esbuild-kit/esm-loader
+      drizzle-kit  0.19.0 - 1.0.0-beta.1-fd8bfcc
+      Depends on vulnerable versions of @esbuild-kit/esm-loader
+      node_modules/drizzle-kit
+
+4 moderate severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+<<< step 4 exit=0
+
+>>> [security] step 5: npm registry signatures
+$ npm audit signatures
+audited 187 packages in 6s
+
+187 packages have verified registry signatures
+
+77 packages have verified attestations
+
+<<< step 5 exit=0
+
+>>> [security] step 6: gitleaks (full history, checksum-verified binary)
+$ curl -sSL -o gl.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GL_VERSION}/gitleaks_${GL_VERSION}_linux_x64.tar.gz"
+  curl -sSL -o gl.sums "https://github.com/gitleaks/gitleaks/releases/download/v${GL_VERSION}/gitleaks_${GL_VERSION}_checksums.txt"
+  grep "_linux_x64.tar.gz" gl.sums | awk '{print $1"  gl.tgz"}' | sha256sum -c -
+  tar xzf gl.tgz gitleaks
+  # Needs .gitleaks.toml in the repo (proposal in deliverables/ci/gitleaks.toml) — test fixtures otherwise trip generic-api-key.
+  ./gitleaks git --no-banner --redact --config .gitleaks.toml .
+gl.tgz: OK
+7:01PM INF 58 commits scanned.
+7:01PM INF scanned ~4818389 bytes (4.82 MB) in 505ms
+7:01PM INF no leaks found
+<<< step 6 exit=0
+
+>>> [security] step 7: actionlint
+$ curl -sSL -o al.tgz "https://github.com/rhysd/actionlint/releases/download/v${AL_VERSION}/actionlint_${AL_VERSION}_linux_amd64.tar.gz"
+  curl -sSL -o al.sums "https://github.com/rhysd/actionlint/releases/download/v${AL_VERSION}/actionlint_${AL_VERSION}_checksums.txt"
+  grep "_linux_amd64.tar.gz" al.sums | awk '{print $1"  al.tgz"}' | sha256sum -c -
+  tar xzf al.tgz actionlint
+  ./actionlint -color=false
+al.tgz: OK
+<<< step 7 exit=0
+
+===== job security summary =====
+   1. EMULATED (uses)            actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+   2. EMULATED (uses)            actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+   3. PASS                       npm ci
+   4. PASS                       npm audit (fail on high/critical)
+   5. PASS                       npm registry signatures
+   6. PASS                       gitleaks (full history, checksum-verified binary)
+   7. PASS                       actionlint
+JOB RESULT: PASS

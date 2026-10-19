@@ -1,0 +1,8 @@
+$ [node v22.23.3] npm run typecheck && NILE_TEST_PG_ADMIN_URL=… npm test
+v22.23.3
+> tsc --noEmit
+
+typecheck exit=0
+ Test Files  24 passed (24)
+      Tests  230 passed (230)
+vitest exit=0

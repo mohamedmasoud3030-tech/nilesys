@@ -1,0 +1,125 @@
+
+>>> [postgres] step 5: Full suite on real PostgreSQL (fails on any skip)
+$ npx vitest run --reporter=default --reporter=json --outputFile=vitest-pg.json
+  node -e '
+    const r = require("./vitest-pg.json");
+    const bad = r.testResults.flatMap((f) => f.assertionResults.filter((a) => a.status !== "passed").map((a) => `${a.status}: ${f.name.replace(process.cwd() + "/", "")} > ${a.fullName}`));
+    console.log(`total=${r.numTotalTests} passed=${r.numPassedTests} failed=${r.numFailedTests} skipped=${r.numPendingTests + r.numTodoTests}`);
+    const pg = r.testResults.filter((f) => /\.pg\.test\.ts$/.test(f.name));
+    console.log(`real-PG files=${pg.length} tests=${pg.reduce((n, f) => n + f.assertionResults.length, 0)}`);
+    if (bad.length || r.numPassedTests !== r.numTotalTests || pg.length === 0) { bad.forEach((b) => console.error(b)); console.error("::error::not every test ran and passed on real PostgreSQL"); process.exit(1); }'
+
+ RUN  v4.1.11 /tmp/wt-verify
+
+stderr | apps/api/test/e2e-sale.test.ts > 1. authentication > rejects a wrong password
+2026-10-18T18:58:44.430Z WARN [Better Auth]: Invalid password
+
+ ✓ apps/api/test/e2e-sale.test.ts (25 tests) 5517ms
+     ✓ account-mutating endpoints are refused for a shared demo login (403) and nothing changes  312ms
+     ✓ a real (non-demo) tenant user can still change their own password  546ms
+     ✓ restart on the same data directory → log in again → the sale is still there  433ms
+ ✓ engines/db/test/rls.test.ts (15 tests) 4423ms
+     ✓ refuses to start on a superuser connection  1651ms
+ ✓ apps/api/test/e2e-pos.test.ts (17 tests) 4022ms
+     ✓ cashier and manager log in  323ms
+ ✓ apps/api/test/split-tender.test.ts (3 tests) 3596ms
+stdout | engines/transactions/test/review-gates.test.ts > Gate 1 — Accounting > change counts toward drawer not revenue (F3)
+GATE1 change drawer expected 10750 sumIn 1000 sumOut 250
+
+stdout | engines/transactions/test/review-gates.test.ts > Gate 2 — Concurrency (single-connection PGlite limitations noted) > open shift concurrent same register: only one should succeed (requires advisory lock — expected to fail without fix)
+GATE2 open concurrent results [ '57281dd9', 'shift_already_open' ]
+
+ ✓ engines/transactions/test/review-gates.test.ts (19 tests) 2978ms
+ ✓ engines/transactions/test/refunds.test.ts (7 tests) 2832ms
+ ✓ engines/transactions/test/shifts.test.ts (8 tests) 2519ms
+ ✓ engines/transactions/test/dst-cairo.test.ts (6 tests) 2728ms
+ ✓ engines/transactions/test/checkout.test.ts (6 tests) 2441ms
+ ✓ engines/catalog/test/lead-service.test.ts (19 tests) 2912ms
+ ✓ engines/transactions/test/integration.test.ts (2 tests) 2682ms
+ ✓ engines/transactions/test/reports.test.ts (3 tests) 2676ms
+ ✓ engines/people/test/people-service.test.ts (27 tests) 2823ms
+(node:12651) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stdout | engines/transactions/test/zz-verify.pg.test.ts > VERIFY real PG concurrency > C1 same idempotency key x6 concurrently
+ROW|C1|ok,replayed,replayed,replayed,replayed,replayed|sales=1|stock=99
+
+stdout | engines/transactions/test/zz-verify.pg.test.ts > VERIFY real PG concurrency > C2 oversell: stock 3, six concurrent sales of 1
+ROW|C2|insufficient_stock,insufficient_stock,insufficient_stock,ok,ok,ok|stock=0
+
+stdout | engines/transactions/test/zz-verify.pg.test.ts > VERIFY real PG concurrency > C3 two concurrent refunds of the same unit via the SAME payment
+ROW|C3|ok,refund_over_limit|refundedQty=1|refunds=[1000]|stock=10
+
+stdout | engines/transactions/test/zz-verify.pg.test.ts > VERIFY real PG concurrency > C4 two concurrent refunds of the same unit via two DIFFERENT card payments (x20)
+ROW|C4|iterations=20|water_sold=1|over_refunded=16|sample=ok,ok/q=2/stock=11/refunded=1500 ; ok,refund_quantity_exceeded/q=1/stock=10/refunded=750 ; ok,ok/q=2/stock=11/refunded=1500
+
+stdout | engines/transactions/test/zz-verify.pg.test.ts > VERIFY real PG concurrency > C5 same as C4 with two CASH payments on one shift (x20)
+ROW|C5|iterations=20|over_refunded=0|sample=ok,refund_quantity_exceeded/q=1 ; ok,refund_quantity_exceeded/q=1 ; ok,refund_quantity_exceeded/q=1
+
+stdout | engines/transactions/test/zz-verify.pg.test.ts > VERIFY real PG concurrency > C4s control: the same two refunds SEQUENTIALLY
+ROW|C4s|ok,refund_quantity_exceeded|q=1
+
+ ❯ engines/transactions/test/zz-verify.pg.test.ts (6 tests | 1 failed) 1495ms
+     ✓ C1 same idempotency key x6 concurrently 70ms
+     ✓ C2 oversell: stock 3, six concurrent sales of 1 38ms
+     ✓ C3 two concurrent refunds of the same unit via the SAME payment 36ms
+     × C4 two concurrent refunds of the same unit via two DIFFERENT card payments (x20) 553ms
+     ✓ C5 same as C4 with two CASH payments on one shift (x20)  555ms
+     ✓ C4s control: the same two refunds SEQUENTIALLY 13ms
+(node:12672) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stdout | engines/transactions/test/shift-close-race.pg.test.ts > shift close vs cash operations (real PostgreSQL) > concurrent sales, a refund and the close: each cash movement is reconciled exactly once
+shift-close race: 40 iterations, 46 operations refused with shift_closed
+
+ ✓ engines/transactions/test/shift-close-race.pg.test.ts (2 tests) 1621ms
+     ✓ concurrent sales, a refund and the close: each cash movement is reconciled exactly once  1380ms
+(node:12693) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ engines/catalog/test/lead-service.pg.test.ts (7 tests) 518ms
+(node:12721) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ engines/people/test/people-service.pg.test.ts (6 tests) 353ms
+ ✓ engines/transactions/test/sale.test.ts (5 tests) 26ms
+ ✓ engines/transactions/test/golden.test.ts (27 tests) 11ms
+ ✓ engines/platform/test/permissions.test.ts (5 tests) 6ms
+ ✓ engines/platform/test/platform.test.ts (4 tests) 6ms
+ ✓ engines/booking/test/booking.test.ts (6 tests) 5ms
+ ✓ engines/people/test/people.test.ts (4 tests) 5ms
+ ✓ engines/catalog/test/catalog.test.ts (4 tests) 6ms
+ ✓ engines/db/test/migration-chain.test.ts (3 tests) 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  engines/transactions/test/zz-verify.pg.test.ts > VERIFY real PG concurrency > C4 two concurrent refunds of the same unit via two DIFFERENT card payments (x20)
+AssertionError: water sold once must be refunded at most once: expected 16 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 16
+
+ ❯ engines/transactions/test/zz-verify.pg.test.ts:72:67
+     70|     }
+     71|     console.log(`ROW|C4|iterations=20|water_sold=1|over_refunded=${ove…
+     72|     expect(over, 'water sold once must be refunded at most once').toBe…
+       |                                                                   ^
+     73|   }, 120_000);
+     74|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 24 passed (25)
+      Tests  1 failed | 235 passed (236)
+   Start at  18:58:39
+   Duration  59.31s (transform 703ms, setup 0ms, import 10.21s, tests 46.21s, environment 2ms)
+
+JSON report written to /tmp/wt-verify/vitest-pg.json
+<<< step 5 exit=1
+
+===== job postgres summary =====
+   1. EMULATED (uses)            actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+   2. EMULATED (uses)            actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+   5. FAIL (exit 1)              Full suite on real PostgreSQL (fails on any skip)
+   8. EMULATED (uses)            actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+JOB RESULT: FAIL

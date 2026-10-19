@@ -1,0 +1,83 @@
+
+>>> [postgres] step 5: Full suite on real PostgreSQL (fails on any skip)
+$ npx vitest run --reporter=default --reporter=json --outputFile=vitest-pg.json
+  node -e '
+    const r = require("./vitest-pg.json");
+    const bad = r.testResults.flatMap((f) => f.assertionResults.filter((a) => a.status !== "passed").map((a) => `${a.status}: ${f.name.replace(process.cwd() + "/", "")} > ${a.fullName}`));
+    console.log(`total=${r.numTotalTests} passed=${r.numPassedTests} failed=${r.numFailedTests} skipped=${r.numPendingTests + r.numTodoTests}`);
+    const pg = r.testResults.filter((f) => /\.pg\.test\.ts$/.test(f.name));
+    console.log(`real-PG files=${pg.length} tests=${pg.reduce((n, f) => n + f.assertionResults.length, 0)}`);
+    if (bad.length || r.numPassedTests !== r.numTotalTests || pg.length === 0) { bad.forEach((b) => console.error(b)); console.error("::error::not every test ran and passed on real PostgreSQL"); process.exit(1); }'
+
+ RUN  v4.1.11 /tmp/wt-verify
+
+stderr | apps/api/test/e2e-sale.test.ts > 1. authentication > rejects a wrong password
+2026-10-18T18:59:44.288Z WARN [Better Auth]: Invalid password
+
+ ✓ apps/api/test/e2e-sale.test.ts (25 tests) 5250ms
+     ✓ a real (non-demo) tenant user can still change their own password  452ms
+     ✓ restart on the same data directory → log in again → the sale is still there  414ms
+ ✓ engines/db/test/rls.test.ts (15 tests) 4304ms
+     ✓ refuses to start on a superuser connection  1650ms
+ ✓ apps/api/test/e2e-pos.test.ts (17 tests) 3979ms
+     ✓ cashier and manager log in  333ms
+ ✓ apps/api/test/split-tender.test.ts (3 tests) 3545ms
+stdout | engines/transactions/test/review-gates.test.ts > Gate 1 — Accounting > change counts toward drawer not revenue (F3)
+GATE1 change drawer expected 10750 sumIn 1000 sumOut 250
+
+stdout | engines/transactions/test/review-gates.test.ts > Gate 2 — Concurrency (single-connection PGlite limitations noted) > open shift concurrent same register: only one should succeed (requires advisory lock — expected to fail without fix)
+GATE2 open concurrent results [ 'eb101b2f', 'shift_already_open' ]
+
+ ✓ engines/transactions/test/review-gates.test.ts (19 tests) 3023ms
+ ✓ engines/catalog/test/lead-service.test.ts (19 tests) 2635ms
+ ✓ engines/transactions/test/refunds.test.ts (7 tests) 2850ms
+ ✓ engines/people/test/people-service.test.ts (27 tests) 2768ms
+ ✓ engines/transactions/test/dst-cairo.test.ts (6 tests) 2778ms
+ ✓ engines/transactions/test/integration.test.ts (2 tests) 2734ms
+ ✓ engines/transactions/test/reports.test.ts (3 tests) 2690ms
+ ✓ engines/transactions/test/shifts.test.ts (8 tests) 2745ms
+ ✓ engines/transactions/test/checkout.test.ts (6 tests) 2707ms
+ ↓ engines/transactions/test/shift-close-race.pg.test.ts (2 tests | 2 skipped)
+ ↓ engines/catalog/test/lead-service.pg.test.ts (7 tests | 7 skipped)
+ ↓ engines/people/test/people-service.pg.test.ts (6 tests | 6 skipped)
+ ✓ engines/transactions/test/sale.test.ts (5 tests) 18ms
+ ✓ engines/transactions/test/golden.test.ts (27 tests) 11ms
+ ✓ engines/catalog/test/catalog.test.ts (4 tests) 5ms
+ ✓ engines/platform/test/permissions.test.ts (5 tests) 5ms
+ ✓ engines/platform/test/platform.test.ts (4 tests) 4ms
+ ✓ engines/people/test/people.test.ts (4 tests) 5ms
+ ✓ engines/booking/test/booking.test.ts (6 tests) 5ms
+ ✓ engines/db/test/migration-chain.test.ts (3 tests) 4ms
+
+ Test Files  21 passed | 3 skipped (24)
+      Tests  215 passed | 15 skipped (230)
+   Start at  18:59:39
+   Duration  54.44s (transform 652ms, setup 0ms, import 9.61s, tests 42.06s, environment 2ms)
+
+JSON report written to /tmp/wt-verify/vitest-pg.json
+total=230 passed=215 failed=0 skipped=15
+real-PG files=3 tests=15
+skipped: engines/catalog/test/lead-service.pg.test.ts > lead service on real PostgreSQL runs as the non-bypass runtime role on a multi-connection pool
+skipped: engines/catalog/test/lead-service.pg.test.ts > lead service on real PostgreSQL forced race NEW→CONTACTED vs NEW→LOST: exactly one wins, the other gets lead_stage_conflict
+skipped: engines/catalog/test/lead-service.pg.test.ts > lead service on real PostgreSQL forced race on the same target: one success, one lead_stage_conflict (no double transition)
+skipped: engines/catalog/test/lead-service.pg.test.ts > lead service on real PostgreSQL unforced burst: 25 leads × 4 concurrent identical moves → exactly one success per lead, losers get a domain error
+skipped: engines/catalog/test/lead-service.pg.test.ts > lead service on real PostgreSQL tenant isolation through the pool: B cannot list, move or write into A
+skipped: engines/catalog/test/lead-service.pg.test.ts > lead service on real PostgreSQL without tenant context the runtime role sees no leads at all (fail closed)
+skipped: engines/catalog/test/lead-service.pg.test.ts > lead service on real PostgreSQL interleaved concurrent requests for A and B never bleed tenant context across pooled connections
+skipped: engines/people/test/people-service.pg.test.ts > people service on real PostgreSQL forced race on the first record of an employee-day: both calls succeed and merge into ONE row
+skipped: engines/people/test/people-service.pg.test.ts > people service on real PostgreSQL forced race on an EXISTING row: two partial updates are serialised, no field is lost
+skipped: engines/people/test/people-service.pg.test.ts > people service on real PostgreSQL unforced burst: 8 concurrent check-ins for one employee-day never error and leave exactly one row
+skipped: engines/people/test/people-service.pg.test.ts > people service on real PostgreSQL tenant isolation through the pool: B cannot see or record attendance for A’s employee
+skipped: engines/people/test/people-service.pg.test.ts > people service on real PostgreSQL composite FK is a database-level guard: tenant A cannot attach attendance to tenant B’s employee
+skipped: engines/people/test/people-service.pg.test.ts > people service on real PostgreSQL without tenant context the runtime role sees no employees (fail closed)
+skipped: engines/transactions/test/shift-close-race.pg.test.ts > shift close vs cash operations (real PostgreSQL) closeShift waits for the same advisory lock that cash sales and refunds hold
+skipped: engines/transactions/test/shift-close-race.pg.test.ts > shift close vs cash operations (real PostgreSQL) concurrent sales, a refund and the close: each cash movement is reconciled exactly once
+::error::not every test ran and passed on real PostgreSQL
+<<< step 5 exit=1
+
+===== job postgres summary =====
+   1. EMULATED (uses)            actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+   2. EMULATED (uses)            actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+   5. FAIL (exit 1)              Full suite on real PostgreSQL (fails on any skip)
+   8. EMULATED (uses)            actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+JOB RESULT: FAIL

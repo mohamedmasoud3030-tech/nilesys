@@ -1,0 +1,7 @@
+nilesys-all-local-branches.bundle: OK
+nilesys-feat-nile-lead-people-services.bundle: OK
+nilesys-feat-nile-mission3-pos-fixes-pg-tests.bundle: OK
+nilesys-feat-nile-offerings-readiness.bundle: OK
+deliverables-2026-10-18.tar.gz: OK
+BRANCHES.txt: OK
+RESTORE.md: OK

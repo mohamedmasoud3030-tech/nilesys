@@ -1,0 +1,55 @@
+repo=c72f746 old=099dc14 new=1b661a7 out=/tmp/parity-combo
+
+ID        | v2 @ old         | v2 @ new         | v3 @ old         | v3 @ new        
+          | verdict/outcome  | verdict/outcome  | verdict/outcome  | verdict/outcome 
+AUTH-1    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+AUTH-2    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+AUTH-3    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+AUTH-4    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+PERM-1    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+PERM-2    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+PERM-3    | FAIL/ok          | FAIL/ok          | FAIL/not_ok      | PASS/ok         
+PERSIST-1 | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+RESET-1   | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+RESET-2   | FAIL/not_ok      | PASS/ok          | FAIL/not_ok      | PASS/ok         
+RESET-3   | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+RET-1     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+RET-2     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+RET-3     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+RET-4     | PASS/not_ok      | PASS/not_ok      | PASS/ok          | PASS/ok         
+SALE-1    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SALE-2    | FAIL/ok          | PASS/not_ok      | FAIL/not_ok      | PASS/ok         
+SALE-3    | FAIL/ok          | —/not_ok       | FAIL/not_ok      | PASS/ok         
+SALE-4    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SALE-5    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SALE-6    | FAIL/ok          | PASS/not_ok      | FAIL/not_ok      | PASS/ok         
+SALE-7    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SEC-1     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SEC-2     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SETUP     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SHIFT-1   | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SHIFT-2   | FAIL/not_ok      | PASS/ok          | FAIL/not_ok      | PASS/ok         
+SHIFT-3   | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+VAL-1     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+VAL-2     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+v2-old: verdict PASS=24 FAIL=6 | node:test ok=27 not_ok=3
+v2-new: verdict PASS=28 FAIL=1 | node:test ok=26 not_ok=4
+v3-old: verdict PASS=24 FAIL=6 | node:test ok=24 not_ok=6
+v3-new: verdict PASS=30 FAIL=0 | node:test ok=30 not_ok=0
+regression @ old: # pass 2 # fail 14 
+   not ok 1 - PERM-3: HR employee cannot read POS products, create POS sales, or read POS reports
+   not ok 2 - PERM-3: a manager of another system is not a POS manager
+   not ok 4 - SALE-2: selling more than stock is rejected with 409 and stock is unchanged
+   not ok 5 - SALE-2: repeated lines of the same product are aggregated before the stock check
+   not ok 6 - SALE-2: selling exactly the remaining stock is allowed and leaves stock at 0
+   not ok 7 - SALE-2: concurrent sales never oversell (sum of accepted qty == stock consumed)
+   not ok 8 - SALE-3: cash paid below total is rejected with 400 and stock is unchanged
+   not ok 9 - SALE-3: cash paid >= total is stored; omitted paid defaults to total; card is always exact
+   not ok 10 - SALE-6: creating a product with an existing active barcode is rejected with 409
+   not ok 12 - SHIFT-2: a partial cash return during the shift is deducted from expected cash
+   not ok 13 - SHIFT-2: discounted sale returned in two steps nets to zero cash; card refunds do not touch the drawer
+   not ok 14 - RESET-2: the resetting manager and other users keep valid sessions after reset
+   not ok 15 - RESET-2: demo user ids are deterministic across resets
+   not ok 16 - SEED-1: seeded demo sales are never timestamped in the future
+regression @ new: # pass 16 # fail 0 
+logs: /tmp/parity-combo

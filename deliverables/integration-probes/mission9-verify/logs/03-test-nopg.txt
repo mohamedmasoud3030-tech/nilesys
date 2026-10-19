@@ -1,0 +1,53 @@
+$ npm test
+
+> mohamed-app-factory@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /tmp/wt-verify
+
+stdout | engines/transactions/test/review-gates.test.ts > Gate 1 — Accounting > change counts toward drawer not revenue (F3)
+GATE1 change drawer expected 10750 sumIn 1000 sumOut 250
+
+stdout | engines/transactions/test/review-gates.test.ts > Gate 2 — Concurrency (single-connection PGlite limitations noted) > open shift concurrent same register: only one should succeed (requires advisory lock — expected to fail without fix)
+GATE2 open concurrent results [ '707f494c', 'shift_already_open' ]
+
+ ✓ engines/transactions/test/review-gates.test.ts (19 tests) 3599ms
+stderr | apps/api/test/e2e-sale.test.ts > 1. authentication > rejects a wrong password
+2026-10-18T18:35:08.243Z WARN [Better Auth]: Invalid password
+
+ ✓ apps/api/test/e2e-sale.test.ts (25 tests) 5967ms
+     ✓ account-mutating endpoints are refused for a shared demo login (403) and nothing changes  317ms
+     ✓ a real (non-demo) tenant user can still change their own password  553ms
+     ✓ restart on the same data directory → log in again → the sale is still there  480ms
+ ✓ apps/api/test/e2e-pos.test.ts (17 tests) 4387ms
+     ✓ cashier and manager log in  332ms
+ ✓ engines/transactions/test/refunds.test.ts (7 tests) 3217ms
+ ✓ engines/people/test/people-service.test.ts (27 tests) 2964ms
+ ✓ engines/transactions/test/golden.test.ts (27 tests) 14ms
+ ✓ engines/db/test/rls.test.ts (15 tests) 5126ms
+     ✓ refuses to start on a superuser connection  1984ms
+ ✓ engines/catalog/test/lead-service.test.ts (19 tests) 2910ms
+ ↓ engines/people/test/people-service.pg.test.ts (6 tests | 6 skipped)
+ ✓ engines/transactions/test/checkout.test.ts (6 tests) 3147ms
+ ✓ engines/transactions/test/dst-cairo.test.ts (6 tests) 3244ms
+ ✓ engines/transactions/test/integration.test.ts (2 tests) 2960ms
+ ✓ engines/transactions/test/shifts.test.ts (8 tests) 2933ms
+ ↓ engines/catalog/test/lead-service.pg.test.ts (7 tests | 7 skipped)
+ ↓ engines/transactions/test/shift-close-race.pg.test.ts (2 tests | 2 skipped)
+ ✓ apps/api/test/split-tender.test.ts (3 tests) 3916ms
+ ✓ engines/transactions/test/reports.test.ts (3 tests) 2894ms
+ ✓ engines/transactions/test/sale.test.ts (5 tests) 14ms
+ ✓ engines/booking/test/booking.test.ts (6 tests) 6ms
+ ✓ engines/platform/test/platform.test.ts (4 tests) 5ms
+ ✓ engines/catalog/test/catalog.test.ts (4 tests) 4ms
+ ✓ engines/people/test/people.test.ts (4 tests) 5ms
+ ✓ engines/db/test/migration-chain.test.ts (3 tests) 4ms
+ ✓ engines/platform/test/permissions.test.ts (5 tests) 5ms
+
+ Test Files  21 passed | 3 skipped (24)
+      Tests  215 passed | 15 skipped (230)
+   Start at  18:34:59
+   Duration  56.55s (transform 651ms, setup 0ms, import 6.10s, tests 47.32s, environment 2ms)
+
+exit=0

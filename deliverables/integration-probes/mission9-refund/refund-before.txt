@@ -1,0 +1,65 @@
+
+ RUN  v4.1.11 /home/user/repos/nilesys
+
+(node:5003) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ❯ engines/transactions/test/refund-concurrency.pg.test.ts (6 tests | 2 failed) 431ms
+     × A: card + card — the same unit refunded through both payments at once is refunded once (x20) 101ms
+     × B: card + cash — different methods (and different locks) still refund the unit once (x20) 31ms
+     ✓ C: the same refund request sent three times at once is recorded once and replayed twice 28ms
+     ✓ D: refunds that fit are not blocked — 2 units sold, one refunded through each payment at once 29ms
+     ✓ E: four concurrent refunds of 1 unit through one payment, 2 units sold — exactly two succeed 39ms
+     ✓ F: sequential limits are unchanged — amount above the payment, quantity after a full refund 34ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  engines/transactions/test/refund-concurrency.pg.test.ts > concurrent refunds of one sale (real PostgreSQL) > A: card + card — the same unit refunded through both payments at once is refunded once (x20)
+AssertionError: iteration 1: expected [ 'ok', 'ok' ] to deeply equal [ 'ok', 'refund_quantity_exceeded' ]
+
+- Expected
++ Received
+
+  [
+    "ok",
+-   "refund_quantity_exceeded",
++   "ok",
+  ]
+
+ ❯ engines/transactions/test/refund-concurrency.pg.test.ts:84:43
+     82|       const stockAfterSale = (await ledger(sale.sale.id, water)).stock;
+     83|       const rs = await Promise.allSettled(sale.payments.map((p: any) =…
+     84|       expect(tally(rs), `iteration ${i}`).toEqual(['ok', 'refund_quant…
+       |                                           ^
+     85|       const l = await ledger(sale.sale.id, water);
+     86|       expect([l.rows.length, l.rows[0]?.amount, l.refundedQty, l.stock…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  engines/transactions/test/refund-concurrency.pg.test.ts > concurrent refunds of one sale (real PostgreSQL) > B: card + cash — different methods (and different locks) still refund the unit once (x20)
+AssertionError: iteration 0: expected [ 'ok', 'ok' ] to deeply equal [ 'ok', 'refund_quantity_exceeded' ]
+
+- Expected
++ Received
+
+  [
+    "ok",
+-   "refund_quantity_exceeded",
++   "ok",
+  ]
+
+ ❯ engines/transactions/test/refund-concurrency.pg.test.ts:100:43
+     98|       const card = sale.payments.find((p: any) => p.method === 'card')…
+     99|       const rs = await Promise.allSettled([refund(sale.sale.id, card.i…
+    100|       expect(tally(rs), `iteration ${i}`).toEqual(['ok', 'refund_quant…
+       |                                           ^
+    101|       const l = await ledger(sale.sale.id, water);
+    102|       expect([l.rows.length, l.refundedQty, l.stockMoves], `iteration …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 4 passed (6)
+   Start at  08:41:03
+   Duration  871ms (transform 166ms, setup 0ms, import 327ms, tests 431ms, environment 0ms)
+

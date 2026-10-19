@@ -1,0 +1,126 @@
+
+>>> [api-smoke] step 3: npm ci
+$ npm ci
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.hirok.io
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.hirok.io
+
+added 187 packages in 5s
+<<< step 3 exit=0
+
+>>> [api-smoke] step 4: Production-shaped roles (non-superuser owner, NOBYPASSRLS runtime login in nile_app)
+$ PW="$(openssl rand -hex 16)"; echo "::add-mask::$PW"
+  psql "$PG_ADMIN" -v ON_ERROR_STOP=1 -q \
+    -c "CREATE ROLE nile_app NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE" \
+    -c "CREATE ROLE ci_owner LOGIN CREATEROLE NOSUPERUSER PASSWORD '$PW'" \
+    -c "CREATE ROLE ci_app LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD '$PW'" \
+    -c "GRANT nile_app TO ci_app" \
+    -c "CREATE DATABASE nile_ci OWNER ci_owner"
+  echo "DATABASE_URL=postgres://ci_app:$PW@127.0.0.1:5432/nile_ci" >> "$GITHUB_ENV"
+  echo "MIGRATION_DATABASE_URL=postgres://ci_owner:$PW@127.0.0.1:5432/nile_ci" >> "$GITHUB_ENV"
+::add-mask::fb245dfaa31830480e176f51ba70b88c
+<<< step 4 exit=0
+
+>>> [api-smoke] step 5: Production mode refuses to start without BETTER_AUTH_SECRET
+$ if NODE_ENV=production DATABASE_URL= MIGRATION_DATABASE_URL= timeout 60 npx tsx apps/api/src/main.ts > guard.log 2>&1; then
+    echo "::error::server started in production without a secret"; exit 1; fi
+  grep -q "BETTER_AUTH_SECRET is required in production" guard.log
+<<< step 5 exit=0
+
+>>> [api-smoke] step 6: Start API (migrates as owner, runs as nile_app)
+$ nohup npx tsx apps/api/src/main.ts > api.log 2>&1 &
+  for i in $(seq 1 60); do curl -fsS "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1 && break; sleep 1; done
+  curl -fsS "http://127.0.0.1:$PORT/api/health"
+  grep -q "db=postgres" api.log
+{"ok":true}<<< step 6 exit=0
+
+>>> [api-smoke] step 7: Unauthenticated access is refused
+$ test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/api/v1/reports/daily?from=2026-01-01&to=2026-01-01")" = 401
+  test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -d '{}' "http://127.0.0.1:$PORT/api/v1/checkout")" = 401
+<<< step 7 exit=0
+
+>>> [api-smoke] step 8: Smoke (login → catalog → sale → receipt)
+$ npm run api:smoke
+
+> mohamed-app-factory@0.1.0 api:smoke
+> tsx apps/api/scripts/smoke.ts
+
+✅ 1. تسجيل دخول الكاشير (cashier@nile.demo / demo1234) — HTTP 200
+✅ 2. السيرفر حدّد الشركة والدور بنفسه — نيل — حساب تجريبي / cashier
+✅ 3. عرض الأصناف — 6 أصناف
+✅ 4. تنفيذ عملية بيع — HTTP 201
+✅ 5. قراءة الفاتورة من قاعدة البيانات
+
+──────────── فاتورة / RECEIPT ────────────
+رقم: 6E745249   ١٨‏/١٠‏/٢٠٢٦، ١٠:٠١:٠٥ م
+مياه معدنية 600 مل        2.000 ×    7.50 =    15.00
+جبنة رومي (بالكيلو)       0.250 ×  320.00 =    80.00
+قهوة تركي 250 جم          1.000 ×   95.00 =    95.00
+──────────────────────────────────────────
+الإجمالي: 190.00 ج.م
+<<< step 8 exit=0
+
+>>> [api-smoke] step 9: POS flow over HTTP (shift → split cash → replay → close → late sale refused)
+$ cat > pos-flow.mjs <<'EOF'
+  const API = `http://127.0.0.1:${process.env.PORT}`; const jar = {};
+  async function call(who, method, path, body) {
+    const res = await fetch(API + path, { method, headers: { origin: API, ...(body ? { 'content-type': 'application/json' } : {}), ...(jar[who] ? { cookie: jar[who] } : {}) }, body: body ? JSON.stringify(body) : undefined });
+    const set = res.headers.getSetCookie(); if (set.length) jar[who] = set.map((c) => c.split(';')[0]).join('; ');
+    const t = await res.text(); return { status: res.status, body: t ? JSON.parse(t) : null };
+  }
+  await call('c', 'POST', '/api/auth/sign-in/email', { email: 'cashier@nile.demo', password: 'demo1234' });
+  await call('m', 'POST', '/api/auth/sign-in/email', { email: 'pos-manager@nile.demo', password: 'demo1234' });
+  const wtr = (await call('c', 'GET', '/api/v1/catalog/items')).body.items.flatMap((i) => i.variants).find((v) => v.sku === 'WTR-600').id;
+  const s = await call('c', 'POST', '/api/v1/shifts', { registerCode: 'ci', openingMinor: 10000, idempotencyKey: 'ci-shift-0001' });
+  const body = { idempotencyKey: 'ci-split-0001', shiftId: s.body.shift.id, lines: [{ variantId: wtr, quantity: '1' }], tenders: [{ method: 'cash', amountMinor: 375 }, { method: 'cash', amountMinor: 375 }] };
+  const c1 = await call('c', 'POST', '/api/v1/checkout', body), c2 = await call('c', 'POST', '/api/v1/checkout', body);
+  const cl = await call('m', 'POST', `/api/v1/shifts/${s.body.shift.id}/close`, { countedMinor: 10750 });
+  const late = await call('c', 'POST', '/api/v1/checkout', { ...body, idempotencyKey: 'ci-late-0001' });
+  const got = [s.status, c1.status, c2.status, c2.body?.replayed, cl.status, cl.body?.closure?.expectedMinor, cl.body?.closure?.differenceMinor, late.status];
+  console.log(JSON.stringify(got));
+  if (JSON.stringify(got) !== JSON.stringify([201, 201, 200, true, 201, 10750, 0, 409])) process.exit(1);
+  EOF
+  node pos-flow.mjs
+[201,201,200,true,201,10750,0,409]
+<<< step 9 exit=0
+
+>>> [api-smoke] step 10: API log
+$ cat api.log || true
+(node:13288) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [NestFactory] Starting Nest application...
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [InstanceLoader] AppModule dependencies initialized +7ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RoutesResolver] HealthController {/api}: +16ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RouterExplorer] Mapped {/api/health, GET} route +2ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RoutesResolver] MeController {/api/v1}: +1ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RouterExplorer] Mapped {/api/v1/me, GET} route +1ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RoutesResolver] CatalogController {/api/v1/catalog}: +0ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RouterExplorer] Mapped {/api/v1/catalog/items, GET} route +0ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RoutesResolver] SalesController {/api/v1/sales}: +0ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RouterExplorer] Mapped {/api/v1/sales, POST} route +1ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RouterExplorer] Mapped {/api/v1/sales/:id, GET} route +1ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RoutesResolver] CheckoutController {/api/v1/checkout}: +0ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RouterExplorer] Mapped {/api/v1/checkout, POST} route +0ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RoutesResolver] ShiftsController {/api/v1/shifts}: +0ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RouterExplorer] Mapped {/api/v1/shifts, POST} route +1ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RouterExplorer] Mapped {/api/v1/shifts/:id/close, POST} route +0ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RouterExplorer] Mapped {/api/v1/shifts/:id, GET} route +1ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RoutesResolver] RefundsController {/api/v1/refunds}: +0ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RouterExplorer] Mapped {/api/v1/refunds, POST} route +0ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RoutesResolver] ReportsController {/api/v1/reports}: +0ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [RouterExplorer] Mapped {/api/v1/reports/daily, GET} route +1ms
+[Nest] 13288  - 10/18/2026, 7:01:04 PM     LOG [NestApplication] Nest application successfully started +1ms
+Nile API on :3300 (db=postgres, demo tenant created)
+<<< step 10 exit=0
+
+===== job api-smoke summary =====
+   1. EMULATED (uses)            actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+   2. EMULATED (uses)            actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+   3. PASS                       npm ci
+   4. PASS                       Production-shaped roles (non-superuser owner, NOBYPASSRLS runtime login in nile_app)
+   5. PASS                       Production mode refuses to start without BETTER_AUTH_SECRET
+   6. PASS                       Start API (migrates as owner, runs as nile_app)
+   7. PASS                       Unauthenticated access is refused
+   8. PASS                       Smoke (login → catalog → sale → receipt)
+   9. PASS                       POS flow over HTTP (shift → split cash → replay → close → late sale refused)
+  10. PASS                       API log
+JOB RESULT: PASS

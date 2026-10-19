@@ -1,0 +1,219 @@
+
+ RUN  v4.1.11 /tmp/wt-verify
+
+(node:8217) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stdout | engines/transactions/test/shift-close-race.pg.test.ts > shift close vs cash operations (real PostgreSQL) > concurrent sales, a refund and the close: each cash movement is reconciled exactly once
+shift-close race: 40 iterations, 43 operations refused with shift_closed
+
+ ✓ engines/transactions/test/shift-close-race.pg.test.ts (2 tests) 1326ms
+     ✓ concurrent sales, a refund and the close: each cash movement is reconciled exactly once  1122ms
+(node:8233) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ engines/catalog/test/lead-service.pg.test.ts (7 tests) 473ms
+(node:8257) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ engines/people/test/people-service.pg.test.ts (6 tests) 319ms
+ ✓ engines/transactions/test/sale.test.ts (5 tests) 17ms
+ ✓ engines/transactions/test/golden.test.ts (27 tests) 11ms
+ ✓ engines/platform/test/permissions.test.ts (5 tests) 6ms
+ ✓ engines/platform/test/platform.test.ts (4 tests) 5ms
+ ✓ engines/booking/test/booking.test.ts (6 tests) 5ms
+ ✓ engines/db/test/migration-chain.test.ts (3 tests) 3ms
+ ✓ engines/people/test/people.test.ts (4 tests) 5ms
+ ✓ engines/catalog/test/catalog.test.ts (4 tests) 4ms
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 13 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:514:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:514:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:514:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:514:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:514:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:514:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:514:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:514:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:514:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:514:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:514:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:514:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Worker forks emitted error.
+ ❯ EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21
+ ❯ EventEmitter.emit node:events:514:28
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+Caused by: Error: Worker exited unexpectedly
+ ❯ ChildProcess.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33
+ ❯ ChildProcess.emit node:events:514:28
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  11 passed (24)
+      Tests  73 passed (230)
+     Errors  13 errors
+   Start at  18:43:54
+   Duration  41.01s (transform 612ms, setup 0ms, import 11.58s, tests 2.17s, environment 2ms)
+

@@ -1,0 +1,18 @@
+
+ RUN  v4.1.11 /home/user/repos/nilesys
+
+(node:6732) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ engines/transactions/test/refund-concurrency.pg.test.ts > concurrent refunds of one sale (real PostgreSQL) > A: card + card — the same unit refunded through both payments at once is refunded once (x20) 636ms
+ ✓ engines/transactions/test/refund-concurrency.pg.test.ts > concurrent refunds of one sale (real PostgreSQL) > B: card + cash — different methods (and different locks) still refund the unit once (x20) 389ms
+ ✓ engines/transactions/test/refund-concurrency.pg.test.ts > concurrent refunds of one sale (real PostgreSQL) > C: the same refund request sent three times at once is recorded once and replayed twice 17ms
+ ✓ engines/transactions/test/refund-concurrency.pg.test.ts > concurrent refunds of one sale (real PostgreSQL) > D: refunds that fit are not blocked — 2 units sold, one refunded through each payment at once 19ms
+ ✓ engines/transactions/test/refund-concurrency.pg.test.ts > concurrent refunds of one sale (real PostgreSQL) > E: four concurrent refunds of 1 unit through one payment, 2 units sold — exactly two succeed 21ms
+ ✓ engines/transactions/test/refund-concurrency.pg.test.ts > concurrent refunds of one sale (real PostgreSQL) > F: sequential limits are unchanged — amount above the payment, quantity after a full refund 18ms
+ ✓ engines/transactions/test/refund-concurrency.pg.test.ts > concurrent refunds of one sale (real PostgreSQL) > G: a payment that belongs to another sale is refused and writes nothing — no refund, stock or cash change 30ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  09:12:03
+   Duration  1.76s (transform 186ms, setup 0ms, import 334ms, tests 1.31s, environment 0ms)
+

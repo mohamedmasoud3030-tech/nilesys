@@ -1,0 +1,10 @@
+DST mutant matrix — 2026-10-18, integration/nile-2026-10-18, files: dst-cairo.test.ts + review-gates.test.ts
+M1 = findCairoDayStartUTC returns wall midnight − 120 min (fixed UTC+2); M2 = returns wall midnight (UTC days).
+old tests = as of 69b3310; new tests = the DST-tests commit. Production code identical apart from the mutation.
+
+tests=old mutant=none   Tests 23 passed (23)
+tests=old mutant=M1     Tests 23 passed (23)            <- mutant survives
+tests=old mutant=M2     Tests 1 failed | 22 passed (23)
+tests=new mutant=none   Tests 25 passed (25)
+tests=new mutant=M1     Tests 5 failed | 20 passed (25) <- caught
+tests=new mutant=M2     Tests 7 failed | 18 passed (25) <- caught

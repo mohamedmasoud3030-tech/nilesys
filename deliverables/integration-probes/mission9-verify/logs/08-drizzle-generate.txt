@@ -1,0 +1,35 @@
+$ timeout 120 npx drizzle-kit generate </dev/null
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/tmp/wt-verify/drizzle.config.ts'
+26 tables
+account 13 columns 1 indexes 1 fks
+invitation 8 columns 2 indexes 2 fks
+member 5 columns 2 indexes 2 fks
+organization 6 columns 0 indexes 0 fks
+session 9 columns 1 indexes 1 fks
+user 7 columns 0 indexes 0 fks
+verification 6 columns 0 indexes 0 fks
+audit_log 8 columns 1 indexes 1 fks
+catalog_items 8 columns 0 indexes 1 fks
+catalog_variants 7 columns 0 indexes 2 fks
+leads 8 columns 1 indexes 1 fks
+cash_movement_resolutions 5 columns 0 indexes 2 fks
+cash_movements 9 columns 0 indexes 1 fks
+cash_shift_closures 8 columns 0 indexes 2 fks
+cash_shifts 8 columns 1 indexes 1 fks
+payments 13 columns 1 indexes 2 fks
+refunds 11 columns 1 indexes 3 fks
+sales_transactions 10 columns 1 indexes 1 fks
+stock_movements 10 columns 1 indexes 3 fks
+transaction_lines 9 columns 1 indexes 3 fks
+bookable_resources 6 columns 0 indexes 1 fks
+bookings 11 columns 1 indexes 2 fks
+attendance_records 7 columns 0 indexes 2 fks
+employees 7 columns 0 indexes 1 fks
+leave_requests 6 columns 0 indexes 2 fks
+loans 6 columns 0 indexes 2 fks
+
+No schema changes, nothing to migrate 😴
+drizzle-kit generate exit=0
+$ git status --porcelain
+?? engines/transactions/test/zz-verify.pg.test.ts

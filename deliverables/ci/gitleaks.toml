@@ -1,0 +1,20 @@
+# PROPOSAL — target path: .gitleaks.toml (repo root). Not committed.
+# Default gitleaks rules, plus ONE narrow allowlist for the three fixture shapes found by
+# the 2026-10-18 full-history scan (17 findings, all false positives).
+#
+# regexTarget = "match": only the matched value is exempt, never the whole line or file.
+# No `paths` entry on purpose: with gitleaks 8.30.1 a paths entry exempted every finding
+# in test files even with condition = "AND" (verified locally), which would hide real keys.
+title = "nilesys"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Test fixtures: idempotency keys, test-only Better Auth secrets, fixed demo passwords"
+regexTarget = "match"
+regexes = [
+  '''^idempotencyKey:\s*'[a-z0-9-]+'$''',
+  '''^SECRET = 'test-secret-[a-z0-9-]+'$''',
+  '''^password:\s*'(other-pass-123|demo1234)'$''',
+]

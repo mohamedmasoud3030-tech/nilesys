@@ -1,0 +1,66 @@
+engines/transactions/src/reports.ts(29,21): error TS18048: 'mdy' is possibly 'undefined'.
+engines/transactions/src/reports.ts(30,24): error TS18048: 'hms' is possibly 'undefined'.
+engines/transactions/src/reports.ts(31,12): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+engines/transactions/src/reports.ts(31,15): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+engines/transactions/src/reports.ts(31,18): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+engines/transactions/src/reports.ts(31,21): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+engines/transactions/src/reports.ts(31,24): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+engines/transactions/src/reports.ts(31,28): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+engines/transactions/test/dst-cairo.test.ts(26,256): error TS18048: 'mdy' is possibly 'undefined'.
+engines/transactions/test/dst-cairo.test.ts(26,301): error TS18048: 'hms' is possibly 'undefined'.
+engines/transactions/test/dst-cairo.test.ts(27,115): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(year: number, monthIndex?: number | undefined, date?: number | undefined, hours?: number | undefined, minutes?: number | undefined, seconds?: number | undefined, ms?: number | undefined): number', gave the following error.
+    Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+  Overload 2 of 2, '(year: number, monthIndex: number, date?: number | undefined, hours?: number | undefined, minutes?: number | undefined, seconds?: number | undefined, ms?: number | undefined): number', gave the following error.
+    Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+engines/transactions/test/dst-cairo.test.ts(27,119): error TS18048: 'p.m' is possibly 'undefined'.
+engines/transactions/test/dst-cairo.test.ts(37,40): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+engines/transactions/test/dst-cairo.test.ts(38,30): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(year: number, monthIndex?: number | undefined, date?: number | undefined, hours?: number | undefined, minutes?: number | undefined, seconds?: number | undefined, ms?: number | undefined): number', gave the following error.
+    Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+  Overload 2 of 2, '(year: number, monthIndex: number, date?: number | undefined, hours?: number | undefined, minutes?: number | undefined, seconds?: number | undefined, ms?: number | undefined): number', gave the following error.
+    Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+engines/transactions/test/dst-cairo.test.ts(38,32): error TS18048: 'm' is possibly 'undefined'.
+engines/transactions/test/dst-cairo.test.ts(38,36): error TS18048: 'd' is possibly 'undefined'.
+engines/transactions/test/integration.test.ts(42,21): error TS18047: 'shift' is possibly 'null'.
+engines/transactions/test/integration.test.ts(43,12): error TS18047: 'shift' is possibly 'null'.
+engines/transactions/test/integration.test.ts(89,12): error TS18047: 'refund' is possibly 'null'.
+engines/transactions/test/refunds.test.ts(74,12): error TS18047: 'refund' is possibly 'null'.
+engines/transactions/test/refunds.test.ts(104,12): error TS18047: 'refund' is possibly 'null'.
+engines/transactions/test/refunds.test.ts(168,12): error TS18047: 'r2.refund' is possibly 'null'.
+engines/transactions/test/refunds.test.ts(168,31): error TS18047: 'r1.refund' is possibly 'null'.
+engines/transactions/test/refunds.test.ts(247,12): error TS18047: 'refund' is possibly 'null'.
+engines/transactions/test/review-gates.test.ts(135,57): error TS2345: Argument of type '{ idempotencyKey: string; shiftId: string; lines: { variantId: string; quantity: string; }[]; tenders: { method: string; amountMinor: number; }[]; }' is not assignable to parameter of type 'CheckoutInput'.
+  Types of property 'tenders' are incompatible.
+    Type '{ method: string; amountMinor: number; }[]' is not assignable to type 'TenderInput[]'.
+      Type '{ method: string; amountMinor: number; }' is not assignable to type 'TenderInput'.
+        Types of property 'method' are incompatible.
+          Type 'string' is not assignable to type 'TenderMethod'.
+engines/transactions/test/review-gates.test.ts(136,57): error TS2345: Argument of type '{ idempotencyKey: string; shiftId: string; lines: { variantId: string; quantity: string; }[]; tenders: { method: string; amountMinor: number; }[]; }' is not assignable to parameter of type 'CheckoutInput'.
+  Types of property 'tenders' are incompatible.
+    Type '{ method: string; amountMinor: number; }[]' is not assignable to type 'TenderInput[]'.
+      Type '{ method: string; amountMinor: number; }' is not assignable to type 'TenderInput'.
+        Types of property 'method' are incompatible.
+          Type 'string' is not assignable to type 'TenderMethod'.
+engines/transactions/test/shifts.test.ts(44,12): error TS18047: 'r1.shift' is possibly 'null'.
+engines/transactions/test/shifts.test.ts(45,12): error TS18047: 'r1.shift' is possibly 'null'.
+engines/transactions/test/shifts.test.ts(48,12): error TS18047: 'r2.shift' is possibly 'null'.
+engines/transactions/test/shifts.test.ts(48,30): error TS18047: 'r1.shift' is possibly 'null'.
+engines/transactions/test/shifts.test.ts(58,12): error TS18047: 'r.shift' is possibly 'null'.
+engines/transactions/test/shifts.test.ts(69,21): error TS18047: 'shift' is possibly 'null'.
+engines/transactions/test/shifts.test.ts(95,97): error TS18047: 'shift' is possibly 'null'.
+engines/transactions/test/shifts.test.ts(96,65): error TS18047: 'shift' is possibly 'null'.
+engines/transactions/test/shifts.test.ts(97,103): error TS18047: 'shift' is possibly 'null'.
+engines/transactions/test/shifts.test.ts(102,71): error TS18047: 'shift' is possibly 'null'.
+engines/transactions/test/shifts.test.ts(107,41): error TS18047: 'shift' is possibly 'null'.

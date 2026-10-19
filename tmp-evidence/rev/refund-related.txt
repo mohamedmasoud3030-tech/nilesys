@@ -1,0 +1,33 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/home/user/repos/nilesys[39m
+
+(node:6868) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m engines/transactions/test/refund-concurrency.pg.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 1449[2mms[22m[39m
+     [33m[2m✓[22m[39m A: card + card — the same unit refunded through both payments at once is refunded once (x20) [33m 724[2mms[22m[39m
+     [33m[2m✓[22m[39m B: card + cash — different methods (and different locks) still refund the unit once (x20) [33m 420[2mms[22m[39m
+ [32m✓[39m apps/api/test/e2e-pos.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 4140[2mms[22m[39m
+     [33m[2m✓[22m[39m cashier and manager log in [33m 315[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/refunds.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 3296[2mms[22m[39m
+[90mstdout[2m | engines/transactions/test/review-gates.test.ts[2m > [22m[2mGate 1 — Accounting[2m > [22m[2mchange counts toward drawer not revenue (F3)
+[22m[39mGATE1 change drawer expected [33m10750[39m sumIn [33m1000[39m sumOut [33m250[39m
+
+[90mstdout[2m | engines/transactions/test/review-gates.test.ts[2m > [22m[2mGate 2 — Concurrency (single-connection PGlite limitations noted)[2m > [22m[2mopen shift concurrent same register: only one should succeed (requires advisory lock — expected to fail without fix)
+[22m[39mGATE2 open concurrent results [ [32m'2020f4a8'[39m, [32m'shift_already_open'[39m ]
+
+ [32m✓[39m engines/transactions/test/review-gates.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 3280[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/reports.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 2952[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/integration.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 2970[2mms[22m[39m
+(node:6943) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[90mstdout[2m | engines/transactions/test/shift-close-race.pg.test.ts[2m > [22m[2mshift close vs cash operations (real PostgreSQL)[2m > [22m[2mconcurrent sales, a refund and the close: each cash movement is reconciled exactly once
+[22m[39mshift-close race: 40 iterations, 47 operations refused with shift_closed
+
+ [32m✓[39m engines/transactions/test/shift-close-race.pg.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 1526[2mms[22m[39m
+     [33m[2m✓[22m[39m concurrent sales, a refund and the close: each cash movement is reconciled exactly once [33m 1274[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m      Tests [22m [1m[32m57 passed[39m[22m[90m (57)[39m
+[2m   Start at [22m 09:12:20
+[2m   Duration [22m 22.79s[2m (transform 432ms, setup 0ms, import 2.34s, tests 19.61s, environment 1ms)[22m
+

@@ -1,0 +1,8 @@
+$ node /tmp/v/pos-http-flow.mjs   (API on PostgreSQL 17)
+open shift: [201,10000]
+split cash 375+375: [201,750]
+replay: [200,true]
+close: [201,10750,0]
+cash sale after close: [409,"shift_closed"]
+POS HTTP FLOW: PASS
+exit=0

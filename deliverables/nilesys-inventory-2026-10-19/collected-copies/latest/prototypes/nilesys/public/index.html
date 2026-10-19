@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>نيل سيستمز — أنظمة ومواقع جاهزة</title>
+  <meta name="description" content="أنظمة ومواقع جاهزة تشتغل من النهارده — كاشير ومخازن ومطعم وعيادة وموارد بشرية، ومواقع لكل نشاط." />
+  <link rel="stylesheet" href="/assets/css/app.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230d9488'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>N</text></svg>" />
+</head>
+<body data-title-key="common.appName">
+
+  <!-- ================= NAV ================= -->
+  <header class="mkt-nav">
+    <div class="wrap">
+      <a class="brand" href="/">
+        <span class="brand-mark" data-brand-logo>N</span>
+        <span><span data-brand-name>نيل سيستمز</span> · <span class="muted small" data-i18n="common.appTag"></span></span>
+      </a>
+      <nav class="mkt-links">
+        <a href="#systems" data-i18n="nav.systems"></a>
+        <a href="#sites" data-i18n="nav.sites"></a>
+        <a href="#windows" data-i18n="nav.windows"></a>
+        <a href="#contact" data-i18n="nav.contact"></a>
+      </nav>
+      <button class="btn btn-ghost btn-sm" id="langBtn"></button>
+      <a class="btn btn-primary btn-sm" href="#contact" data-i18n="home.ctaBtn"></a>
+    </div>
+  </header>
+
+  <!-- ================= HERO ================= -->
+  <section class="hero">
+    <div class="wrap">
+      <span class="badge-live"><span class="dot-live"></span><span data-i18n="home.badge"></span></span>
+      <h1 data-i18n="home.title"></h1>
+      <p class="lead" data-i18n="home.lead"></p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="#systems" data-i18n="home.cta1"></a>
+        <a class="btn btn-lg" style="background:#ffffff14;border:1px solid #ffffff2c;color:#e2e8f0" href="#sites" data-i18n="home.cta2"></a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><b class="mono">7</b><span data-i18n="home.stat1"></span></div>
+        <div class="stat"><b class="mono">7</b><span data-i18n="home.stat2"></span></div>
+        <div class="stat"><b class="mono">5</b><span data-i18n="home.stat3"></span></div>
+        <div class="stat"><b class="mono">2</b><span data-i18n="home.stat4"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PICKER ================= -->
+  <section class="section alt">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="kicker" data-i18n="home.pickerTitle"></div>
+        <h2 data-i18n="home.pickerSub"></h2>
+      </div>
+      <div class="row" id="activityChips"></div>
+      <div id="activityResult" class="mt-3"></div>
+    </div>
+  </section>
+
+  <!-- ================= SYSTEMS ================= -->
+  <section class="section" id="systems">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="kicker" data-i18n="home.sysKicker"></div>
+        <h2 data-i18n="home.sysTitle"></h2>
+        <p data-i18n="home.sysSub"></p>
+      </div>
+      <div class="grid g-3" id="systemsGrid"></div>
+    </div>
+  </section>
+
+  <!-- ================= SITES ================= -->
+  <section class="section alt" id="sites">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="kicker" data-i18n="home.sitesKicker"></div>
+        <h2 data-i18n="home.sitesTitle"></h2>
+        <p data-i18n="home.sitesSub"></p>
+      </div>
+      <div class="grid g-3" id="sitesGrid"></div>
+    </div>
+  </section>
+
+  <!-- ================= WINDOWS ================= -->
+  <section class="section" id="windows">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="kicker" data-i18n="home.winKicker"></div>
+        <h2 data-i18n="home.winTitle"></h2>
+        <p data-i18n="home.winSub"></p>
+      </div>
+      <div class="grid g-3 mb-3" id="winGrid"></div>
+      <div class="card card-pad">
+        <div class="row between mb-2">
+          <h3 data-i18n="home.cmpTitle"></h3>
+          <span class="badge badge-brand" data-i18n="common.demo"></span>
+        </div>
+        <div class="tbl-wrap">
+          <table class="cmp">
+            <thead><tr><th></th><th id="cmpOnline"></th><th id="cmpWin"></th></tr></thead>
+            <tbody>
+              <tr><td data-i18n="home.cmpOffline"></td><td class="no">✗</td><td class="yes">✓</td></tr>
+              <tr><td data-i18n="home.cmpMobile"></td><td class="yes">✓</td><td class="no" id="cmpWinMobile"></td></tr>
+              <tr><td data-i18n="home.cmpBranch"></td><td class="yes">✓</td><td class="no">✗</td></tr>
+              <tr><td data-i18n="home.cmpWhere"></td><td id="cmpWhereOnline"></td><td id="cmpWhereWin"></td></tr>
+              <tr><td data-i18n="home.cmpPay"></td><td id="cmpPayOnline"></td><td id="cmpPayWin"></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FEATURES ================= -->
+  <section class="section alt">
+    <div class="wrap">
+      <div class="grid g-4">
+        <div class="tile"><div class="icon">💾</div><h3 data-i18n="home.feat1t"></h3><p data-i18n="home.feat1d"></p></div>
+        <div class="tile"><div class="icon">📱</div><h3 data-i18n="home.feat2t"></h3><p data-i18n="home.feat2d"></p></div>
+        <div class="tile"><div class="icon">🌐</div><h3 data-i18n="home.feat3t"></h3><p data-i18n="home.feat3d"></p></div>
+        <div class="tile"><div class="icon">🔄</div><h3 data-i18n="home.feat4t"></h3><p data-i18n="home.feat4d"></p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CTA ================= -->
+  <section class="hero" id="contact" style="padding:56px 0">
+    <div class="wrap center">
+      <h2 style="font-size:clamp(22px,3vw,34px)" data-i18n="home.ctaTitle"></h2>
+      <p class="lead" style="margin-inline:auto" data-i18n="home.ctaSub"></p>
+      <div class="hero-cta" style="justify-content:center">
+        <a class="btn btn-primary btn-lg" href="/systems/pos.html" data-i18n="home.cta1"></a>
+        <a class="btn btn-lg" style="background:#ffffff14;border:1px solid #ffffff2c;color:#e2e8f0" href="#systems" data-i18n="home.ctaBtn"></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="footer">
+    <div class="wrap">
+      <div class="grid g-4">
+        <div>
+          <div class="brand" style="color:#fff"><span class="brand-mark">N</span> نيل سيستمز</div>
+          <p class="small mt-2" data-i18n="home.lead"></p>
+        </div>
+        <div><h4 data-i18n="nav.systems"></h4><div id="footSystems"></div></div>
+        <div><h4 data-i18n="nav.sites"></h4><div id="footSites"></div></div>
+        <div><h4 data-i18n="nav.windows"></h4><div id="footWin"></div></div>
+      </div>
+      <div class="copy row between">
+        <span data-i18n="home.footerRights"></span>
+        <span>Made with ♥ in Egypt</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/assets/js/i18n.js"></script>
+  <script src="/assets/js/core.js"></script>
+  <script src="/assets/js/home.js"></script>
+</body>
+</html>

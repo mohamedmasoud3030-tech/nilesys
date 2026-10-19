@@ -1,0 +1,5 @@
+shift-close race: 40 iterations, 46 operations refused with shift_closed       Tests  2 passed (2) 
+shift-close race: 40 iterations, 37 operations refused with shift_closed       Tests  2 passed (2) 
+shift-close race: 40 iterations, 43 operations refused with shift_closed       Tests  2 passed (2) 
+shift-close race: 40 iterations, 47 operations refused with shift_closed       Tests  2 passed (2) 
+shift-close race: 40 iterations, 39 operations refused with shift_closed       Tests  2 passed (2) 

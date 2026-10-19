@@ -1,0 +1,27 @@
+External / connector checks — 2026-10-19 (UTC), read-only
+
+GitHub (unauthenticated; no token used):
+  api.github.com/users/mohamedmasoud3030-tech/repos -> 2 public repos: mosaid, nilesys
+  github.com/mohamedmasoud3030-tech/{platform,starting,malek,Terranex,bug-free-garbanzo,carmen-gallery-,larabeauty-,Lenastore} -> HTTP 404
+  api.github.com/repos/mohamedmasoud3030-tech/{platform,malek,malek-plus,terranex,jiwdah} -> 404 Not Found
+  nilesys: public, default main, created 2026-09-04, has_wiki=false, releases=0, homepage https://nilesys.vercel.app
+  nilesys PRs: #1-#4 closed/merged, #5 open (docs/2026-10-15-autonomous-execution-protocol) -> github-nilesys-pulls.json
+  nilesys refs: git ls-remote == local origin/* refs (all 21 branches + pull/1-5 mirrored locally) -> refs-snapshot.txt
+    exception: local integration/nile-2026-10-18 = 0207c13 (2 local commits, NOT pushed); remote = b25cb65
+
+Google Drive connector (enabled):
+  name/fullText search for nile|Nile|NILE|nilesys|"Nile Systems" -> 0 files
+  name search POS|roadmap|ROADMAP|FEATURES|catalog|كتالوج|خطة|LENA|platform -> 0 files
+  fullText POS|نقاط البيع|نايل|LENA|نيل -> 1 file: معلومات-الشركة (TerraNex company info; no NILESYS content)
+  full listing: 23 items, all under "مشروع TerraNex — إدارة التسويق والمبيعات" (videos, pptx, docs, sheet) +
+    "Google AI Studio" folder: "تحديد متطلبات نظام إدارة العقارات" (prompt, 2026-08-28), applet_access_history.json
+
+Web:
+  https://nilesys.vercel.app/ -> 404
+  https://marketing-app.runasp.net/ -> 200 (third-party site the prototype README says it imitates)
+
+Not accessible / not searched:
+  - platform repo and the 7 other private repos (no authorised credential; old tokens are forbidden)
+  - Supabase connector: connected but OFF for this conversation -> not searched
+  - Vercel dashboards, Arena earlier chat transcripts (only the session memory summary is available)
+  - /tmp/pr98 (copy of platform PR #98 files from 2026-10-18) was lost in an environment reset

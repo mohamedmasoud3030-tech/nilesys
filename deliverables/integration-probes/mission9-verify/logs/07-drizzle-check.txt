@@ -1,0 +1,5 @@
+$ timeout 120 npx drizzle-kit check </dev/null
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/tmp/wt-verify/drizzle.config.ts'
+Everything's fine 🐶🔥
+exit=0

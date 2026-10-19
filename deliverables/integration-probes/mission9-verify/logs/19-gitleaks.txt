@@ -1,0 +1,16 @@
+$ gitleaks git --log-opts="main..b25cb65" (commits on the integration branch not in main)
+[90m6:45PM[0m [32mINF[0m [1m15 commits scanned.[0m
+[90m6:45PM[0m [32mINF[0m [1mscanned ~507600 bytes (507.60 KB) in 287ms[0m
+[90m6:45PM[0m [33mWRN[0m [1mleaks found: 14[0m
+exit=1
+
+$ gitleaks dir /tmp/wt-verify (working tree @b25cb65, excl. node_modules)
+[90m6:45PM[0m [32mINF[0m [1mscanned ~1537165 bytes (1.54 MB) in 107ms[0m
+[90m6:45PM[0m [33mWRN[0m [1mleaks found: 15[0m
+exit=1
+
+$ gitleaks git --log-opts="--all" (every ref in the local clone)
+[90m6:45PM[0m [32mINF[0m [1m58 commits scanned.[0m
+[90m6:45PM[0m [32mINF[0m [1mscanned ~4818389 bytes (4.82 MB) in 354ms[0m
+[90m6:45PM[0m [33mWRN[0m [1mleaks found: 17[0m
+exit=1

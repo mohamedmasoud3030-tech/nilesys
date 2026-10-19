@@ -1,0 +1,33 @@
+
+ RUN  v4.1.11 /home/user/repos/nilesys
+
+(node:6868) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ engines/transactions/test/refund-concurrency.pg.test.ts (7 tests) 1449ms
+     ✓ A: card + card — the same unit refunded through both payments at once is refunded once (x20)  724ms
+     ✓ B: card + cash — different methods (and different locks) still refund the unit once (x20)  420ms
+ ✓ apps/api/test/e2e-pos.test.ts (17 tests) 4140ms
+     ✓ cashier and manager log in  315ms
+ ✓ engines/transactions/test/refunds.test.ts (7 tests) 3296ms
+stdout | engines/transactions/test/review-gates.test.ts > Gate 1 — Accounting > change counts toward drawer not revenue (F3)
+GATE1 change drawer expected 10750 sumIn 1000 sumOut 250
+
+stdout | engines/transactions/test/review-gates.test.ts > Gate 2 — Concurrency (single-connection PGlite limitations noted) > open shift concurrent same register: only one should succeed (requires advisory lock — expected to fail without fix)
+GATE2 open concurrent results [ '2020f4a8', 'shift_already_open' ]
+
+ ✓ engines/transactions/test/review-gates.test.ts (19 tests) 3280ms
+ ✓ engines/transactions/test/reports.test.ts (3 tests) 2952ms
+ ✓ engines/transactions/test/integration.test.ts (2 tests) 2970ms
+(node:6943) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stdout | engines/transactions/test/shift-close-race.pg.test.ts > shift close vs cash operations (real PostgreSQL) > concurrent sales, a refund and the close: each cash movement is reconciled exactly once
+shift-close race: 40 iterations, 47 operations refused with shift_closed
+
+ ✓ engines/transactions/test/shift-close-race.pg.test.ts (2 tests) 1526ms
+     ✓ concurrent sales, a refund and the close: each cash movement is reconciled exactly once  1274ms
+
+ Test Files  7 passed (7)
+      Tests  57 passed (57)
+   Start at  09:12:20
+   Duration  22.79s (transform 432ms, setup 0ms, import 2.34s, tests 19.61s, environment 1ms)
+

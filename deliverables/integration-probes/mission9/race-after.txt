@@ -1,0 +1,16 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/home/user/repos/nilesys[39m
+
+(node:13842) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[90mstdout[2m | engines/transactions/test/shift-close-race.pg.test.ts[2m > [22m[2mshift close vs cash operations (real PostgreSQL)[2m > [22m[2mconcurrent sales, a refund and the close: each cash movement is reconciled exactly once
+[22m[39mshift-close race: 40 iterations, 43 operations refused with shift_closed
+
+ [32m✓[39m engines/transactions/test/shift-close-race.pg.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 1395[2mms[22m[39m
+     [33m[2m✓[22m[39m concurrent sales, a refund and the close: each cash movement is reconciled exactly once [33m 1199[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m   Start at [22m 13:37:36
+[2m   Duration [22m 1.84s[2m (transform 179ms, setup 0ms, import 334ms, tests 1.40s, environment 0ms)[22m
+

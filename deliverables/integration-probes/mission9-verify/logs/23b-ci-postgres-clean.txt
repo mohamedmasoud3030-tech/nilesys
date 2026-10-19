@@ -1,0 +1,152 @@
+
+>>> [postgres] step 3: npm ci
+$ npm ci
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.hirok.io
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.hirok.io
+
+added 187 packages in 5s
+<<< step 3 exit=0
+
+>>> [postgres] step 4: Server facts
+$ psql "$NILE_TEST_PG_ADMIN_URL" -Atc "select version()"
+  test "$(psql "$NILE_TEST_PG_ADMIN_URL" -Atc "select count(*) from pg_timezone_names where name='Africa/Cairo'")" = 1
+PostgreSQL 17.11 (Debian 17.11-0+deb13u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+<<< step 4 exit=0
+
+>>> [postgres] step 5: Full suite on real PostgreSQL (fails on any skip)
+$ npx vitest run --reporter=default --reporter=json --outputFile=vitest-pg.json
+  node -e '
+    const r = require("./vitest-pg.json");
+    const bad = r.testResults.flatMap((f) => f.assertionResults.filter((a) => a.status !== "passed").map((a) => `${a.status}: ${f.name.replace(process.cwd() + "/", "")} > ${a.fullName}`));
+    console.log(`total=${r.numTotalTests} passed=${r.numPassedTests} failed=${r.numFailedTests} skipped=${r.numPendingTests + r.numTodoTests}`);
+    const pg = r.testResults.filter((f) => /\.pg\.test\.ts$/.test(f.name));
+    console.log(`real-PG files=${pg.length} tests=${pg.reduce((n, f) => n + f.assertionResults.length, 0)}`);
+    if (bad.length || r.numPassedTests !== r.numTotalTests || pg.length === 0) { bad.forEach((b) => console.error(b)); console.error("::error::not every test ran and passed on real PostgreSQL"); process.exit(1); }'
+
+ RUN  v4.1.11 /tmp/wt-verify
+
+stdout | engines/transactions/test/review-gates.test.ts > Gate 1 — Accounting > change counts toward drawer not revenue (F3)
+GATE1 change drawer expected 10750 sumIn 1000 sumOut 250
+
+stdout | engines/transactions/test/review-gates.test.ts > Gate 2 — Concurrency (single-connection PGlite limitations noted) > open shift concurrent same register: only one should succeed (requires advisory lock — expected to fail without fix)
+GATE2 open concurrent results [ 'ee8aca00', 'shift_already_open' ]
+
+ ✓ engines/transactions/test/review-gates.test.ts (19 tests) 3309ms
+stderr | apps/api/test/e2e-sale.test.ts > 1. authentication > rejects a wrong password
+2026-10-18T18:57:27.519Z WARN [Better Auth]: Invalid password
+
+ ✓ apps/api/test/e2e-sale.test.ts (25 tests) 6025ms
+     ✓ account-mutating endpoints are refused for a shared demo login (403) and nothing changes  319ms
+     ✓ a real (non-demo) tenant user can still change their own password  555ms
+     ✓ restart on the same data directory → log in again → the sale is still there  455ms
+ ✓ apps/api/test/e2e-pos.test.ts (17 tests) 4197ms
+     ✓ cashier and manager log in  320ms
+ ✓ engines/transactions/test/refunds.test.ts (7 tests) 2938ms
+ ✓ engines/people/test/people-service.test.ts (27 tests) 2686ms
+ ✓ engines/transactions/test/golden.test.ts (27 tests) 11ms
+ ✓ engines/db/test/rls.test.ts (15 tests) 4441ms
+     ✓ refuses to start on a superuser connection  1722ms
+ ✓ engines/catalog/test/lead-service.test.ts (19 tests) 2767ms
+(node:12094) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ engines/people/test/people-service.pg.test.ts (6 tests) 373ms
+ ✓ engines/transactions/test/checkout.test.ts (6 tests) 2798ms
+ ✓ engines/transactions/test/dst-cairo.test.ts (6 tests) 2835ms
+ ✓ engines/transactions/test/integration.test.ts (2 tests) 2736ms
+ ✓ engines/transactions/test/shifts.test.ts (8 tests) 2868ms
+(node:12165) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ engines/catalog/test/lead-service.pg.test.ts (7 tests) 522ms
+(node:12193) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stdout | engines/transactions/test/shift-close-race.pg.test.ts > shift close vs cash operations (real PostgreSQL) > concurrent sales, a refund and the close: each cash movement is reconciled exactly once
+shift-close race: 40 iterations, 43 operations refused with shift_closed
+
+ ✓ engines/transactions/test/shift-close-race.pg.test.ts (2 tests) 1698ms
+     ✓ concurrent sales, a refund and the close: each cash movement is reconciled exactly once  1455ms
+ ✓ apps/api/test/split-tender.test.ts (3 tests) 3593ms
+ ✓ engines/transactions/test/reports.test.ts (3 tests) 2686ms
+ ✓ engines/transactions/test/sale.test.ts (5 tests) 18ms
+ ✓ engines/booking/test/booking.test.ts (6 tests) 5ms
+ ✓ engines/platform/test/platform.test.ts (4 tests) 8ms
+ ✓ engines/catalog/test/catalog.test.ts (4 tests) 4ms
+ ✓ engines/people/test/people.test.ts (4 tests) 5ms
+ ✓ engines/db/test/migration-chain.test.ts (3 tests) 4ms
+ ✓ engines/platform/test/permissions.test.ts (5 tests) 8ms
+
+ Test Files  24 passed (24)
+      Tests  230 passed (230)
+   Start at  18:57:17
+   Duration  59.78s (transform 705ms, setup 0ms, import 10.33s, tests 46.54s, environment 2ms)
+
+JSON report written to /tmp/wt-verify/vitest-pg.json
+total=230 passed=230 failed=0 skipped=0
+real-PG files=3 tests=15
+<<< step 5 exit=0
+
+>>> [postgres] step 6: Shift-close race, repeated
+$ for i in 1 2 3; do npx vitest run engines/transactions/test/shift-close-race.pg.test.ts; done
+
+ RUN  v4.1.11 /tmp/wt-verify
+
+(node:12323) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stdout | engines/transactions/test/shift-close-race.pg.test.ts > shift close vs cash operations (real PostgreSQL) > concurrent sales, a refund and the close: each cash movement is reconciled exactly once
+shift-close race: 40 iterations, 33 operations refused with shift_closed
+
+ ✓ engines/transactions/test/shift-close-race.pg.test.ts (2 tests) 1662ms
+     ✓ concurrent sales, a refund and the close: each cash movement is reconciled exactly once  1445ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  18:58:18
+   Duration  2.40s (transform 174ms, setup 0ms, import 622ms, tests 1.66s, environment 0ms)
+
+
+ RUN  v4.1.11 /tmp/wt-verify
+
+(node:12375) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stdout | engines/transactions/test/shift-close-race.pg.test.ts > shift close vs cash operations (real PostgreSQL) > concurrent sales, a refund and the close: each cash movement is reconciled exactly once
+shift-close race: 40 iterations, 42 operations refused with shift_closed
+
+ ✓ engines/transactions/test/shift-close-race.pg.test.ts (2 tests) 1687ms
+     ✓ concurrent sales, a refund and the close: each cash movement is reconciled exactly once  1450ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  18:58:21
+   Duration  2.44s (transform 172ms, setup 0ms, import 633ms, tests 1.69s, environment 0ms)
+
+
+ RUN  v4.1.11 /tmp/wt-verify
+
+(node:12424) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stdout | engines/transactions/test/shift-close-race.pg.test.ts > shift close vs cash operations (real PostgreSQL) > concurrent sales, a refund and the close: each cash movement is reconciled exactly once
+shift-close race: 40 iterations, 44 operations refused with shift_closed
+
+ ✓ engines/transactions/test/shift-close-race.pg.test.ts (2 tests) 1554ms
+     ✓ concurrent sales, a refund and the close: each cash movement is reconciled exactly once  1331ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  18:58:24
+   Duration  2.28s (transform 168ms, setup 0ms, import 612ms, tests 1.55s, environment 0ms)
+
+<<< step 6 exit=0
+
+>>> [postgres] step 7: No leftover test databases
+$ test "$(psql "$NILE_TEST_PG_ADMIN_URL" -Atc "select count(*) from pg_database where datname like 'nile_%'")" = 0
+<<< step 7 exit=0
+
+===== job postgres summary =====
+   1. EMULATED (uses)            actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+   2. EMULATED (uses)            actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+   3. PASS                       npm ci
+   4. PASS                       Server facts
+   5. PASS                       Full suite on real PostgreSQL (fails on any skip)
+   6. PASS                       Shift-close race, repeated
+   7. PASS                       No leftover test databases
+   8. EMULATED (uses)            actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+JOB RESULT: PASS

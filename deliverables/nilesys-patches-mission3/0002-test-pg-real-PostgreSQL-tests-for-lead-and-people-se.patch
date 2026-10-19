@@ -1,0 +1,558 @@
+From 47d8bea8a63f3b9ddc191cc2512631df0819742b Mon Sep 17 00:00:00 2001
+From: LENA parallel agent <lena-parallel-agent@users.noreply.local>
+Date: Sun, 18 Oct 2026 08:16:27 +0000
+Subject: [PATCH 2/3] test(pg): real-PostgreSQL tests for lead and people
+ services; fix attendance races
+
+Adds disposable-cluster tests (skipped unless NILE_TEST_PG_ADMIN_URL is set),
+same harness pattern as pool-resilience.pg.test.ts, kept out of engines/db.
+- lead: forced and unforced concurrent moveLead -> exactly one winner, loser gets
+  lead_stage_conflict; RLS isolation, WITH CHECK, fail-closed, no context bleed
+  across pooled connections. Removing the WHERE stage=from guard is caught here
+  (PGlite suite stays green with that mutant).
+- people: forced races proved two defects in recordAttendance:
+  * first record of an employee-day: loser failed with raw 23505
+  * existing row: concurrent partial updates lost a field
+  Fix: read the existing row FOR UPDATE; retry once on
+  attendance_tenant_emp_day_uq. Both halves mutation-checked.
+---
+ engines/catalog/test/lead-service.pg.test.ts  | 134 ++++++++++++++
+ engines/catalog/test/pg-harness.ts            | 171 ++++++++++++++++++
+ engines/people/src/people-service.ts          |  33 +++-
+ engines/people/test/people-service.pg.test.ts | 152 ++++++++++++++++
+ 4 files changed, 489 insertions(+), 1 deletion(-)
+ create mode 100644 engines/catalog/test/lead-service.pg.test.ts
+ create mode 100644 engines/catalog/test/pg-harness.ts
+ create mode 100644 engines/people/test/people-service.pg.test.ts
+
+diff --git a/engines/catalog/test/lead-service.pg.test.ts b/engines/catalog/test/lead-service.pg.test.ts
+new file mode 100644
+index 0000000..4450ee2
+--- /dev/null
++++ b/engines/catalog/test/lead-service.pg.test.ts
+@@ -0,0 +1,134 @@
++/**
++ * Lead service on REAL PostgreSQL (multi-connection pool, nile_app, FORCE RLS).
++ *
++ * PGlite (lead-service.test.ts) is a single connection, so it cannot exercise
++ * two transactions racing on the same lead. These tests can: the race is made
++ * deterministic by holding the lead's row lock on a third connection until both
++ * moveLead transactions have read stage=NEW and are blocked on their UPDATE
++ * (observed in pg_stat_activity), then releasing it. Under READ COMMITTED the
++ * second UPDATE re-evaluates `WHERE stage = 'NEW'`, matches 0 rows and must
++ * surface as lead_stage_conflict — never as a silent lost update.
++ *
++ * Skipped unless NILE_TEST_PG_ADMIN_URL is set (see ./pg-harness.ts).
++ */
++import { sql } from 'drizzle-orm';
++import { afterAll, beforeAll, describe, expect, it } from 'vitest';
++import type { NileDb } from '../../db/open.js';
++import { organization } from '../../platform/src/auth/schema.js';
++import { withTenant } from '../../platform/src/db/with-tenant.js';
++import { DomainError } from '../../transactions/src/line.js';
++import { leads } from '../src/db/schema.js';
++import { captureLead, listLeads, moveLead } from '../src/lead-service.js';
++import { ADMIN_URL, createPgHarness, holdRowLock, rawClient, waitForLockWaiters, type PgHarness } from './pg-harness.js';
++
++const lead = { source: 'gym', customerName: 'Race Test', customerPhone: '+201001112233' } as const;
++
++function codeOf(r: PromiseSettledResult<unknown>): string | undefined {
++  if (r.status === 'fulfilled') return undefined;
++  const e = r.reason as unknown;
++  return e instanceof DomainError ? e.code : `non-domain:${String((e as Error)?.message ?? e)}`;
++}
++
++describe.skipIf(!ADMIN_URL)('lead service on real PostgreSQL', () => {
++  let h: PgHarness;
++  let db: NileDb;
++  let A: string;
++  let B: string;
++
++  beforeAll(async () => {
++    h = await createPgHarness('lead');
++    db = h.opened.db;
++    [{ id: A }] = (await db.insert(organization).values({ name: 'A', slug: 'pg-lead-a' }).returning({ id: organization.id })) as [{ id: string }];
++    [{ id: B }] = (await db.insert(organization).values({ name: 'B', slug: 'pg-lead-b' }).returning({ id: organization.id })) as [{ id: string }];
++  }, 60_000);
++  afterAll(async () => {
++    await h?.dispose();
++  });
++
++  it('runs as the non-bypass runtime role on a multi-connection pool', async () => {
++    const res = (await db.execute(
++      sql`SELECT current_user AS u, r.rolsuper AS s, r.rolbypassrls AS b FROM pg_roles r WHERE r.rolname = current_user`,
++    )) as unknown as { rows: Array<{ u: string; s: boolean; b: boolean }> };
++    expect(res.rows[0]).toEqual({ u: 'nile_app', s: false, b: false });
++    expect(h.opened.driver).toBe('postgres');
++  });
++
++  it('forced race NEW→CONTACTED vs NEW→LOST: exactly one wins, the other gets lead_stage_conflict', async () => {
++    const { id } = await captureLead(db, A, lead);
++    const lock = await holdRowLock(h.loginUrl, A, 'leads', id);
++    const racing = Promise.allSettled([moveLead(db, A, id, 'CONTACTED'), moveLead(db, A, id, 'LOST')]);
++    await waitForLockWaiters(h.observer, h.dbName, 2); // both have read NEW and are blocked on UPDATE
++    await lock.release();
++    const results = await racing;
++
++    const winners = results.filter((r) => r.status === 'fulfilled') as PromiseFulfilledResult<{ stage: string }>[];
++    expect(winners).toHaveLength(1);
++    expect(results.map(codeOf).filter(Boolean)).toEqual(['lead_stage_conflict']);
++    const [stored] = await listLeads(db, A, {}).then((all) => all.filter((l) => l.id === id));
++    expect(stored?.stage).toBe(winners[0]!.value.stage); // the loser did not overwrite the winner
++  });
++
++  it('forced race on the same target: one success, one lead_stage_conflict (no double transition)', async () => {
++    const { id } = await captureLead(db, A, lead);
++    const lock = await holdRowLock(h.loginUrl, A, 'leads', id);
++    const racing = Promise.allSettled([moveLead(db, A, id, 'CONTACTED'), moveLead(db, A, id, 'CONTACTED')]);
++    await waitForLockWaiters(h.observer, h.dbName, 2);
++    await lock.release();
++    const results = await racing;
++    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
++    expect(results.map(codeOf).filter(Boolean)).toEqual(['lead_stage_conflict']);
++  });
++
++  it('unforced burst: 25 leads × 4 concurrent identical moves → exactly one success per lead, losers get a domain error', async () => {
++    const ids = await Promise.all(Array.from({ length: 25 }, () => captureLead(db, A, lead).then((l) => l.id)));
++    const perLead = await Promise.all(ids.map((id) => Promise.allSettled([1, 2, 3, 4].map(() => moveLead(db, A, id, 'CONTACTED')))));
++    for (const results of perLead) {
++      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
++      // Depending on interleaving the loser either lost the UPDATE (conflict) or read the
++      // already-moved row (CONTACTED→CONTACTED is not a legal move). Never a raw SQL error.
++      for (const c of results.map(codeOf).filter(Boolean)) expect(['lead_stage_conflict', 'invalid_lead_transition']).toContain(c);
++    }
++  });
++
++  it('tenant isolation through the pool: B cannot list, move or write into A', async () => {
++    const { id } = await captureLead(db, A, lead);
++    expect((await listLeads(db, B, {})).some((l) => l.id === id)).toBe(false);
++    await expect(moveLead(db, B, id, 'CONTACTED')).rejects.toMatchObject({ code: 'lead_not_found' });
++    expect((await listLeads(db, A, {})).find((l) => l.id === id)?.stage).toBe('NEW');
++
++    // WITH CHECK: a row for tenant A cannot be inserted while the context is B.
++    const insertErr = await withTenant(db, B, (tx: any) =>
++      tx.insert(leads).values({ tenantId: A, source: 'gym', customerName: 'x', customerPhone: '+201001112233' }),
++    ).then(() => null, (e: any) => e);
++    let cause: any = insertErr;
++    while (cause && !cause.code) cause = cause.cause;
++    expect(cause?.code).toBe('42501'); // new row violates row-level security policy
++  });
++
++  it('without tenant context the runtime role sees no leads at all (fail closed)', async () => {
++    const c = rawClient(h.loginUrl);
++    await c.connect();
++    try {
++      await c.query('SET ROLE nile_app');
++      expect((await c.query('SELECT count(*)::int AS n FROM leads')).rows[0].n).toBe(0);
++      const owner = await h.observer.query('SELECT count(*)::int AS n FROM leads'); // superuser view
++      expect(owner.rows[0].n).toBeGreaterThan(0);
++    } finally {
++      await c.end();
++    }
++  });
++
++  it('interleaved concurrent requests for A and B never bleed tenant context across pooled connections', async () => {
++    await captureLead(db, B, { ...lead, customerName: 'Tenant B lead' });
++    const runs = await Promise.all(
++      Array.from({ length: 40 }, (_, i) => {
++        const t = i % 2 ? A : B;
++        return listLeads(db, t, {}).then((rows) => ({ t, rows }));
++      }),
++    );
++    for (const { t, rows } of runs) {
++      expect(rows.length).toBeGreaterThan(0);
++      expect(rows.every((r) => r.tenantId === t)).toBe(true);
++    }
++  });
++});
+diff --git a/engines/catalog/test/pg-harness.ts b/engines/catalog/test/pg-harness.ts
+new file mode 100644
+index 0000000..c34627c
+--- /dev/null
++++ b/engines/catalog/test/pg-harness.ts
+@@ -0,0 +1,171 @@
++/**
++ * Disposable real-PostgreSQL harness for the lead / people service tests.
++ *
++ * Same pattern as engines/db/test/pool-resilience.pg.test.ts (N-1): it runs only
++ * when NILE_TEST_PG_ADMIN_URL points at a DISPOSABLE server whose login can
++ * create databases and roles (a superuser on a throwaway local cluster), e.g.
++ *
++ *   NILE_TEST_PG_ADMIN_URL=postgres://postgres@127.0.0.1:5471/postgres pnpm vitest run engines
++ *
++ * Per run it creates: a database, an owner role (runs migrations) and a login
++ * role (NOSUPERUSER NOBYPASSRLS, member of the runtime role nile_app). The
++ * runtime pool is opened through the production path (open.ts → openPostgres),
++ * so every query runs as nile_app under FORCE ROW LEVEL SECURITY. Everything
++ * except the cluster-wide nile_app role is dropped in dispose().
++ *
++ * Lives under engines/catalog/test (not engines/db) so the shared db engine,
++ * which other workers are changing, is not touched.
++ */
++import { randomBytes } from 'node:crypto';
++import pg from 'pg';
++import { openPostgres, RUNTIME_ROLE, type OpenedDatabase } from '../../db/open.js';
++
++export const ADMIN_URL = process.env.NILE_TEST_PG_ADMIN_URL;
++
++export interface PgHarness {
++  /** Runtime pool (login role → SET ROLE nile_app), the production code path. */
++  opened: OpenedDatabase;
++  /** URL for extra raw connections as the login role (e.g. lock holders). */
++  loginUrl: string;
++  dbName: string;
++  /** Superuser connection to the test database (observation only: pg_stat_activity, catalog checks). */
++  observer: pg.Client;
++  dispose(): Promise<void>;
++}
++
++const DUPLICATE_OBJECT = '42710';
++const UNIQUE_VIOLATION = '23505';
++const TUPLE_CONCURRENTLY_UPDATED = 'XX000';
++
++async function ensureRuntimeRole(admin: pg.Client): Promise<void> {
++  // Several test files may race to create the cluster-wide role; tolerate the loser.
++  const { rowCount } = await admin.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [RUNTIME_ROLE]);
++  if (rowCount) return;
++  try {
++    await admin.query(`CREATE ROLE ${RUNTIME_ROLE} NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE`);
++  } catch (e) {
++    const code = (e as { code?: string }).code;
++    if (code !== DUPLICATE_OBJECT && code !== UNIQUE_VIOLATION) throw e;
++  }
++}
++
++async function retryCatalogRace<T>(fn: () => Promise<T>): Promise<T> {
++  for (let i = 0; ; i++) {
++    try {
++      return await fn();
++    } catch (e) {
++      const code = (e as { code?: string }).code;
++      if (i < 5 && (code === TUPLE_CONCURRENTLY_UPDATED || code === UNIQUE_VIOLATION)) continue;
++      throw e;
++    }
++  }
++}
++
++export async function createPgHarness(label: string): Promise<PgHarness> {
++  if (!ADMIN_URL) throw new Error('NILE_TEST_PG_ADMIN_URL is not set');
++  const suffix = randomBytes(4).toString('hex');
++  const dbName = `nile_${label}_${suffix}`;
++  const owner = `nile_${label}_own_${suffix}`;
++  const login = `nile_${label}_app_${suffix}`;
++  const password = randomBytes(16).toString('hex'); // throwaway, never logged
++
++  const urlFor = (user: string | null, database: string) => {
++    const u = new URL(ADMIN_URL);
++    if (user) {
++      u.username = user;
++      u.password = password;
++    }
++    u.pathname = `/${database}`;
++    return u.toString();
++  };
++
++  const admin = rawClient(ADMIN_URL);
++  await admin.connect();
++  let observer: pg.Client | undefined;
++  let opened: OpenedDatabase | undefined;
++  const dispose = async () => {
++    await opened?.close().catch(() => undefined);
++    await observer?.end().catch(() => undefined);
++    // pg-pool's end() resolves once clients are REMOVED, before their sockets close.
++    // Dropping WITH (FORCE) at that moment sends FATAL 57P01 to a still-open pooled
++    // client, which re-emits it on the Pool — and openPostgres (main) attaches no
++    // pool 'error' listener (N-1, fixed on fix/nile-pool-error-listener), so it
++    // would surface as an uncaught exception. Wait for the backends to leave first.
++    for (let i = 0; i < 250; i++) {
++      const { rows } = await admin.query<{ n: string }>('SELECT count(*) AS n FROM pg_stat_activity WHERE datname = $1', [dbName]);
++      if (Number(rows[0]?.n) === 0) break;
++      await new Promise((r) => setTimeout(r, 20));
++    }
++    await admin.query(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
++    await admin.query(`DROP ROLE IF EXISTS ${login}`);
++    await admin.query(`DROP ROLE IF EXISTS ${owner}`);
++    await admin.end();
++  };
++
++  try {
++    await admin.query(`CREATE ROLE ${owner} LOGIN CREATEROLE NOSUPERUSER PASSWORD '${password}'`);
++    await admin.query(`CREATE ROLE ${login} LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD '${password}'`);
++    await ensureRuntimeRole(admin);
++    await retryCatalogRace(() => admin.query(`GRANT ${RUNTIME_ROLE} TO ${login}`));
++    await admin.query(`CREATE DATABASE ${dbName} OWNER ${owner}`);
++
++    const loginUrl = urlFor(login, dbName);
++    const migrated = await openPostgres({ url: loginUrl, migrationUrl: urlFor(owner, dbName) });
++    await migrated.close();
++    opened = await openPostgres({ url: loginUrl });
++
++    observer = rawClient(urlFor(null, dbName));
++    await observer.connect();
++    return { opened, loginUrl, dbName, observer, dispose };
++  } catch (e) {
++    await dispose().catch(() => undefined);
++    throw e;
++  }
++}
++
++/**
++ * A raw pg.Client with an 'error' listener: an idle client whose backend is
++ * terminated (e.g. by DROP DATABASE ... WITH (FORCE) in dispose) must not crash
++ * the test process with an unhandled 'error' event.
++ */
++export function rawClient(connectionString: string): pg.Client {
++  const c = new pg.Client({ connectionString });
++  c.on('error', () => undefined);
++  return c;
++}
++
++/** Polls pg_stat_activity until `n` backends of this database are waiting on a heavyweight lock. */
++export async function waitForLockWaiters(observer: pg.Client, dbName: string, n: number, timeoutMs = 10_000): Promise<void> {
++  const deadline = Date.now() + timeoutMs;
++  for (;;) {
++    const { rows } = await observer.query<{ n: string }>(
++      `SELECT count(*) AS n FROM pg_stat_activity WHERE datname = $1 AND wait_event_type = 'Lock'`,
++      [dbName],
++    );
++    if (Number(rows[0]?.n) >= n) return;
++    if (Date.now() > deadline) throw new Error(`timed out waiting for ${n} lock waiters (have ${rows[0]?.n})`);
++    await new Promise((r) => setTimeout(r, 20));
++  }
++}
++
++/** Opens a raw login-role transaction, as nile_app with the tenant context set, that holds a row lock until released. */
++export async function holdRowLock(loginUrl: string, tenantId: string, table: string, id: string) {
++  const c = rawClient(loginUrl);
++  await c.connect();
++  try {
++    await c.query('BEGIN');
++    await c.query(`SET LOCAL ROLE ${RUNTIME_ROLE}`);
++    await c.query(`SELECT set_config('app.tenant_id', $1, true)`, [tenantId]);
++    const { rowCount } = await c.query(`SELECT 1 FROM ${table} WHERE id = $1 FOR UPDATE`, [id]);
++    if (rowCount !== 1) throw new Error(`lock target ${table}/${id} not visible`);
++  } catch (e) {
++    await c.end().catch(() => undefined);
++    throw e;
++  }
++  return {
++    release: async () => {
++      await c.query('COMMIT');
++      await c.end();
++    },
++  };
++}
+diff --git a/engines/people/src/people-service.ts b/engines/people/src/people-service.ts
+index a526416..221d58f 100644
+--- a/engines/people/src/people-service.ts
++++ b/engines/people/src/people-service.ts
+@@ -163,8 +163,38 @@ export async function listEmployees(db: AnyPgDatabase, tenantId: string, opts: {
+  * The merged row must still satisfy check-out > check-in, otherwise the whole
+  * write rolls back.
+  */
++/** True when `e` (or a wrapped cause) is the employee-day unique violation. */
++function isEmployeeDayConflict(e: unknown): boolean {
++  for (let c: any = e; c; c = c.cause) {
++    if (c.code === '23505' && c.constraint === 'attendance_tenant_emp_day_uq') return true;
++  }
++  return false;
++}
++
++/**
++ * Concurrency (proven on real PostgreSQL in people-service.pg.test.ts; PGlite
++ * is single-connection and cannot show it):
++ *  - an existing employee-day row is read FOR UPDATE, so concurrent partial
++ *    updates (check-in vs check-out) are serialised and merge, never lose a field;
++ *  - when two requests create the same employee-day at once, the loser hits
++ *    attendance_tenant_emp_day_uq; the winner has committed by then, so ONE retry
++ *    takes the update path and merges instead of failing with a raw SQL error.
++ */
+ export async function recordAttendance(db: AnyPgDatabase, tenantId: string, input: unknown): Promise<AttendanceView> {
+   const data = parse(recordAttendanceInputSchema, input);
++  try {
++    return await recordAttendanceTx(db, tenantId, data);
++  } catch (e) {
++    if (!isEmployeeDayConflict(e)) throw e;
++    return recordAttendanceTx(db, tenantId, data);
++  }
++}
++
++function recordAttendanceTx(
++  db: AnyPgDatabase,
++  tenantId: string,
++  data: z.output<typeof recordAttendanceInputSchema>,
++): Promise<AttendanceView> {
+   return withTenant(db, tenantId, async (tx: any) => {
+     // RLS hides other tenants' employees, so their ids are simply "not found";
+     // the composite FK (tenant_id, employee_id) is a second, database-level guard.
+@@ -174,7 +204,8 @@ export async function recordAttendance(db: AnyPgDatabase, tenantId: string, inpu
+       .select()
+       .from(attendanceRecords)
+       .where(and(eq(attendanceRecords.employeeId, data.employeeId), eq(attendanceRecords.day, data.day)))
+-      .limit(1);
++      .limit(1)
++      .for('update');
+ 
+     const clearsTimes = NO_TIMES.includes(data.status);
+     const merged = {
+diff --git a/engines/people/test/people-service.pg.test.ts b/engines/people/test/people-service.pg.test.ts
+new file mode 100644
+index 0000000..afc8cbb
+--- /dev/null
++++ b/engines/people/test/people-service.pg.test.ts
+@@ -0,0 +1,152 @@
++/**
++ * People service on REAL PostgreSQL (multi-connection pool, nile_app, FORCE RLS).
++ *
++ * PGlite (people-service.test.ts) is a single connection and cannot interleave
++ * two transactions. Here the "first record of the day" race is made
++ * deterministic: a third connection inserts (but does not commit) the same
++ * employee-day row, so both recordAttendance transactions read "no row yet" and
++ * block on the unique index (observed in pg_stat_activity); the holder then
++ * rolls back. One insert wins; the other hits attendance_tenant_emp_day_uq and
++ * must be merged into the winner's row, not surfaced as a raw SQL error.
++ *
++ * Skipped unless NILE_TEST_PG_ADMIN_URL is set (see ../../catalog/test/pg-harness.ts).
++ */
++import { and, eq } from 'drizzle-orm';
++import { afterAll, beforeAll, describe, expect, it } from 'vitest';
++import { ADMIN_URL, createPgHarness, holdRowLock, rawClient, waitForLockWaiters, type PgHarness } from '../../catalog/test/pg-harness.js';
++import { RUNTIME_ROLE, type NileDb } from '../../db/open.js';
++import { organization } from '../../platform/src/auth/schema.js';
++import { withTenant } from '../../platform/src/db/with-tenant.js';
++import { attendanceRecords } from '../src/db/schema.js';
++import { createEmployee, listAttendance, listEmployees, recordAttendance } from '../src/people-service.js';
++
++function sqlState(e: unknown): string | undefined {
++  let c: any = e;
++  while (c && !c.code) c = c.cause;
++  return c?.code;
++}
++
++describe.skipIf(!ADMIN_URL)('people service on real PostgreSQL', () => {
++  let h: PgHarness;
++  let db: NileDb;
++  let A: string;
++  let B: string;
++  let empA: string;
++  let empB: string;
++
++  /** Uncommitted insert of the same employee-day on a separate connection. */
++  async function holdUncommittedAttendance(tenantId: string, employeeId: string, day: string) {
++    const c = rawClient(h.loginUrl);
++    await c.connect();
++    await c.query('BEGIN');
++    await c.query(`SET LOCAL ROLE ${RUNTIME_ROLE}`);
++    await c.query(`SELECT set_config('app.tenant_id', $1, true)`, [tenantId]);
++    await c.query(`INSERT INTO attendance_records (tenant_id, employee_id, day, status) VALUES ($1, $2, $3, 'PRESENT')`, [
++      tenantId,
++      employeeId,
++      day,
++    ]);
++    return {
++      rollback: async () => {
++        await c.query('ROLLBACK');
++        await c.end();
++      },
++    };
++  }
++  const rowsFor = (tenantId: string, employeeId: string, day: string) =>
++    withTenant(db, tenantId, (tx: any) =>
++      tx
++        .select()
++        .from(attendanceRecords)
++        .where(and(eq(attendanceRecords.employeeId, employeeId), eq(attendanceRecords.day, day))),
++    ) as Promise<Array<{ checkIn: string | null; checkOut: string | null; status: string }>>;
++
++  beforeAll(async () => {
++    h = await createPgHarness('people');
++    db = h.opened.db;
++    [{ id: A }] = (await db.insert(organization).values({ name: 'A', slug: 'pg-people-a' }).returning({ id: organization.id })) as [{ id: string }];
++    [{ id: B }] = (await db.insert(organization).values({ name: 'B', slug: 'pg-people-b' }).returning({ id: organization.id })) as [{ id: string }];
++    empA = (await createEmployee(db, A, { name: 'سارة علي', role: 'cashier', baseSalaryMinor: 520_000 })).id;
++    empB = (await createEmployee(db, B, { name: 'Omar', role: 'storekeeper', baseSalaryMinor: 400_000 })).id;
++  }, 60_000);
++  afterAll(async () => {
++    await h?.dispose();
++  });
++
++  it('forced race on the first record of an employee-day: both calls succeed and merge into ONE row', async () => {
++    const day = '2026-10-05';
++    const holder = await holdUncommittedAttendance(A, empA, day);
++    const racing = Promise.allSettled([
++      recordAttendance(db, A, { employeeId: empA, day, checkIn: '09:00' }),
++      recordAttendance(db, A, { employeeId: empA, day, checkIn: '09:00', checkOut: '17:00' }),
++    ]);
++    await waitForLockWaiters(h.observer, h.dbName, 2); // both read "no row" and are blocked on the unique index
++    await holder.rollback();
++    const results = await racing;
++
++    expect(results.map((r) => (r.status === 'fulfilled' ? 'ok' : sqlState(r.reason) ?? String(r.reason)))).toEqual(['ok', 'ok']);
++    const rows = await rowsFor(A, empA, day);
++    expect(rows).toHaveLength(1);
++    // Either serial order yields the same merge: check-in 09:00 and check-out 17:00.
++    expect(rows[0]).toMatchObject({ checkIn: '09:00', checkOut: '17:00', status: 'PRESENT' });
++  });
++
++  it('forced race on an EXISTING row: two partial updates are serialised, no field is lost', async () => {
++    const day = '2026-10-09';
++    await recordAttendance(db, A, { employeeId: empA, day, checkIn: '09:00' });
++    const { rows: idRows } = await h.observer.query<{ id: string }>(
++      'SELECT id FROM attendance_records WHERE employee_id = $1 AND day = $2',
++      [empA, day],
++    );
++    const lock = await holdRowLock(h.loginUrl, A, 'attendance_records', idRows[0]!.id);
++    const racing = Promise.allSettled([
++      recordAttendance(db, A, { employeeId: empA, day, status: 'LATE', checkOut: '17:00' }),
++      recordAttendance(db, A, { employeeId: empA, day, status: 'LATE', checkIn: '09:20' }),
++    ]);
++    await waitForLockWaiters(h.observer, h.dbName, 2);
++    await lock.release();
++    const results = await racing;
++    expect(results.map((r) => r.status)).toEqual(['fulfilled', 'fulfilled']);
++    // Either serial order merges to the same row; a lost update would drop one field.
++    const rows = await rowsFor(A, empA, day);
++    expect(rows).toHaveLength(1);
++    expect(rows[0]).toMatchObject({ checkIn: '09:20', checkOut: '17:00', status: 'LATE' });
++  });
++
++  it('unforced burst: 8 concurrent check-ins for one employee-day never error and leave exactly one row', async () => {
++    const day = '2026-10-06';
++    const results = await Promise.allSettled(Array.from({ length: 8 }, () => recordAttendance(db, A, { employeeId: empA, day, checkIn: '08:55' })));
++    expect(results.filter((r) => r.status === 'rejected').map((r) => sqlState((r as PromiseRejectedResult).reason))).toEqual([]);
++    expect(await rowsFor(A, empA, day)).toHaveLength(1);
++  });
++
++  it('tenant isolation through the pool: B cannot see or record attendance for A’s employee', async () => {
++    await recordAttendance(db, A, { employeeId: empA, day: '2026-10-07', checkIn: '09:00' });
++    expect((await listEmployees(db, B)).some((e) => e.id === empA)).toBe(false);
++    await expect(recordAttendance(db, B, { employeeId: empA, day: '2026-10-07', checkIn: '10:00' })).rejects.toMatchObject({
++      code: 'employee_not_found',
++    });
++    await expect(listAttendance(db, B, { employeeId: empA, month: '2026-10' })).rejects.toMatchObject({ code: 'employee_not_found' });
++    expect((await listAttendance(db, A, { employeeId: empA, month: '2026-10' })).length).toBeGreaterThan(0);
++    expect((await rowsFor(A, empA, '2026-10-07'))[0]?.checkIn).toBe('09:00');
++  });
++
++  it('composite FK is a database-level guard: tenant A cannot attach attendance to tenant B’s employee', async () => {
++    const err = await withTenant(db, A, (tx: any) =>
++      tx.insert(attendanceRecords).values({ tenantId: A, employeeId: empB, day: '2026-10-08', status: 'PRESENT' }),
++    ).then(() => null, (e: unknown) => e);
++    expect(sqlState(err)).toBe('23503'); // foreign_key_violation on (tenant_id, employee_id)
++  });
++
++  it('without tenant context the runtime role sees no employees (fail closed)', async () => {
++    const c = rawClient(h.loginUrl);
++    await c.connect();
++    try {
++      await c.query(`SET ROLE ${RUNTIME_ROLE}`);
++      expect((await c.query('SELECT count(*)::int AS n FROM employees')).rows[0].n).toBe(0);
++      expect((await h.observer.query('SELECT count(*)::int AS n FROM employees')).rows[0].n).toBeGreaterThanOrEqual(2);
++    } finally {
++      await c.end();
++    }
++  });
++});
+-- 
+2.47.3
+

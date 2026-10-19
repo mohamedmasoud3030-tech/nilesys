@@ -1,0 +1,13 @@
+$ npx vitest run --config tools/nile-offerings/vitest.config.ts && npx tsc -p tools/nile-offerings/tsconfig.json && echo registry-tsc-ok
+
+ RUN  v4.1.11 /tmp/wt-verify
+
+ ✓ tools/nile-offerings/offerings.test.ts (17 tests) 18ms
+
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  18:38:52
+   Duration  247ms (transform 63ms, setup 0ms, import 80ms, tests 18ms, environment 0ms)
+
+registry-tsc-ok
+exit=0

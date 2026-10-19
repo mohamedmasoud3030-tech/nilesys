@@ -1,0 +1,103 @@
+copy	source_commit_or_ref	note
+latest/.agents/skills/README.md	integration/nile-2026-10-18	on main
+latest/.agents/skills/code-review/SKILL.md	integration/nile-2026-10-18	on main
+latest/.agents/skills/decision-governance/SKILL.md	integration/nile-2026-10-18	on main
+latest/.agents/skills/implementation-planning/SKILL.md	integration/nile-2026-10-18	on main
+latest/.agents/skills/security-review/SKILL.md	integration/nile-2026-10-18	on main
+latest/.agents/skills/source-driven-development/SKILL.md	integration/nile-2026-10-18	on main
+latest/.agents/skills/systematic-debugging/SKILL.md	integration/nile-2026-10-18	on main
+latest/.agents/skills/test-driven-development/SKILL.md	integration/nile-2026-10-18	on main
+latest/.agents/skills/verification-before-completion/SKILL.md	integration/nile-2026-10-18	on main
+latest/AGENTS.md	integration/nile-2026-10-18	on main
+latest/README.md	integration/nile-2026-10-18	on main
+latest/docs/ARCHITECTURE.md	integration/nile-2026-10-18	on main
+latest/docs/DECISIONS.md	integration/nile-2026-10-18	on main
+latest/docs/FINANCIAL_RULES.md	origin/docs/resolve-source-of-truth-citations	on branches only
+latest/docs/README.md	integration/nile-2026-10-18	on main
+latest/docs/REUSE.md	integration/nile-2026-10-18	on main
+latest/docs/STATUS.md	integration/nile-2026-10-18	on main
+latest/docs/adr/0001-localization-arabic-rtl-first.md	origin/arena/bfcb5ed1-mohamed-app-factory	on branches only
+latest/docs/adr/0001-technology-stack.md	integration/nile-2026-10-18	on main
+latest/docs/adr/0002-tenancy-and-deployment-topology.md	integration/nile-2026-10-18	on main
+latest/docs/adr/0003-milestone-1-target-and-scope.md	integration/nile-2026-10-18	on main
+latest/docs/adr/0004-orm-and-database-access.md	integration/nile-2026-10-18	on main
+latest/docs/adr/0005-authentication-organization-membership-tenant-context-and-rls.md	integration/nile-2026-10-18	on main
+latest/docs/adr/0006-rest-and-openapi-api-contract.md	integration/nile-2026-10-18	on main
+latest/docs/adr/0007-roles-and-permissions-via-better-auth-access-control.md	integration/nile-2026-10-18	on main
+latest/docs/adr/0008-build-vs-adopt-ledger-substrate.md	integration/nile-2026-10-18	on main
+latest/docs/adr/0009-localization-arabic-rtl-first.md	integration/nile-2026-10-18	on main
+latest/docs/adr/0010-engines-continue-behind-ledger-provider-port.md	integration/nile-2026-10-18	on main
+latest/docs/adr/README.md	origin/arena/bfcb5ed1-mohamed-app-factory	on branches only
+latest/docs/adr/kayyal-core/0001-authentication.md	origin/docs/resolve-source-of-truth-citations	on branches only
+latest/docs/adr/kayyal-core/0002-tenant-isolation.md	origin/docs/resolve-source-of-truth-citations	on branches only
+latest/docs/adr/kayyal-core/0003-database-access-model.md	origin/docs/resolve-source-of-truth-citations	on branches only
+latest/docs/adr/kayyal-core/0004-decimal-arithmetic.md	origin/docs/resolve-source-of-truth-citations	on branches only
+latest/docs/adr/kayyal-core/0005-transaction-atomicity.md	origin/docs/resolve-source-of-truth-citations	on branches only
+latest/docs/adr/kayyal-core/0006-costing-model.md	origin/docs/resolve-source-of-truth-citations	on branches only
+latest/docs/adr/kayyal-core/0007-regrade-allocation.md	origin/docs/resolve-source-of-truth-citations	on branches only
+latest/docs/adr/kayyal-core/0008-historical-corrections.md	origin/docs/resolve-source-of-truth-citations	on branches only
+latest/docs/adr/kayyal-core/0009-cash-reconciliation.md	origin/docs/resolve-source-of-truth-citations	on branches only
+latest/docs/adr/kayyal-core/0010-pwa-offline-policy.md	origin/docs/resolve-source-of-truth-citations	on branches only
+latest/docs/adr/kayyal-core/0011-buyers-directory.md	origin/docs/resolve-source-of-truth-citations	on branches only
+latest/docs/adr/kayyal-core/0012-audit-immutability.md	origin/docs/resolve-source-of-truth-citations	on branches only
+latest/docs/adr/kayyal-core/README.md	origin/docs/resolve-source-of-truth-citations	on branches only
+latest/docs/agent-system/AUTONOMOUS_EXECUTION_PROTOCOL.md	origin-pr/5	on branches only
+latest/docs/agent-system/REFERENCES.md	integration/nile-2026-10-18	on main
+latest/docs/architecture-assessment.md	origin-pr/1	on branches only
+latest/docs/architecture/README.md	integration/nile-2026-10-18	on main
+latest/docs/architecture/proposals/0001-platform-strategy.md	origin/arena/bfcb5ed1-mohamed-app-factory	on branches only
+latest/docs/architecture/proposals/0002-open-source-reuse-audit.md	integration/nile-2026-10-18	on main
+latest/docs/architecture/proposals/0003-option-c-spike.md	integration/nile-2026-10-18	on main
+latest/docs/architecture/proposals/0004-option-c-results.md	integration/nile-2026-10-18	on main
+latest/docs/architecture/proposals/0005-option-c-evidence.md	integration/nile-2026-10-18	on main
+latest/docs/architecture/proposals/0006-ledger-decision-memo.md	integration/nile-2026-10-18	on main
+latest/docs/architecture/proposals/0007-payment-engine.md	integration/nile-2026-10-18	on main
+latest/docs/archive/2026-09-04-architecture-assessment.md	integration/nile-2026-10-18	on main
+latest/docs/archive/README.md	integration/nile-2026-10-18	on main
+latest/docs/archive/agent-reports-2026-10-14/2026-10-14-consolidation-report.md	origin/handoff/2026-10-14-evidence	on branches only
+latest/docs/archive/agent-reports-2026-10-14/2026-10-14-payment-engine-design.md	origin/handoff/2026-10-14-evidence	on branches only
+latest/docs/archive/agent-reports-2026-10-14/2026-10-14-post-merge-gate-report.md	origin/handoff/2026-10-14-evidence	on branches only
+latest/docs/archive/agent-reports-2026-10-14/2026-10-14-source-of-truth-report.md	origin/handoff/2026-10-14-evidence	on branches only
+latest/docs/archive/agent-reports-2026-10-14/README.md	origin/handoff/2026-10-14-evidence	on branches only
+latest/docs/archive/agent-reports-2026-10-14/docs-source-of-truth-cleanup-PR.md	origin/handoff/2026-10-14-evidence	on branches only
+latest/docs/archive/agent-reports-2026-10-14/g7-runtime-role-assertion-PR.md	origin/handoff/2026-10-14-evidence	on branches only
+latest/docs/archive/agent-reports-2026-10-14/superseded/g7-runtime-role-assertion-PR-420c203.md	origin/handoff/2026-10-14-evidence	on branches only
+latest/docs/plan/001-pos-implementation-ready.md	integration/nile-2026-10-18	on branches only
+latest/docs/prd/001-marketing-site-as-platform.md	integration/nile-2026-10-18	on branches only
+latest/docs/reviews/0001-nile-engines-db-auth-review.md	integration/nile-2026-10-18	on main
+latest/docs/reviews/2026-10-14-documentation-cleanup-inventory.md	integration/nile-2026-10-18	on main
+latest/docs/reviews/2026-10-14-engines-db-auth-review.md	integration/nile-2026-10-18	on main
+latest/docs/reviews/2026-10-14-g7-redesign-design-review.md	origin/handoff/2026-10-14-evidence	on branches only
+latest/docs/reviews/2026-10-14-n1-pool-error-listener.md	origin/fix/nile-pool-error-listener	on branches only
+latest/docs/reviews/2026-10-14-post-merge-security-gate.md	integration/nile-2026-10-18	on main
+latest/docs/reviews/2026-10-14-pr4-review.md	integration/nile-2026-10-18	on main
+latest/docs/reviews/2026-10-14-repository-publication-audit.md	origin/handoff/2026-10-14-evidence	on branches only
+latest/docs/reviews/2026-10-14-supabase-feasibility.md	origin/handoff/2026-10-14-evidence	on branches only
+latest/docs/todo/001-marketing-phased-todo.md	integration/nile-2026-10-18	on branches only
+latest/docs/vision/001-lena-as-umbrella-nile-integration.md	integration/nile-2026-10-18	on branches only
+latest/docs/vision/README.md	integration/nile-2026-10-18	on branches only
+latest/engines/README.md	integration/nile-2026-10-18	on main
+latest/prototypes/README.md	integration/nile-2026-10-18	on main
+latest/prototypes/nilesys/README.md	integration/nile-2026-10-18	on main
+latest/prototypes/nilesys/REVIEW.md	integration/nile-2026-10-18	on main
+latest/prototypes/nilesys/package.json	integration/nile-2026-10-18	on branches only
+latest/prototypes/nilesys/public/assets/css/app.css	integration/nile-2026-10-18	on main
+latest/prototypes/nilesys/public/assets/js/core.js	integration/nile-2026-10-18	on main
+latest/prototypes/nilesys/public/assets/js/home.js	integration/nile-2026-10-18	on main
+latest/prototypes/nilesys/public/assets/js/i18n.js	integration/nile-2026-10-18	on main
+latest/prototypes/nilesys/public/assets/js/pos.js	integration/nile-2026-10-18	on main
+latest/prototypes/nilesys/public/index.html	integration/nile-2026-10-18	on main
+latest/prototypes/nilesys/public/systems/pos.html	integration/nile-2026-10-18	on main
+latest/prototypes/nilesys/server.js	integration/nile-2026-10-18	on main
+latest/prototypes/nilesys/tests/regression.test.js	integration/nile-2026-10-18	on branches only
+latest/prototypes/nilesys/tests/review.test.js	integration/nile-2026-10-18	on main
+latest/tools/nile-offerings/README.md	integration/nile-2026-10-18	on branches only
+latest/tools/nile-offerings/offerings.test.ts	integration/nile-2026-10-18	on branches only
+latest/tools/nile-offerings/offerings.ts	integration/nile-2026-10-18	on branches only
+latest/tools/nile-offerings/tsconfig.json	integration/nile-2026-10-18	on branches only
+latest/tools/nile-offerings/vitest.config.ts	integration/nile-2026-10-18	on branches only
+original-e74167b/prototypes/nilesys/README.md	e74167b	first committed version (2026-10-13)
+original-e74167b/prototypes/nilesys/REVIEW.md	e74167b	first committed version (2026-10-13)
+original-e74167b/prototypes/nilesys/public/assets/js/home.js	e74167b	first committed version (2026-10-13)
+original-e74167b/prototypes/nilesys/public/index.html	e74167b	first committed version (2026-10-13)
+original-e74167b/prototypes/nilesys/public/assets/js/i18n.js	e74167b	first committed version (2026-10-13)

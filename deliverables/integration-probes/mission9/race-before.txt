@@ -1,0 +1,49 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/wt-int[39m
+
+(node:13765) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [31m❯[39m engines/transactions/test/shift-close-race.pg.test.ts [2m([22m[2m2 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 5313[2mms[22m[39m
+[31m     [31m×[31m closeShift waits for the same advisory lock that cash sales and refunds hold[39m[33m 5037[2mms[22m[39m
+[31m     [31m×[31m concurrent sales, a refund and the close: each cash movement is reconciled exactly once[39m[32m 93[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m engines/transactions/test/shift-close-race.pg.test.ts[2m > [22mshift close vs cash operations (real PostgreSQL)[2m > [22mcloseShift waits for the same advisory lock that cash sales and refunds hold
+[31m[1mError[22m: timed out waiting for 1 lock waiters (have 0)[39m
+[36m [2m❯[22m waitForLockWaiters engines/catalog/test/pg-harness.ts:[2m146:38[22m[39m
+    [90m144|[39m     )[33m;[39m
+    [90m145|[39m     [35mif[39m ([33mNumber[39m(rows[[34m0[39m][33m?.[39mn) [33m>=[39m n) [35mreturn[39m[33m;[39m
+    [90m146|[39m     if (Date.now() > deadline) throw new Error(`timed out waiting for …
+    [90m   |[39m                                      [31m^[39m
+    [90m147|[39m     [35mawait[39m [35mnew[39m [33mPromise[39m((r) [33m=>[39m [34msetTimeout[39m(r[33m,[39m [34m20[39m))[33m;[39m
+    [90m148|[39m   }
+[90m [2m❯[22m engines/transactions/test/shift-close-race.pg.test.ts:[2m82:7[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m engines/transactions/test/shift-close-race.pg.test.ts[2m > [22mshift close vs cash operations (real PostgreSQL)[2m > [22mconcurrent sales, a refund and the close: each cash movement is reconciled exactly once
+[31m[1mAssertionError[22m: iteration 1: closure = opening + in − out of ALL movements: expected 6000 to be 7000 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 7000[39m
+[31m+ 6000[39m
+
+[36m [2m❯[22m engines/transactions/test/shift-close-race.pg.test.ts:[2m114:108[22m[39m
+    [90m112|[39m       expect(l.closures, `iteration ${i}: one closure`).toHaveLength(1…
+    [90m113|[39m       // every committed cash movement on this shift is inside the clo…
+    [90m114|[39m       expect(l.closures[0].expectedMinor, `iteration ${i}: closure = o…
+    [90m   |[39m                                                                                                            [31m^[39m
+    [90m115|[39m       // recorded once: one payment and one inbound movement per succe…
+    [90m116|[39m       expect([l.payments, l.ins, l.refunds], `iteration ${i}`).toEqual…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[90m (2)[39m
+[2m   Start at [22m 13:37:11
+[2m   Duration [22m 5.78s[2m (transform 183ms, setup 0ms, import 342ms, tests 5.31s, environment 0ms)[22m
+

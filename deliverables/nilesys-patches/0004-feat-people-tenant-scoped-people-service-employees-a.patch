@@ -1,0 +1,577 @@
+From 7a3207e5e4c7f81e3806ce0e955a55e0b1756e0c Mon Sep 17 00:00:00 2001
+From: LENA parallel agent <lena-parallel-agent@users.noreply.local>
+Date: Sun, 18 Oct 2026 08:00:21 +0000
+Subject: [PATCH 4/5] =?UTF-8?q?feat(people):=20tenant-scoped=20people=20se?=
+ =?UTF-8?q?rvice=20=E2=80=94=20employees,=20attendance,=20computed=20paysl?=
+ =?UTF-8?q?ip?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+createEmployee / listEmployees / recordAttendance / listAttendance /
+computeMonthlyPayslip over the EXISTING people contracts, tables
+(employees, attendance_records, loans — migration 0000) and pure engine.
+No schema or migration: the payslip is computed, not stored, and tenant pay
+policy is an explicit validated argument (no policy table exists).
+
+- One row per employee-day; a second call merges (check-in then check-out);
+  the merged row must satisfy check-out > check-in or the write rolls back.
+- Cross-tenant employee ids are employee_not_found (RLS); the composite FK
+  is proven as a second guard (23503).
+- Only explicit ABSENT counts as absence; loan installment follows
+  loanSchedule and never exceeds what is owed.
+
+27 PGlite tests incl. a hand-checked payslip (net 260,667) and cross-tenant
+writes/reads. Not wired to apps/api.
+---
+ engines/people/src/people-service.ts       | 308 +++++++++++++++++++++
+ engines/people/test/people-service.test.ts | 222 +++++++++++++++
+ 2 files changed, 530 insertions(+)
+ create mode 100644 engines/people/src/people-service.ts
+ create mode 100644 engines/people/test/people-service.test.ts
+
+diff --git a/engines/people/src/people-service.ts b/engines/people/src/people-service.ts
+new file mode 100644
+index 0000000..a526416
+--- /dev/null
++++ b/engines/people/src/people-service.ts
+@@ -0,0 +1,308 @@
++/**
++ * People (HR) persistence service — tenant-scoped via withTenant ⇒ RLS.
++ *
++ * Built on the EXISTING contracts, tables and pure engine only:
++ *   - contracts: createEmployeeSchema, attendanceSchema (./contracts.ts)
++ *   - tables:    employees, attendance_records, loans (./db/schema.ts, migration 0000;
++ *                RLS enabled + forced; composite tenant FKs on employee_id)
++ *   - math:      ./attendance.ts and ./payroll.ts (unchanged)
++ * No schema or migration change: the payslip is COMPUTED, not stored, because
++ * no payslip/payroll-run table exists. Persisting payroll runs (and deducting
++ * loan installments) is a separate, owner-approved schema change.
++ *
++ * Tenant policy (shift start, rates, working days) has no table either, so it
++ * is an explicit, validated argument — payroll.ts already states that rates
++ * come from tenant policy and are never hardcoded.
++ */
++import { and, asc, eq, gt, gte, lte } from 'drizzle-orm';
++import { z } from 'zod';
++import { withTenant, type AnyPgDatabase } from '../../platform/src/db/with-tenant.js';
++import { DomainError } from '../../transactions/src/line.js';
++import {
++  computeLateMinutes,
++  computeOvertimeMinutes,
++  isCheckoutAfterCheckin,
++  timeOfDayMinutes,
++  type AttendanceStatus,
++} from './attendance.js';
++import { attendanceSchema, createEmployeeSchema } from './contracts.js';
++import { attendanceRecords, employees, loans } from './db/schema.js';
++import { computePayslip, loanSchedule, type Payslip } from './payroll.js';
++
++const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
++const NO_TIMES: readonly AttendanceStatus[] = ['ABSENT', 'LEAVE', 'HOLIDAY'];
++
++/* ---------------- validation (strict refinements of the existing contracts) ---------------- */
++
++const timeOfDay = z.string().refine((v) => timeOfDayMinutes(v) !== null, 'time must be HH:MM (00:00–23:59)');
++const calendarDay = z
++  .string()
++  .regex(/^\d{4}-\d{2}-\d{2}$/)
++  .refine((d) => {
++    const t = new Date(`${d}T00:00:00Z`);
++    return !Number.isNaN(t.getTime()) && t.toISOString().slice(0, 10) === d;
++  }, 'day must be a real calendar date (YYYY-MM-DD)');
++
++export const createEmployeeInputSchema = createEmployeeSchema
++  .extend({
++    name: z.string().trim().min(2).max(120),
++    role: z.string().trim().min(1).max(60),
++    phone: z.string().trim().max(20).optional(),
++    baseSalaryMinor: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
++  })
++  .strict();
++
++export const recordAttendanceInputSchema = attendanceSchema
++  .extend({ day: calendarDay, checkIn: timeOfDay.optional(), checkOut: timeOfDay.optional() })
++  .strict()
++  .superRefine((v, ctx) => {
++    if (NO_TIMES.includes(v.status) && (v.checkIn || v.checkOut)) {
++      ctx.addIssue({ code: 'custom', path: ['status'], message: `${v.status} carries no check-in/check-out times` });
++    }
++  });
++
++const minor = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
++export const payPolicySchema = z
++  .object({
++    workingDaysInMonth: z.number().int().min(1).max(31),
++    scheduledStart: timeOfDay,
++    standardMinutes: z.number().int().min(1).max(24 * 60).default(480),
++    lateRatePerMinuteMinor: minor,
++    overtimeRatePerMinuteMinor: minor,
++    allowancesMinor: minor.optional(),
++    otherDeductionsMinor: minor.optional(),
++  })
++  .strict();
++export type PayPolicy = z.input<typeof payPolicySchema>;
++
++const monthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'month must be YYYY-MM');
++
++function parse<S extends z.ZodType>(schema: S, input: unknown): z.output<S> {
++  const r = schema.safeParse(input);
++  if (r.success) return r.data;
++  const details: Record<string, string> = {};
++  for (const issue of r.error.issues) details[issue.path.join('.') || '_'] = issue.message;
++  throw new DomainError('validation_failed', 'بيانات غير صالحة', details);
++}
++
++const notFound = () => new DomainError('employee_not_found', 'الموظف غير موجود');
++
++/* ---------------- views ---------------- */
++
++export interface EmployeeView {
++  id: string;
++  name: string;
++  role: string;
++  phone: string | null;
++  baseSalaryMinor: number;
++  isActive: boolean;
++}
++
++export interface AttendanceView {
++  employeeId: string;
++  day: string;
++  checkIn: string | null;
++  checkOut: string | null;
++  status: AttendanceStatus;
++}
++
++const toEmployee = (r: typeof employees.$inferSelect): EmployeeView => ({
++  id: r.id,
++  name: r.name,
++  role: r.role,
++  phone: r.phone,
++  baseSalaryMinor: r.baseSalaryMinor,
++  isActive: r.isActive,
++});
++const toAttendance = (r: typeof attendanceRecords.$inferSelect): AttendanceView => ({
++  employeeId: r.employeeId,
++  day: r.day,
++  checkIn: r.checkIn,
++  checkOut: r.checkOut,
++  status: r.status as AttendanceStatus,
++});
++
++async function loadEmployee(tx: any, employeeId: string, opts: { activeOnly: boolean }) {
++  if (!UUID_RE.test(employeeId)) return null;
++  const where = opts.activeOnly ? and(eq(employees.id, employeeId), eq(employees.isActive, true)) : eq(employees.id, employeeId);
++  const [row] = await tx.select().from(employees).where(where).limit(1);
++  return (row as typeof employees.$inferSelect | undefined) ?? null;
++}
++
++/* ---------------- employees ---------------- */
++
++export async function createEmployee(db: AnyPgDatabase, tenantId: string, input: unknown): Promise<EmployeeView> {
++  const data = parse(createEmployeeInputSchema, input);
++  return withTenant(db, tenantId, async (tx: any) => {
++    const [row] = await tx
++      .insert(employees)
++      .values({ tenantId, name: data.name, role: data.role, phone: data.phone || null, baseSalaryMinor: data.baseSalaryMinor })
++      .returning();
++    return toEmployee(row);
++  });
++}
++
++export async function listEmployees(db: AnyPgDatabase, tenantId: string, opts: { includeInactive?: boolean } = {}): Promise<EmployeeView[]> {
++  return withTenant(db, tenantId, async (tx: any) => {
++    const rows = await tx
++      .select()
++      .from(employees)
++      .where(opts.includeInactive ? undefined : eq(employees.isActive, true))
++      .orderBy(asc(employees.name), asc(employees.id));
++    return rows.map(toEmployee);
++  });
++}
++
++/* ---------------- attendance ---------------- */
++
++/**
++ * Record (or complete) one employee-day. One row per (tenant, employee, day)
++ * — enforced by `attendance_tenant_emp_day_uq`. A second call for the same
++ * day merges: provided fields win, omitted times keep their stored value, so
++ * a check-in in the morning and a check-out in the evening form one record.
++ * The merged row must still satisfy check-out > check-in, otherwise the whole
++ * write rolls back.
++ */
++export async function recordAttendance(db: AnyPgDatabase, tenantId: string, input: unknown): Promise<AttendanceView> {
++  const data = parse(recordAttendanceInputSchema, input);
++  return withTenant(db, tenantId, async (tx: any) => {
++    // RLS hides other tenants' employees, so their ids are simply "not found";
++    // the composite FK (tenant_id, employee_id) is a second, database-level guard.
++    if (!(await loadEmployee(tx, data.employeeId, { activeOnly: true }))) throw notFound();
++
++    const [existing] = await tx
++      .select()
++      .from(attendanceRecords)
++      .where(and(eq(attendanceRecords.employeeId, data.employeeId), eq(attendanceRecords.day, data.day)))
++      .limit(1);
++
++    const clearsTimes = NO_TIMES.includes(data.status);
++    const merged = {
++      checkIn: clearsTimes ? null : (data.checkIn ?? existing?.checkIn ?? null),
++      checkOut: clearsTimes ? null : (data.checkOut ?? existing?.checkOut ?? null),
++      status: data.status,
++    };
++    if (merged.checkIn && merged.checkOut && !isCheckoutAfterCheckin(merged.checkIn, merged.checkOut)) {
++      throw new DomainError('invalid_attendance', 'وقت الانصراف يجب أن يكون بعد وقت الحضور', {
++        checkIn: merged.checkIn,
++        checkOut: merged.checkOut,
++      });
++    }
++    if (merged.checkOut && !merged.checkIn) {
++      throw new DomainError('invalid_attendance', 'لا يمكن تسجيل انصراف بدون حضور', { checkOut: merged.checkOut });
++    }
++
++    const [row] = existing
++      ? await tx.update(attendanceRecords).set(merged).where(eq(attendanceRecords.id, existing.id)).returning()
++      : await tx.insert(attendanceRecords).values({ tenantId, employeeId: data.employeeId, day: data.day, ...merged }).returning();
++    return toAttendance(row);
++  });
++}
++
++function monthBounds(month: string): { first: string; last: string } {
++  return { first: `${month}-01`, last: `${month}-31` }; // `day` is text YYYY-MM-DD ⇒ lexical range is exact
++}
++
++export async function listAttendance(
++  db: AnyPgDatabase,
++  tenantId: string,
++  query: { employeeId: string; month: string },
++): Promise<AttendanceView[]> {
++  const month = parse(monthSchema, query.month);
++  return withTenant(db, tenantId, async (tx: any) => {
++    if (!(await loadEmployee(tx, query.employeeId, { activeOnly: false }))) throw notFound();
++    const { first, last } = monthBounds(month);
++    const rows = await tx
++      .select()
++      .from(attendanceRecords)
++      .where(and(eq(attendanceRecords.employeeId, query.employeeId), gte(attendanceRecords.day, first), lte(attendanceRecords.day, last)))
++      .orderBy(asc(attendanceRecords.day));
++    return rows.map(toAttendance);
++  });
++}
++
++/* ---------------- payroll (computed, read-only) ---------------- */
++
++/**
++ * Next installment of a loan from its schedule (`loanSchedule`), located by the
++ * amount already repaid. If the repaid amount does not line up with the
++ * schedule (manual adjustment), fall back to the regular installment capped at
++ * what remains — never more than is owed.
++ */
++export function nextLoanInstallment(totalMinor: number, months: number, remainingMinor: number): number {
++  if (remainingMinor <= 0) return 0;
++  const schedule = loanSchedule(totalMinor, months);
++  let repaid = totalMinor - remainingMinor;
++  for (const installment of schedule) {
++    if (repaid === 0) return Math.min(installment, remainingMinor);
++    if (repaid < 0) break;
++    repaid -= installment;
++  }
++  return Math.min(schedule[0] ?? remainingMinor, remainingMinor);
++}
++
++export interface MonthlyPayslip {
++  employee: EmployeeView;
++  month: string;
++  attendance: { recordedDays: number; absentDays: number; lateMinutes: number; overtimeMinutes: number };
++  loanInstallmentMinor: number;
++  payslip: Payslip;
++}
++
++/**
++ * Compute (do not persist) an employee's payslip for a month from recorded
++ * attendance, active loans and the supplied tenant policy. Only explicit
++ * ABSENT records count as absence — unrecorded days are not assumed absent.
++ */
++export async function computeMonthlyPayslip(
++  db: AnyPgDatabase,
++  tenantId: string,
++  query: { employeeId: string; month: string; policy: PayPolicy },
++): Promise<MonthlyPayslip> {
++  const month = parse(monthSchema, query.month);
++  const policy = parse(payPolicySchema, query.policy);
++  return withTenant(db, tenantId, async (tx: any) => {
++    const employee = await loadEmployee(tx, query.employeeId, { activeOnly: false });
++    if (!employee) throw notFound();
++    const { first, last } = monthBounds(month);
++    const days: Array<typeof attendanceRecords.$inferSelect> = await tx
++      .select()
++      .from(attendanceRecords)
++      .where(and(eq(attendanceRecords.employeeId, employee.id), gte(attendanceRecords.day, first), lte(attendanceRecords.day, last)));
++    const openLoans: Array<typeof loans.$inferSelect> = await tx
++      .select()
++      .from(loans)
++      .where(and(eq(loans.employeeId, employee.id), gt(loans.remainingMinor, 0)));
++
++    let absentDays = 0;
++    let lateMinutes = 0;
++    let overtimeMinutes = 0;
++    for (const d of days) {
++      if (d.status === 'ABSENT') absentDays += 1;
++      if (d.status !== 'PRESENT' && d.status !== 'LATE') continue;
++      lateMinutes += computeLateMinutes(policy.scheduledStart, d.checkIn ?? undefined);
++      overtimeMinutes += computeOvertimeMinutes(d.checkIn ?? undefined, d.checkOut ?? undefined, policy.standardMinutes);
++    }
++    const loanInstallmentMinor = openLoans.reduce((sum, l) => sum + nextLoanInstallment(l.totalMinor, l.months, l.remainingMinor), 0);
++
++    const payslip = computePayslip({
++      baseSalaryMinor: employee.baseSalaryMinor,
++      workingDaysInMonth: policy.workingDaysInMonth,
++      absentDays,
++      lateMinutes,
++      lateRatePerMinuteMinor: policy.lateRatePerMinuteMinor,
++      overtimeMinutes,
++      overtimeRatePerMinuteMinor: policy.overtimeRatePerMinuteMinor,
++      loanInstallmentMinor,
++      otherDeductionsMinor: policy.otherDeductionsMinor,
++      allowancesMinor: policy.allowancesMinor,
++    });
++    return {
++      employee: toEmployee(employee),
++      month,
++      attendance: { recordedDays: days.length, absentDays, lateMinutes, overtimeMinutes },
++      loanInstallmentMinor,
++      payslip,
++    };
++  });
++}
+diff --git a/engines/people/test/people-service.test.ts b/engines/people/test/people-service.test.ts
+new file mode 100644
+index 0000000..4af3825
+--- /dev/null
++++ b/engines/people/test/people-service.test.ts
+@@ -0,0 +1,222 @@
++/**
++ * People service on real PostgreSQL (PGlite) through the production path
++ * (open.ts: migrations as owner, queries as the non-bypass role nile_app).
++ */
++import { sql } from 'drizzle-orm';
++import { afterAll, beforeAll, describe, expect, it } from 'vitest';
++import { openPglite, type NileDb, type OpenedDatabase } from '../../db/open.js';
++import { organization } from '../../platform/src/auth/schema.js';
++import { TenantScopeError, withTenant } from '../../platform/src/db/with-tenant.js';
++import { DomainError } from '../../transactions/src/line.js';
++import { attendanceRecords, employees, loans } from '../src/db/schema.js';
++import { computePayslip } from '../src/payroll.js';
++import {
++  computeMonthlyPayslip,
++  createEmployee,
++  listAttendance,
++  listEmployees,
++  nextLoanInstallment,
++  recordAttendance,
++  type PayPolicy,
++} from '../src/people-service.js';
++
++let opened: OpenedDatabase;
++let db: NileDb;
++let A: string;
++let B: string;
++let empA: string;
++let empB: string;
++
++const policy: PayPolicy = {
++  workingDaysInMonth: 26,
++  scheduledStart: '09:00',
++  standardMinutes: 480,
++  lateRatePerMinuteMinor: 50,
++  overtimeRatePerMinuteMinor: 100,
++};
++
++async function domainCode(p: Promise<unknown>): Promise<string | undefined> {
++  const e = await p.then(() => null, (x) => x);
++  expect(e, 'expected a DomainError').toBeInstanceOf(DomainError);
++  return (e as DomainError).code;
++}
++async function sqlState(p: Promise<unknown>): Promise<string | undefined> {
++  let e: any = await p.then(() => null, (x) => x);
++  while (e && !e.code) e = e.cause;
++  return e?.code;
++}
++const count = (tenantId: string, table: any) =>
++  withTenant(db, tenantId, async (tx: any) => Number((await tx.select({ n: sql<number>`count(*)` }).from(table))[0].n));
++
++beforeAll(async () => {
++  opened = await openPglite();
++  db = opened.db;
++  [{ id: A }] = (await db.insert(organization).values({ name: 'A', slug: 'hr-a' }).returning({ id: organization.id })) as [{ id: string }];
++  [{ id: B }] = (await db.insert(organization).values({ name: 'B', slug: 'hr-b' }).returning({ id: organization.id })) as [{ id: string }];
++  empA = (await createEmployee(db, A, { name: ' سارة علي ', role: 'cashier', phone: '01001234567', baseSalaryMinor: 520_000 })).id;
++  empB = (await createEmployee(db, B, { name: 'Omar', role: 'storekeeper', baseSalaryMinor: 400_000 })).id;
++});
++afterAll(() => opened.close());
++
++describe('employees', () => {
++  it('creates a trimmed, active employee and lists it in its own tenant only', async () => {
++    const listA = await listEmployees(db, A);
++    expect(listA).toEqual([{ id: empA, name: 'سارة علي', role: 'cashier', phone: '01001234567', baseSalaryMinor: 520_000, isActive: true }]);
++    expect((await listEmployees(db, B)).map((e) => e.id)).toEqual([empB]);
++  });
++
++  it.each([
++    ['name too short', { name: 'x', role: 'r', baseSalaryMinor: 1 }],
++    ['negative salary', { name: 'Name', role: 'r', baseSalaryMinor: -1 }],
++    ['fractional salary', { name: 'Name', role: 'r', baseSalaryMinor: 10.5 }],
++    ['client-supplied tenantId', { name: 'Name', role: 'r', baseSalaryMinor: 1, tenantId: '00000000-0000-4000-8000-000000000001' }],
++    ['client-supplied isActive', { name: 'Name', role: 'r', baseSalaryMinor: 1, isActive: false }],
++  ])('%s → validation_failed, nothing written', async (_l, body) => {
++    const before = await count(A, employees);
++    expect(await domainCode(createEmployee(db, A, body))).toBe('validation_failed');
++    expect(await count(A, employees)).toBe(before);
++  });
++
++  it('inactive employees are hidden by default and shown on request', async () => {
++    const tmp = await createEmployee(db, B, { name: 'Left Company', role: 'x', baseSalaryMinor: 1 });
++    await withTenant(db, B, (tx: any) => tx.update(employees).set({ isActive: false }).where(sql`id = ${tmp.id}`));
++    expect((await listEmployees(db, B)).map((e) => e.id)).not.toContain(tmp.id);
++    expect((await listEmployees(db, B, { includeInactive: true })).map((e) => e.id)).toContain(tmp.id);
++    expect(await domainCode(recordAttendance(db, B, { employeeId: tmp.id, day: '2026-10-01', status: 'PRESENT', checkIn: '09:00' }))).toBe(
++      'employee_not_found',
++    );
++  });
++});
++
++describe('attendance', () => {
++  it('merges a morning check-in and an evening check-out into one record', async () => {
++    await recordAttendance(db, A, { employeeId: empA, day: '2026-09-01', checkIn: '09:10' });
++    const done = await recordAttendance(db, A, { employeeId: empA, day: '2026-09-01', checkOut: '18:10' });
++    expect(done).toEqual({ employeeId: empA, day: '2026-09-01', checkIn: '09:10', checkOut: '18:10', status: 'PRESENT' });
++    expect((await listAttendance(db, A, { employeeId: empA, month: '2026-09' })).length).toBe(1);
++  });
++
++  it('a merged row that would end before it starts rolls back entirely', async () => {
++    await recordAttendance(db, A, { employeeId: empA, day: '2026-09-02', checkIn: '10:00' });
++    expect(await domainCode(recordAttendance(db, A, { employeeId: empA, day: '2026-09-02', checkOut: '09:30' }))).toBe('invalid_attendance');
++    const [row] = (await listAttendance(db, A, { employeeId: empA, month: '2026-09' })).filter((r) => r.day === '2026-09-02');
++    expect(row).toMatchObject({ checkIn: '10:00', checkOut: null });
++  });
++
++  it('refuses a check-out with no check-in', async () => {
++    expect(await domainCode(recordAttendance(db, A, { employeeId: empA, day: '2026-09-03', checkOut: '17:00' }))).toBe('invalid_attendance');
++  });
++
++  it('ABSENT clears times; ABSENT with times is invalid input', async () => {
++    await recordAttendance(db, A, { employeeId: empA, day: '2026-09-04', checkIn: '09:00' });
++    const absent = await recordAttendance(db, A, { employeeId: empA, day: '2026-09-04', status: 'ABSENT' });
++    expect(absent).toMatchObject({ status: 'ABSENT', checkIn: null, checkOut: null });
++    expect(await domainCode(recordAttendance(db, A, { employeeId: empA, day: '2026-09-05', status: 'ABSENT', checkIn: '09:00' }))).toBe(
++      'validation_failed',
++    );
++  });
++
++  it.each([
++    ['impossible date', { day: '2026-02-30', checkIn: '09:00' }],
++    ['bad time', { day: '2026-09-06', checkIn: '25:00' }],
++    ['unknown status', { day: '2026-09-06', status: 'SICK' }],
++    ['non-uuid employee', { day: '2026-09-06', employeeId: 'abc' }],
++    ['extra field', { day: '2026-09-06', checkIn: '09:00', tenantId: '00000000-0000-4000-8000-000000000001' }],
++  ])('%s → validation_failed', async (_l, patch) => {
++    expect(await domainCode(recordAttendance(db, A, { employeeId: empA, ...patch }))).toBe('validation_failed');
++  });
++
++  it('rejects malformed month on listing', async () => {
++    expect(await domainCode(listAttendance(db, A, { employeeId: empA, month: '2026-13' }))).toBe('validation_failed');
++  });
++});
++
++describe('cross-tenant isolation', () => {
++  it('tenant A cannot record attendance for tenant B employee — and nothing is written anywhere', async () => {
++    const before = [await count(A, attendanceRecords), await count(B, attendanceRecords)];
++    expect(await domainCode(recordAttendance(db, A, { employeeId: empB, day: '2026-09-07', checkIn: '09:00' }))).toBe('employee_not_found');
++    expect([await count(A, attendanceRecords), await count(B, attendanceRecords)]).toEqual(before);
++  });
++
++  it('the composite FK blocks a direct insert pointing at another tenant employee (23503)', async () => {
++    expect(
++      await sqlState(withTenant(db, A, (tx: any) => tx.insert(attendanceRecords).values({ tenantId: A, employeeId: empB, day: '2026-09-08' }))),
++    ).toBe('23503');
++  });
++
++  it('RLS WITH CHECK blocks inserting rows as another tenant (42501)', async () => {
++    expect(
++      await sqlState(withTenant(db, A, (tx: any) => tx.insert(employees).values({ tenantId: B, name: 'evil', role: 'x', baseSalaryMinor: 1 }))),
++    ).toBe('42501');
++  });
++
++  it('tenant B employee is "not found" for tenant A reads and payslips', async () => {
++    expect(await domainCode(listAttendance(db, A, { employeeId: empB, month: '2026-09' }))).toBe('employee_not_found');
++    expect(await domainCode(computeMonthlyPayslip(db, A, { employeeId: empB, month: '2026-09', policy }))).toBe('employee_not_found');
++  });
++
++  it('without tenant context the runtime role sees no people data', async () => {
++    for (const t of [employees, attendanceRecords, loans]) {
++      expect(Number((await db.select({ n: sql<number>`count(*)` }).from(t))[0]!.n)).toBe(0);
++    }
++  });
++
++  it('malformed tenant ids fail before touching the database', async () => {
++    await expect(listEmployees(db, 'nope')).rejects.toBeInstanceOf(TenantScopeError);
++    await expect(createEmployee(db, '', { name: 'Name', role: 'r', baseSalaryMinor: 1 })).rejects.toBeInstanceOf(TenantScopeError);
++  });
++});
++
++describe('monthly payslip (computed from stored attendance + loans, never persisted)', () => {
++  it('matches the pure engine on hand-checked figures', async () => {
++    const emp = (await createEmployee(db, A, { name: 'Payroll Case', role: 'clerk', baseSalaryMinor: 260_000 })).id;
++    // 09:20–18:00 → 20 late, 40 overtime · 08:50–17:50 → 0 late, 60 overtime · one ABSENT · one LEAVE (ignored)
++    await recordAttendance(db, A, { employeeId: emp, day: '2026-08-03', checkIn: '09:20', checkOut: '18:00' });
++    await recordAttendance(db, A, { employeeId: emp, day: '2026-08-04', checkIn: '08:50', checkOut: '17:50', status: 'LATE' });
++    await recordAttendance(db, A, { employeeId: emp, day: '2026-08-05', status: 'ABSENT' });
++    await recordAttendance(db, A, { employeeId: emp, day: '2026-08-06', status: 'LEAVE' });
++    await recordAttendance(db, A, { employeeId: emp, day: '2026-09-01', checkIn: '12:00' }); // other month: excluded
++    await withTenant(db, A, (tx: any) => tx.insert(loans).values({ tenantId: A, employeeId: emp, totalMinor: 10_000, months: 3, remainingMinor: 10_000 }));
++
++    const r = await computeMonthlyPayslip(db, A, { employeeId: emp, month: '2026-08', policy: { ...policy, allowancesMinor: 5_000 } });
++    expect(r.attendance).toEqual({ recordedDays: 4, absentDays: 1, lateMinutes: 20, overtimeMinutes: 100 });
++    expect(r.loanInstallmentMinor).toBe(3_333);
++    expect(r.payslip).toEqual(
++      computePayslip({
++        baseSalaryMinor: 260_000, workingDaysInMonth: 26, absentDays: 1, lateMinutes: 20, lateRatePerMinuteMinor: 50,
++        overtimeMinutes: 100, overtimeRatePerMinuteMinor: 100, loanInstallmentMinor: 3_333, allowancesMinor: 5_000,
++      }),
++    );
++    // Explicit numbers so a change in the pure engine cannot silently pass:
++    // daily 10,000 · absence 10,000 · late 1,000 · overtime 10,000 · gross 275,000 · deductions 14,333 · net 260,667
++    expect(r.payslip).toEqual({
++      dailyRateMinor: 10_000, absenceDeductionMinor: 10_000, lateDeductionMinor: 1_000, overtimePayMinor: 10_000,
++      grossMinor: 275_000, totalDeductionsMinor: 14_333, netMinor: 260_667,
++    });
++    // Read-only: computing twice changes nothing.
++    expect(await computeMonthlyPayslip(db, A, { employeeId: emp, month: '2026-08', policy: { ...policy, allowancesMinor: 5_000 } })).toEqual(r);
++  });
++
++  it('rejects an invalid policy or month', async () => {
++    expect(await domainCode(computeMonthlyPayslip(db, A, { employeeId: empA, month: '2026-09', policy: { ...policy, workingDaysInMonth: 0 } }))).toBe(
++      'validation_failed',
++    );
++    expect(await domainCode(computeMonthlyPayslip(db, A, { employeeId: empA, month: 'Sept', policy }))).toBe('validation_failed');
++    expect(
++      await domainCode(computeMonthlyPayslip(db, A, { employeeId: empA, month: '2026-09', policy: { ...policy, bonusMultiplier: 2 } as never })),
++    ).toBe('validation_failed');
++  });
++});
++
++describe('nextLoanInstallment', () => {
++  it('walks the schedule and lets the last installment absorb rounding', () => {
++    expect(nextLoanInstallment(10_000, 3, 10_000)).toBe(3_333);
++    expect(nextLoanInstallment(10_000, 3, 6_667)).toBe(3_333);
++    expect(nextLoanInstallment(10_000, 3, 3_334)).toBe(3_334);
++    expect(nextLoanInstallment(10_000, 3, 0)).toBe(0);
++  });
++  it('never deducts more than is owed when the balance was adjusted off-schedule', () => {
++    expect(nextLoanInstallment(10_000, 3, 1_000)).toBe(1_000);
++    expect(nextLoanInstallment(10_000, 3, 5_000)).toBe(3_333);
++  });
++});
+-- 
+2.47.3
+

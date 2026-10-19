@@ -1,0 +1,49 @@
+
+ RUN  v4.1.11 /tmp/wt-verify
+
+(node:6198) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stdout | engines/transactions/test/zz-verify.pg.test.ts > VERIFY real PG concurrency > C4 two concurrent refunds of the same unit via two DIFFERENT card payments (x20)
+ROW|C4|iterations=20|water_sold=1|over_refunded=15|sample=ok,ok/q=2/stock=11/refunded=1500 ; ok,ok/q=2/stock=11/refunded=1500 ; ok,ok/q=2/stock=11/refunded=1500
+
+stdout | engines/transactions/test/zz-verify.pg.test.ts > VERIFY real PG concurrency > C5 same as C4 with two CASH payments on one shift (x20)
+ROW|C5|iterations=20|over_refunded=0|sample=ok,refund_quantity_exceeded/q=1 ; ok,refund_quantity_exceeded/q=1 ; ok,refund_quantity_exceeded/q=1
+
+stdout | engines/transactions/test/zz-verify.pg.test.ts > VERIFY real PG concurrency > C4s control: the same two refunds SEQUENTIALLY
+ROW|C4s|ok,refund_quantity_exceeded|q=1
+
+ ❯ engines/transactions/test/zz-verify.pg.test.ts (6 tests | 1 failed | 3 skipped) 1220ms
+     ↓ C1 same idempotency key x6 concurrently
+     ↓ C2 oversell: stock 3, six concurrent sales of 1
+     ↓ C3 two concurrent refunds of the same unit via the SAME payment
+     × C4 two concurrent refunds of the same unit via two DIFFERENT card payments (x20) 567ms
+     ✓ C5 same as C4 with two CASH payments on one shift (x20)  468ms
+     ✓ C4s control: the same two refunds SEQUENTIALLY 18ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  engines/transactions/test/zz-verify.pg.test.ts > VERIFY real PG concurrency > C4 two concurrent refunds of the same unit via two DIFFERENT card payments (x20)
+AssertionError: water sold once must be refunded at most once: expected 15 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 15
+
+ ❯ engines/transactions/test/zz-verify.pg.test.ts:72:67
+     70|     }
+     71|     console.log(`ROW|C4|iterations=20|water_sold=1|over_refunded=${ove…
+     72|     expect(over, 'water sold once must be refunded at most once').toBe…
+       |                                                                   ^
+     73|   }, 120_000);
+     74|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed | 3 skipped (6)
+   Start at  18:38:36
+   Duration  1.73s (transform 207ms, setup 0ms, import 383ms, tests 1.22s, environment 0ms)
+

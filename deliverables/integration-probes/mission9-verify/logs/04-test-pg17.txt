@@ -1,0 +1,63 @@
+$ NILE_TEST_PG_ADMIN_URL=$PGURL npm test
+
+> mohamed-app-factory@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /tmp/wt-verify
+
+stderr | apps/api/test/e2e-sale.test.ts > 1. authentication > rejects a wrong password
+2026-10-18T18:36:01.241Z WARN [Better Auth]: Invalid password
+
+ ✓ apps/api/test/e2e-sale.test.ts (25 tests) 5762ms
+     ✓ account-mutating endpoints are refused for a shared demo login (403) and nothing changes  327ms
+     ✓ a real (non-demo) tenant user can still change their own password  486ms
+     ✓ restart on the same data directory → log in again → the sale is still there  479ms
+ ✓ engines/db/test/rls.test.ts (15 tests) 5220ms
+     ✓ refuses to start on a superuser connection  2115ms
+ ✓ apps/api/test/e2e-pos.test.ts (17 tests) 4132ms
+     ✓ cashier and manager log in  325ms
+ ✓ apps/api/test/split-tender.test.ts (3 tests) 3876ms
+stdout | engines/transactions/test/review-gates.test.ts > Gate 1 — Accounting > change counts toward drawer not revenue (F3)
+GATE1 change drawer expected 10750 sumIn 1000 sumOut 250
+
+stdout | engines/transactions/test/review-gates.test.ts > Gate 2 — Concurrency (single-connection PGlite limitations noted) > open shift concurrent same register: only one should succeed (requires advisory lock — expected to fail without fix)
+GATE2 open concurrent results [ '11e02180', 'shift_already_open' ]
+
+ ✓ engines/transactions/test/review-gates.test.ts (19 tests) 3286ms
+ ✓ engines/transactions/test/dst-cairo.test.ts (6 tests) 3136ms
+ ✓ engines/transactions/test/refunds.test.ts (7 tests) 3316ms
+ ✓ engines/transactions/test/checkout.test.ts (6 tests) 3099ms
+ ✓ engines/people/test/people-service.test.ts (27 tests) 3164ms
+ ✓ engines/transactions/test/integration.test.ts (2 tests) 3090ms
+ ✓ engines/transactions/test/shifts.test.ts (8 tests) 3051ms
+ ✓ engines/catalog/test/lead-service.test.ts (19 tests) 3064ms
+ ✓ engines/transactions/test/reports.test.ts (3 tests) 3114ms
+ ✓ engines/transactions/test/sale.test.ts (5 tests) 17ms
+ ✓ engines/transactions/test/golden.test.ts (27 tests) 14ms
+ ✓ engines/booking/test/booking.test.ts (6 tests) 5ms
+ ✓ engines/people/test/people.test.ts (4 tests) 5ms
+ ✓ engines/platform/test/platform.test.ts (4 tests) 5ms
+ ✓ engines/platform/test/permissions.test.ts (5 tests) 8ms
+ ✓ engines/catalog/test/catalog.test.ts (4 tests) 4ms
+ ✓ engines/db/test/migration-chain.test.ts (3 tests) 3ms
+(node:5743) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ engines/catalog/test/lead-service.pg.test.ts (7 tests) 587ms
+(node:5771) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ engines/people/test/people-service.pg.test.ts (6 tests) 347ms
+(node:5797) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stdout | engines/transactions/test/shift-close-race.pg.test.ts > shift close vs cash operations (real PostgreSQL) > concurrent sales, a refund and the close: each cash movement is reconciled exactly once
+shift-close race: 40 iterations, 50 operations refused with shift_closed
+
+ ✓ engines/transactions/test/shift-close-race.pg.test.ts (2 tests) 1512ms
+     ✓ concurrent sales, a refund and the close: each cash movement is reconciled exactly once  1279ms
+
+ Test Files  24 passed (24)
+      Tests  230 passed (230)
+   Start at  18:35:56
+   Duration  58.91s (transform 619ms, setup 0ms, import 6.08s, tests 49.82s, environment 2ms)
+
+exit=0

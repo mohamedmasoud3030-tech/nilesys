@@ -1,0 +1,8 @@
+backups/session-2026-10-18/nilesys-all-local-branches.bundle: /home/user/backups/session-2026-10-18/nilesys-all-local-branches.bundle is okay 
+backups/session-2026-10-18/nilesys-feat-nile-lead-people-services.bundle: /home/user/backups/session-2026-10-18/nilesys-feat-nile-lead-people-services.bundle is okay The bundle requires this ref: 
+backups/session-2026-10-18/nilesys-feat-nile-mission3-pos-fixes-pg-tests.bundle: /home/user/backups/session-2026-10-18/nilesys-feat-nile-mission3-pos-fixes-pg-tests.bundle is okay The bundle requires this ref: 
+backups/session-2026-10-18/nilesys-feat-nile-offerings-readiness.bundle: /home/user/backups/session-2026-10-18/nilesys-feat-nile-offerings-readiness.bundle is okay The bundle requires this ref: 
+deliverables/nilesys-feat-nile-lead-people-services.bundle: /home/user/deliverables/nilesys-feat-nile-lead-people-services.bundle is okay The bundle requires this ref: 
+deliverables/nilesys-feat-nile-mission3-pos-fixes-pg-tests-c72f746.bundle: /home/user/deliverables/nilesys-feat-nile-mission3-pos-fixes-pg-tests-c72f746.bundle is okay 
+deliverables/nilesys-feat-nile-mission3-pos-fixes-pg-tests.bundle: /home/user/deliverables/nilesys-feat-nile-mission3-pos-fixes-pg-tests.bundle is okay 
+deliverables/nilesys-feat-nile-offerings-readiness.bundle: /home/user/deliverables/nilesys-feat-nile-offerings-readiness.bundle is okay The bundle requires this ref: 

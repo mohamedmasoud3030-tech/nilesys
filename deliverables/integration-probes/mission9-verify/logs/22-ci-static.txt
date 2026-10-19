@@ -1,0 +1,273 @@
+
+>>> [static] step 3: Single lockfile (npm, per AGENTS.md)
+$ test -f package-lock.json || { echo "::error::package-lock.json missing"; exit 1; }
+  for f in pnpm-lock.yaml yarn.lock bun.lockb; do
+    if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then echo "::error::$f is tracked; this repo uses npm"; exit 1; fi
+  done
+<<< step 3 exit=0
+
+>>> [static] step 4: Install (exactly the lockfile)
+$ npm ci
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.hirok.io
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.hirok.io
+
+added 187 packages in 5s
+<<< step 4 exit=0
+
+>>> [static] step 5: Typecheck
+$ npm run typecheck
+
+> mohamed-app-factory@0.1.0 typecheck
+> tsc --noEmit
+
+<<< step 5 exit=0
+
+>>> [static] step 6: Unit and integration tests (PGlite; *.pg.test.ts skip here and run in the postgres job)
+$ npm test
+
+> mohamed-app-factory@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /tmp/wt-verify
+
+stdout | engines/transactions/test/review-gates.test.ts > Gate 1 — Accounting > change counts toward drawer not revenue (F3)
+GATE1 change drawer expected 10750 sumIn 1000 sumOut 250
+
+stdout | engines/transactions/test/review-gates.test.ts > Gate 2 — Concurrency (single-connection PGlite limitations noted) > open shift concurrent same register: only one should succeed (requires advisory lock — expected to fail without fix)
+GATE2 open concurrent results [ '9bafbaa5', 'shift_already_open' ]
+
+ ✓ engines/transactions/test/review-gates.test.ts (19 tests) 2935ms
+stderr | apps/api/test/e2e-sale.test.ts > 1. authentication > rejects a wrong password
+2026-10-18T18:49:49.710Z WARN [Better Auth]: Invalid password
+
+ ✓ apps/api/test/e2e-sale.test.ts (25 tests) 5764ms
+     ✓ account-mutating endpoints are refused for a shared demo login (403) and nothing changes  331ms
+     ✓ a real (non-demo) tenant user can still change their own password  564ms
+     ✓ restart on the same data directory → log in again → the sale is still there  449ms
+ ✓ apps/api/test/e2e-pos.test.ts (17 tests) 4006ms
+     ✓ cashier and manager log in  322ms
+ ✓ engines/transactions/test/refunds.test.ts (7 tests) 2907ms
+ ✓ engines/people/test/people-service.test.ts (27 tests) 2809ms
+ ✓ engines/transactions/test/golden.test.ts (27 tests) 11ms
+ ✓ engines/db/test/rls.test.ts (15 tests) 4602ms
+     ✓ refuses to start on a superuser connection  1875ms
+ ↓ engines/transactions/test/zz-verify.pg.test.ts (6 tests | 6 skipped)
+ ✓ engines/catalog/test/lead-service.test.ts (19 tests) 2749ms
+ ↓ engines/people/test/people-service.pg.test.ts (6 tests | 6 skipped)
+ ✓ engines/transactions/test/checkout.test.ts (6 tests) 2668ms
+ ✓ engines/transactions/test/dst-cairo.test.ts (6 tests) 2786ms
+ ✓ engines/transactions/test/integration.test.ts (2 tests) 2650ms
+ ✓ engines/transactions/test/shifts.test.ts (8 tests) 2677ms
+ ↓ engines/catalog/test/lead-service.pg.test.ts (7 tests | 7 skipped)
+ ↓ engines/transactions/test/shift-close-race.pg.test.ts (2 tests | 2 skipped)
+ ✓ apps/api/test/split-tender.test.ts (3 tests) 3527ms
+ ✓ engines/transactions/test/reports.test.ts (3 tests) 2626ms
+ ✓ engines/transactions/test/sale.test.ts (5 tests) 18ms
+ ✓ engines/booking/test/booking.test.ts (6 tests) 5ms
+ ✓ engines/platform/test/platform.test.ts (4 tests) 5ms
+ ✓ engines/catalog/test/catalog.test.ts (4 tests) 4ms
+ ✓ engines/people/test/people.test.ts (4 tests) 5ms
+ ✓ engines/db/test/migration-chain.test.ts (3 tests) 4ms
+ ✓ engines/platform/test/permissions.test.ts (5 tests) 6ms
+
+ Test Files  21 passed | 4 skipped (25)
+      Tests  215 passed | 21 skipped (236)
+   Start at  18:49:41
+   Duration  55.91s (transform 662ms, setup 0ms, import 10.20s, tests 42.76s, environment 2ms)
+
+<<< step 6 exit=0
+
+>>> [static] step 7: Offerings registry
+$ npx vitest run --config tools/nile-offerings/vitest.config.ts
+  npx tsc -p tools/nile-offerings/tsconfig.json
+
+ RUN  v4.1.11 /tmp/wt-verify
+
+ ✓ tools/nile-offerings/offerings.test.ts (17 tests) 17ms
+
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  18:50:37
+   Duration  219ms (transform 64ms, setup 0ms, import 80ms, tests 17ms, environment 0ms)
+
+<<< step 7 exit=0
+
+>>> [static] step 8: Drizzle snapshots and journal are consistent
+$ npx drizzle-kit check
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/tmp/wt-verify/drizzle.config.ts'
+Everything's fine 🐶🔥
+<<< step 8 exit=0
+
+>>> [static] step 9: Drizzle schema has no ungenerated changes
+$ npx drizzle-kit generate
+  if [ -n "$(git status --porcelain -- engines/db/migrations)" ]; then
+    git status --porcelain -- engines/db/migrations
+    echo "::error::schema.ts differs from the committed migrations; run npm run db:generate and commit"; exit 1
+  fi
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/tmp/wt-verify/drizzle.config.ts'
+26 tables
+account 13 columns 1 indexes 1 fks
+invitation 8 columns 2 indexes 2 fks
+member 5 columns 2 indexes 2 fks
+organization 6 columns 0 indexes 0 fks
+session 9 columns 1 indexes 1 fks
+user 7 columns 0 indexes 0 fks
+verification 6 columns 0 indexes 0 fks
+audit_log 8 columns 1 indexes 1 fks
+catalog_items 8 columns 0 indexes 1 fks
+catalog_variants 7 columns 0 indexes 2 fks
+leads 8 columns 1 indexes 1 fks
+cash_movement_resolutions 5 columns 0 indexes 2 fks
+cash_movements 9 columns 0 indexes 1 fks
+cash_shift_closures 8 columns 0 indexes 2 fks
+cash_shifts 8 columns 1 indexes 1 fks
+payments 13 columns 1 indexes 2 fks
+refunds 11 columns 1 indexes 3 fks
+sales_transactions 10 columns 1 indexes 1 fks
+stock_movements 10 columns 1 indexes 3 fks
+transaction_lines 9 columns 1 indexes 3 fks
+bookable_resources 6 columns 0 indexes 1 fks
+bookings 11 columns 1 indexes 2 fks
+attendance_records 7 columns 0 indexes 2 fks
+employees 7 columns 0 indexes 1 fks
+leave_requests 6 columns 0 indexes 2 fks
+loans 6 columns 0 indexes 2 fks
+
+No schema changes, nothing to migrate 😴
+<<< step 9 exit=0
+
+>>> [static] step 10: Prototype regression tests
+$ node --test tests/regression.test.js
+TAP version 13
+# Subtest: PERM-3: HR employee cannot read POS products, create POS sales, or read POS reports
+ok 1 - PERM-3: HR employee cannot read POS products, create POS sales, or read POS reports
+  ---
+  duration_ms: 86.256805
+  type: 'test'
+  ...
+# Subtest: PERM-3: a manager of another system is not a POS manager
+ok 2 - PERM-3: a manager of another system is not a POS manager
+  ---
+  duration_ms: 16.125502
+  type: 'test'
+  ...
+# Subtest: PERM-3: POS users keep access; non-POS users keep their generic bootstrap
+ok 3 - PERM-3: POS users keep access; non-POS users keep their generic bootstrap
+  ---
+  duration_ms: 14.416257
+  type: 'test'
+  ...
+# Subtest: SALE-2: selling more than stock is rejected with 409 and stock is unchanged
+ok 4 - SALE-2: selling more than stock is rejected with 409 and stock is unchanged
+  ---
+  duration_ms: 6.530387
+  type: 'test'
+  ...
+# Subtest: SALE-2: repeated lines of the same product are aggregated before the stock check
+ok 5 - SALE-2: repeated lines of the same product are aggregated before the stock check
+  ---
+  duration_ms: 7.743058
+  type: 'test'
+  ...
+# Subtest: SALE-2: selling exactly the remaining stock is allowed and leaves stock at 0
+ok 6 - SALE-2: selling exactly the remaining stock is allowed and leaves stock at 0
+  ---
+  duration_ms: 11.983504
+  type: 'test'
+  ...
+# Subtest: SALE-2: concurrent sales never oversell (sum of accepted qty == stock consumed)
+ok 7 - SALE-2: concurrent sales never oversell (sum of accepted qty == stock consumed)
+  ---
+  duration_ms: 96.548888
+  type: 'test'
+  ...
+# Subtest: SALE-3: cash paid below total is rejected with 400 and stock is unchanged
+ok 8 - SALE-3: cash paid below total is rejected with 400 and stock is unchanged
+  ---
+  duration_ms: 5.643317
+  type: 'test'
+  ...
+# Subtest: SALE-3: cash paid >= total is stored; omitted paid defaults to total; card is always exact
+ok 9 - SALE-3: cash paid >= total is stored; omitted paid defaults to total; card is always exact
+  ---
+  duration_ms: 7.112926
+  type: 'test'
+  ...
+# Subtest: SALE-6: creating a product with an existing active barcode is rejected with 409
+ok 10 - SALE-6: creating a product with an existing active barcode is rejected with 409
+  ---
+  duration_ms: 5.480524
+  type: 'test'
+  ...
+# Subtest: SALE-6: unique barcodes are accepted; a deactivated product frees its barcode
+ok 11 - SALE-6: unique barcodes are accepted; a deactivated product frees its barcode
+  ---
+  duration_ms: 6.643409
+  type: 'test'
+  ...
+# Subtest: SHIFT-2: a partial cash return during the shift is deducted from expected cash
+ok 12 - SHIFT-2: a partial cash return during the shift is deducted from expected cash
+  ---
+  duration_ms: 27.04667
+  type: 'test'
+  ...
+# Subtest: SHIFT-2: discounted sale returned in two steps nets to zero cash; card refunds do not touch the drawer
+ok 13 - SHIFT-2: discounted sale returned in two steps nets to zero cash; card refunds do not touch the drawer
+  ---
+  duration_ms: 14.450236
+  type: 'test'
+  ...
+# Subtest: RESET-2: the resetting manager and other users keep valid sessions after reset
+ok 14 - RESET-2: the resetting manager and other users keep valid sessions after reset
+  ---
+  duration_ms: 11.405957
+  type: 'test'
+  ...
+# Subtest: RESET-2: demo user ids are deterministic across resets
+ok 15 - RESET-2: demo user ids are deterministic across resets
+  ---
+  duration_ms: 9.551302
+  type: 'test'
+  ...
+# Subtest: SEED-1: seeded demo sales are never timestamped in the future
+ok 16 - SEED-1: seeded demo sales are never timestamped in the future
+  ---
+  duration_ms: 6.009239
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 397.268068
+<<< step 10 exit=0
+
+>>> [static] step 11: Africa/Cairo tz data in Node ICU (2026 DST)
+$ node -e '
+    const f = (iso) => new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Cairo", timeZoneName: "shortOffset" }).formatToParts(new Date(iso)).find((p) => p.type === "timeZoneName").value;
+    const s = f("2026-07-15T12:00:00Z"), w = f("2026-12-15T12:00:00Z");
+    console.log("summer", s, "winter", w);
+    if (s !== "GMT+3" || w !== "GMT+2") { console.error("::error::Node ICU tz data does not know Egypt 2026 DST"); process.exit(1); }'
+summer GMT+3 winter GMT+2
+<<< step 11 exit=0
+
+===== job static summary =====
+   1. EMULATED (uses)            actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+   2. EMULATED (uses)            actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+   3. PASS                       Single lockfile (npm, per AGENTS.md)
+   4. PASS                       Install (exactly the lockfile)
+   5. PASS                       Typecheck
+   6. PASS                       Unit and integration tests (PGlite; *.pg.test.ts skip here and run in the postgres job)
+   7. PASS                       Offerings registry
+   8. PASS                       Drizzle snapshots and journal are consistent
+   9. PASS                       Drizzle schema has no ungenerated changes
+  10. PASS                       Prototype regression tests
+  11. PASS                       Africa/Cairo tz data in Node ICU (2026 DST)
+JOB RESULT: PASS

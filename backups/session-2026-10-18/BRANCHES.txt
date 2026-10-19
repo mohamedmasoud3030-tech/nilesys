@@ -1,0 +1,6 @@
+# local branch SHAs at backup time (2026-10-18T13:04:07Z)
+099dc1431a43e18abac88f8f33b5645a9001f611 refs/heads/feat/nile-lead-people-services
+c72f7461397f9ef69db05ed614919de8cca1f351 refs/heads/feat/nile-mission3-pos-fixes-pg-tests
+c910b5777c89aabc9feb92aa816ff64caf488504 refs/heads/feat/nile-offerings-readiness
+52af4693e53ca17883b473512f22aeb32e77672a refs/heads/main
+# remote origin URL: https://github.com/mohamedmasoud3030-tech/nilesys.git

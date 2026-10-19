@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>نظام الكاشير · نيل سيستمز</title>
+  <link rel="stylesheet" href="/assets/css/app.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230d9488'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>N</text></svg>" />
+</head>
+<body data-title-key="pos.loginKicker">
+
+  <!-- ============ شاشة الدخول ============ -->
+  <div class="login-page hidden" id="loginView">
+    <div class="login-card">
+      <div class="card">
+        <div class="row between mb-2">
+          <a class="brand" href="/"><span class="brand-mark" data-brand-logo>N</span><span data-brand-name>نيل سيستمز</span></a>
+          <button class="btn btn-ghost btn-sm" id="langBtn2"></button>
+        </div>
+        <div class="kicker" data-i18n="pos.loginKicker"></div>
+        <h1 data-i18n="pos.loginTitle"></h1>
+        <p class="small muted mt-1"><span data-i18n="pos.loginSub"></span> <b class="mono">demo1234</b></p>
+        <div class="mt-3" id="demoUsers"></div>
+        <form id="loginForm" class="mt-2">
+          <div class="field">
+            <label class="label" for="lu">Username</label>
+            <input class="input" id="lu" autocomplete="username" />
+          </div>
+          <div class="field">
+            <label class="label" for="lp">Password</label>
+            <input class="input" id="lp" type="password" value="demo1234" autocomplete="current-password" />
+          </div>
+          <button class="btn btn-primary btn-block btn-lg" type="submit" data-i18n="common.login"></button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ التطبيق ============ -->
+  <div class="app hidden" id="appView">
+    <aside class="side" id="side">
+      <a class="brand" href="/"><span class="brand-mark" data-brand-logo>N</span><span data-brand-name>سوبر ماركت النيل</span></a>
+      <button class="nav-item" data-view="sell"><span class="nav-ico">🧾</span><span data-i18n="pos.sell"></span></button>
+      <button class="nav-item" data-view="sales"><span class="nav-ico">📋</span><span data-i18n="pos.sales"></span></button>
+      <button class="nav-item" data-view="returns"><span class="nav-ico">↩️</span><span data-i18n="pos.returns"></span></button>
+      <button class="nav-item" data-view="shifts"><span class="nav-ico">🕐</span><span data-i18n="pos.shifts"></span></button>
+      <button class="nav-item" data-view="reports"><span class="nav-ico">📊</span><span data-i18n="pos.reports"></span></button>
+      <button class="nav-item" data-view="products"><span class="nav-ico">📦</span><span data-i18n="pos.products"></span></button>
+      <button class="nav-item" data-view="branding"><span class="nav-ico">🎨</span><span data-i18n="pos.branding"></span></button>
+      <div class="spacer"></div>
+      <button class="nav-item" id="logoutBtn"><span class="nav-ico">⎋</span><span data-i18n="common.logout"></span></button>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <button class="btn btn-ghost btn-sm" id="menuBtn" style="display:none">☰</button>
+        <b data-brand-name>سوبر ماركت النيل</b>
+        <span class="badge badge-brand" id="sysBadge" data-i18n="pos.loginKicker"></span>
+        <div class="who">
+          <button class="btn btn-ghost btn-sm" id="langBtn3"></button>
+          <span class="avatar" id="avatar">--</span>
+          <div style="line-height:1.2">
+            <div class="small" style="font-weight:700" id="userName"></div>
+            <div class="small muted" id="userRole"></div>
+          </div>
+        </div>
+      </header>
+      <main class="content" id="content"></main>
+    </div>
+  </div>
+
+  <script src="/assets/js/i18n.js"></script>
+  <script src="/assets/js/core.js"></script>
+  <script src="/assets/js/pos.js"></script>
+</body>
+</html>

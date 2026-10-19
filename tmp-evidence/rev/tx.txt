@@ -1,0 +1,45 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/home/user/repos/nilesys[39m
+
+[90mstderr[2m | apps/api/test/e2e-sale.test.ts[2m > [22m[2m1. authentication[2m > [22m[2mrejects a wrong password
+[22m[39m2026-10-19T08:54:21.146Z WARN [Better Auth]: Invalid password
+
+ [32m✓[39m apps/api/test/e2e-sale.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 5513[2mms[22m[39m
+     [33m[2m✓[22m[39m account-mutating endpoints are refused for a shared demo login (403) and nothing changes [33m 327[2mms[22m[39m
+     [33m[2m✓[22m[39m a real (non-demo) tenant user can still change their own password [33m 494[2mms[22m[39m
+     [33m[2m✓[22m[39m restart on the same data directory → log in again → the sale is still there [33m 434[2mms[22m[39m
+ [32m✓[39m apps/api/test/e2e-pos.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 3953[2mms[22m[39m
+ [32m✓[39m apps/api/test/split-tender.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 3447[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/reports.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 2804[2mms[22m[39m
+[90mstdout[2m | engines/transactions/test/review-gates.test.ts[2m > [22m[2mGate 1 — Accounting[2m > [22m[2mchange counts toward drawer not revenue (F3)
+[22m[39mGATE1 change drawer expected [33m10750[39m sumIn [33m1000[39m sumOut [33m250[39m
+
+[90mstdout[2m | engines/transactions/test/review-gates.test.ts[2m > [22m[2mGate 2 — Concurrency (single-connection PGlite limitations noted)[2m > [22m[2mopen shift concurrent same register: only one should succeed (requires advisory lock — expected to fail without fix)
+[22m[39mGATE2 open concurrent results [ [32m'c84d682e'[39m, [32m'shift_already_open'[39m ]
+
+ [32m✓[39m engines/transactions/test/review-gates.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 3116[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/dst-cairo.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 3011[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/refunds.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 3160[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/integration.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 2794[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/shifts.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 2932[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/checkout.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 3098[2mms[22m[39m
+(node:6490) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m engines/transactions/test/refund-concurrency.pg.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 1585[2mms[22m[39m
+     [33m[2m✓[22m[39m A: card + card — the same unit refunded through both payments at once is refunded once (x20) [33m 778[2mms[22m[39m
+     [33m[2m✓[22m[39m B: card + cash — different methods (and different locks) still refund the unit once (x20) [33m 524[2mms[22m[39m
+(node:6509) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[90mstdout[2m | engines/transactions/test/shift-close-race.pg.test.ts[2m > [22m[2mshift close vs cash operations (real PostgreSQL)[2m > [22m[2mconcurrent sales, a refund and the close: each cash movement is reconciled exactly once
+[22m[39mshift-close race: 40 iterations, 52 operations refused with shift_closed
+
+ [32m✓[39m engines/transactions/test/shift-close-race.pg.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 1484[2mms[22m[39m
+     [33m[2m✓[22m[39m concurrent sales, a refund and the close: each cash movement is reconciled exactly once [33m 1232[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/sale.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/golden.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m14 passed[39m[22m[90m (14)[39m
+[2m      Tests [22m [1m[32m136 passed[39m[22m[90m (136)[39m
+[2m   Start at [22m 08:54:16
+[2m   Duration [22m 43.32s[2m (transform 512ms, setup 0ms, import 4.75s, tests 36.92s, environment 2ms)[22m
+

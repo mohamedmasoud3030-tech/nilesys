@@ -1,0 +1,102 @@
+
+ RUN  v4.1.11 /tmp/wt-int
+
+(node:13101) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|dst|payment amount = 0|ACCEPTED
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|dst|payment amount < 0|ACCEPTED
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|dst|payment unknown method|ACCEPTED
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|dst|payment change < 0|ACCEPTED
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|dst|change > tendered / tendered < amount|ACCEPTED
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|dst|change on non-cash|ACCEPTED
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|dst|refund amount = 0|ACCEPTED
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|dst|refund unknown method|ACCEPTED
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|dst|shift opening < 0|ACCEPTED
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|dst|closure counted < 0|ACCEPTED
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|dst|closure difference inconsistent|REJECTED 23505 cash_shift_closures_shift_id_unique
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|dst|second closure same shift|REJECTED 23505 cash_shift_closures_shift_id_unique
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|dst|UPDATE payments (append-only)|REJECTED 42501 
+
+ ✓ engines/transactions/test/zz-constraints.pg.test.ts (1 test) 272ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  13:33:17
+   Duration  719ms (transform 166ms, setup 0ms, import 323ms, tests 272ms, environment 0ms)
+
+
+ RUN  v4.1.11 /tmp/wt-pay
+
+(node:13147) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|pay|payment amount = 0|REJECTED 23514 payment_tenders_amount_positive
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|pay|payment amount < 0|REJECTED 23514 payment_tenders_amount_positive
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|pay|payment unknown method|REJECTED 23514 payment_tenders_method_known
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|pay|payment change < 0|REJECTED 23514 payment_tenders_change_non_negative
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|pay|change > tendered / tendered < amount|REJECTED 23514 payment_tenders_change_ne_exceeds_amount
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|pay|change on non-cash|ACCEPTED
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|pay|refund amount = 0|REJECTED 23514 refunds_amount_positive
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|pay|refund unknown method|REJECTED 23514 refunds_method_known
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|pay|shift opening < 0|REJECTED 23514 cash_shifts_float_non_negative
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|pay|closure counted < 0|REJECTED 23514 shift_closures_counted_non_negative
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|pay|closure difference inconsistent|REJECTED 23514 shift_closures_difference_consistent
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|pay|second closure same shift|REJECTED 23505 shift_closures_tenant_shift_uq
+
+stdout | engines/transactions/test/zz-constraints.pg.test.ts > constraint probe > runs
+ROW|pay|UPDATE payments (append-only)|REJECTED 42501 
+
+ ✓ engines/transactions/test/zz-constraints.pg.test.ts (1 test) 203ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  13:33:19
+   Duration  608ms (transform 131ms, setup 0ms, import 279ms, tests 203ms, environment 0ms)
+

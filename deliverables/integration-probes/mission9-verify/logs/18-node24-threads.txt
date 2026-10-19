@@ -1,0 +1,4 @@
+
+ RUN  v4.1.11 /tmp/wt-verify
+
+Killed

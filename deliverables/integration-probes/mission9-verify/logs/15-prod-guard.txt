@@ -1,0 +1,4 @@
+$ NODE_ENV=production (no BETTER_AUTH_SECRET) timeout 30 npx tsx apps/api/src/main.ts
+if (!secret) throw new Error('BETTER_AUTH_SECRET is required in production');
+Error: BETTER_AUTH_SECRET is required in production
+exit=1

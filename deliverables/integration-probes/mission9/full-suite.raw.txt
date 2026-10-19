@@ -1,0 +1,394 @@
+date: 2026-10-18T13:46:56Z  node: v20.20.2  pnpm: 12.14.0  pg: 17.11 (Debian 17.11-0+deb13u1)
+
+################ $ git rev-parse --abbrev-ref HEAD && git log --oneline main..HEAD && git status --porcelain | wc -l
+integration/nile-2026-10-18
+b25cb65 test(reports): exercise production Africa/Cairo day bounds, not copies
+69b3310 fix(checkout): accept split tenders with the same method and amount
+0b271af fix(shifts): close a shift under the same lock as cash sales and refunds
+3499550 fix(types): clear the 37 TypeScript errors from the POS/DST merge
+dcca705 fix(db): give 0004 snapshot its own id so the drizzle chain is linear
+5dd1f7d merge: feat/nile-pos-dst-2026-10-18 (e94ecc4) into integration
+e94ecc4 feat(pos): Africa/Cairo DST fix (23h/25h days), POS accounting & reports, shifts/refunds with advisory locks
+c72f746 test(prototype): SALE-2/3/6 printed verdict equals the assertion
+3e9469a chore(offerings): record prototype fixes and PG evidence truthfully
+47d8bea test(pg): real-PostgreSQL tests for lead and people services; fix attendance races
+43af873 fix(prototype): PERM-3, SALE-2, SALE-3, SALE-6, SHIFT-2, RESET-2 with regression tests
+099dc14 chore(tools): registry reflects the admin lead and people service layers
+7a3207e feat(people): tenant-scoped people service — employees, attendance, computed payslip
+a03cca9 feat(catalog): tenant-scoped admin lead capture service
+c910b57 feat(tools): Nile offerings readiness registry — 7 systems, 7 sites, 5 Windows
+b0c17fc fix(prototype): scope prototypes/nilesys as CommonJS so it runs again
+0
+################ exit=0
+
+################ $ corepack pnpm run typecheck
+Progress: resolved 0, reused 0, downloaded 1, added 0
+Downloading @electric-sql/pglite@0.5.10: 0.00 B/10.20 MB
+Progress: resolved 0, reused 0, downloaded 144, added 0
+Packages are hard linked from the content-addressable store to the virtual store.
+  Content-addressable store is at: /home/user/.local/share/pnpm/store/v11
+  Virtual store is at:             node_modules/.pnpm
+Downloading @rolldown/binding-linux-x64-gnu@1.2.14: 0.00 B/8.27 MB
+[WARN] 2 deprecated subdependencies found: @esbuild-kit/core-utils@3.3.2, @esbuild-kit/esm-loader@2.6.5
+Packages: +184
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 184, reused 0, downloaded 188, added 184, done
+
+dependencies:
++ @better-auth/drizzle-adapter 1.7.10
++ @nestjs/common 12.1.3
++ @nestjs/core 12.1.3
++ @nestjs/platform-fastify 12.1.3
++ @nestjs/swagger 12.0.2
++ better-auth 1.7.10
++ decimal.js 10.6.0
++ drizzle-orm 0.45.4
++ pg 8.23.1
++ reflect-metadata 0.2.2
++ rxjs 7.8.2
++ zod 4.6.7
+
+devDependencies:
++ @electric-sql/pglite 0.5.10
++ @nestjs/testing 12.1.3
++ @types/node 22.20.5
++ @types/pg 8.23.1
++ drizzle-kit 0.31.11
++ tsx 4.23.15
++ typescript 5.9.3
++ vitest 4.1.12
+
+Error: ERR_PNPM_IGNORED_BUILDS
+
+  × installing dependencies
+  ╰─▶ Ignored build scripts: @scarf/scarf@1.4.0, esbuild@0.18.20,
+      esbuild@0.25.12, esbuild@0.28.2
+  help: Run "pnpm approve-builds" to pick which dependencies should be allowed
+        to run scripts.
+
+[WARN] The install that runs before scripts failed, so your node_modules may be out of sync with your lockfile. Set "verifyDepsBeforeRun: false" to skip this install.
+$ tsc --noEmit
+################ exit=0
+
+################ $ corepack pnpm run test
+$ vitest run
+
+ RUN  v4.1.12 /home/user/repos/nilesys
+
+stdout | engines/transactions/test/review-gates.test.ts > Gate 1 — Accounting > change counts toward drawer not revenue (F3)
+GATE1 change drawer expected 10750 sumIn 1000 sumOut 250
+
+stdout | engines/transactions/test/review-gates.test.ts > Gate 2 — Concurrency (single-connection PGlite limitations noted) > open shift concurrent same register: only one should succeed (requires advisory lock — expected to fail without fix)
+GATE2 open concurrent results [ '109dbee6', 'shift_already_open' ]
+
+ ✓ engines/transactions/test/review-gates.test.ts (19 tests) 3420ms
+ ✓ engines/transactions/test/dst-cairo.test.ts (6 tests) 3055ms
+stderr | apps/api/test/e2e-sale.test.ts > 1. authentication > rejects a wrong password
+2026-10-18T13:47:18.573Z WARN [Better Auth]: Invalid password
+
+ ✓ apps/api/test/e2e-sale.test.ts (25 tests) 5786ms
+     ✓ account-mutating endpoints are refused for a shared demo login (403) and nothing changes  305ms
+     ✓ a real (non-demo) tenant user can still change their own password  515ms
+     ✓ restart on the same data directory → log in again → the sale is still there  549ms
+ ✓ engines/db/test/rls.test.ts (15 tests) 5253ms
+     ✓ refuses to start on a superuser connection  2350ms
+ ✓ apps/api/test/e2e-pos.test.ts (17 tests) 4171ms
+     ✓ cashier and manager log in  308ms
+ ✓ apps/api/test/split-tender.test.ts (3 tests) 3720ms
+ ✓ engines/transactions/test/refunds.test.ts (7 tests) 3169ms
+ ✓ engines/transactions/test/shifts.test.ts (8 tests) 2985ms
+ ✓ engines/transactions/test/reports.test.ts (3 tests) 3083ms
+ ✓ engines/catalog/test/lead-service.test.ts (19 tests) 2772ms
+ ✓ engines/transactions/test/integration.test.ts (2 tests) 2995ms
+ ✓ engines/transactions/test/checkout.test.ts (6 tests) 2950ms
+ ✓ engines/people/test/people-service.test.ts (27 tests) 3096ms
+ ✓ engines/transactions/test/sale.test.ts (5 tests) 16ms
+ ✓ engines/transactions/test/golden.test.ts (27 tests) 11ms
+ ✓ engines/platform/test/permissions.test.ts (5 tests) 6ms
+ ✓ engines/people/test/people.test.ts (4 tests) 5ms
+ ✓ engines/booking/test/booking.test.ts (6 tests) 4ms
+ ✓ engines/catalog/test/catalog.test.ts (4 tests) 4ms
+ ✓ engines/platform/test/platform.test.ts (4 tests) 5ms
+ ✓ engines/db/test/migration-chain.test.ts (3 tests) 4ms
+ ↓ engines/catalog/test/lead-service.pg.test.ts (7 tests | 7 skipped)
+ ↓ engines/people/test/people-service.pg.test.ts (6 tests | 6 skipped)
+ ↓ engines/transactions/test/shift-close-race.pg.test.ts (2 tests | 2 skipped)
+
+ Test Files  21 passed | 3 skipped (24)
+      Tests  215 passed | 15 skipped (230)
+   Start at  13:47:06
+   Duration  55.98s (transform 638ms, setup 0ms, import 6.41s, tests 46.51s, environment 2ms)
+
+################ exit=0
+
+################ $ NILE_TEST_PG_ADMIN_URL=postgres://postgres@127.0.0.1:5471/postgres corepack pnpm run test
+$ vitest run
+
+ RUN  v4.1.12 /home/user/repos/nilesys
+
+stderr | apps/api/test/e2e-sale.test.ts > 1. authentication > rejects a wrong password
+2026-10-18T13:48:07.853Z WARN [Better Auth]: Invalid password
+
+ ✓ apps/api/test/e2e-sale.test.ts (25 tests) 5636ms
+     ✓ a real (non-demo) tenant user can still change their own password  505ms
+     ✓ restart on the same data directory → log in again → the sale is still there  475ms
+ ✓ engines/db/test/rls.test.ts (15 tests) 5160ms
+     ✓ refuses to start on a superuser connection  1917ms
+ ✓ apps/api/test/e2e-pos.test.ts (17 tests) 4095ms
+ ✓ apps/api/test/split-tender.test.ts (3 tests) 3594ms
+stdout | engines/transactions/test/review-gates.test.ts > Gate 1 — Accounting > change counts toward drawer not revenue (F3)
+GATE1 change drawer expected 10750 sumIn 1000 sumOut 250
+
+stdout | engines/transactions/test/review-gates.test.ts > Gate 2 — Concurrency (single-connection PGlite limitations noted) > open shift concurrent same register: only one should succeed (requires advisory lock — expected to fail without fix)
+GATE2 open concurrent results [ '91e4fa80', 'shift_already_open' ]
+
+ ✓ engines/transactions/test/review-gates.test.ts (19 tests) 3275ms
+ ✓ engines/transactions/test/refunds.test.ts (7 tests) 3158ms
+ ✓ engines/people/test/people-service.test.ts (27 tests) 3035ms
+ ✓ engines/transactions/test/reports.test.ts (3 tests) 2928ms
+ ✓ engines/transactions/test/dst-cairo.test.ts (6 tests) 3292ms
+ ✓ engines/transactions/test/integration.test.ts (2 tests) 2905ms
+ ✓ engines/transactions/test/shifts.test.ts (8 tests) 2858ms
+ ✓ engines/transactions/test/checkout.test.ts (6 tests) 2962ms
+ ✓ engines/catalog/test/lead-service.test.ts (19 tests) 2945ms
+ ✓ engines/transactions/test/sale.test.ts (5 tests) 15ms
+ ✓ engines/transactions/test/golden.test.ts (27 tests) 13ms
+ ✓ engines/platform/test/permissions.test.ts (5 tests) 5ms
+ ✓ engines/platform/test/platform.test.ts (4 tests) 5ms
+ ✓ engines/people/test/people.test.ts (4 tests) 5ms
+ ✓ engines/catalog/test/catalog.test.ts (4 tests) 4ms
+ ✓ engines/db/test/migration-chain.test.ts (3 tests) 3ms
+ ✓ engines/booking/test/booking.test.ts (6 tests) 4ms
+(node:16827) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ engines/catalog/test/lead-service.pg.test.ts (7 tests) 535ms
+(node:16855) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ engines/people/test/people-service.pg.test.ts (6 tests) 382ms
+(node:16881) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stdout | engines/transactions/test/shift-close-race.pg.test.ts > shift close vs cash operations (real PostgreSQL) > concurrent sales, a refund and the close: each cash movement is reconciled exactly once
+shift-close race: 40 iterations, 45 operations refused with shift_closed
+
+ ✓ engines/transactions/test/shift-close-race.pg.test.ts (2 tests) 1403ms
+     ✓ concurrent sales, a refund and the close: each cash movement is reconciled exactly once  1194ms
+
+ Test Files  24 passed (24)
+      Tests  230 passed (230)
+   Start at  13:48:02
+   Duration  57.17s (transform 631ms, setup 0ms, import 6.08s, tests 48.21s, environment 2ms)
+
+################ exit=0
+
+################ $ timeout 120 npx drizzle-kit check </dev/null
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/home/user/repos/nilesys/drizzle.config.ts'
+Everything's fine 🐶🔥
+################ exit=0
+
+################ $ timeout 120 npx drizzle-kit generate </dev/null; echo 'files changed/added after generate:'; git status --porcelain
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/home/user/repos/nilesys/drizzle.config.ts'
+26 tables
+account 13 columns 1 indexes 1 fks
+invitation 8 columns 2 indexes 2 fks
+member 5 columns 2 indexes 2 fks
+organization 6 columns 0 indexes 0 fks
+session 9 columns 1 indexes 1 fks
+user 7 columns 0 indexes 0 fks
+verification 6 columns 0 indexes 0 fks
+audit_log 8 columns 1 indexes 1 fks
+catalog_items 8 columns 0 indexes 1 fks
+catalog_variants 7 columns 0 indexes 2 fks
+leads 8 columns 1 indexes 1 fks
+cash_movement_resolutions 5 columns 0 indexes 2 fks
+cash_movements 9 columns 0 indexes 1 fks
+cash_shift_closures 8 columns 0 indexes 2 fks
+cash_shifts 8 columns 1 indexes 1 fks
+payments 13 columns 1 indexes 2 fks
+refunds 11 columns 1 indexes 3 fks
+sales_transactions 10 columns 1 indexes 1 fks
+stock_movements 10 columns 1 indexes 3 fks
+transaction_lines 9 columns 1 indexes 3 fks
+bookable_resources 6 columns 0 indexes 1 fks
+bookings 11 columns 1 indexes 2 fks
+attendance_records 7 columns 0 indexes 2 fks
+employees 7 columns 0 indexes 1 fks
+leave_requests 6 columns 0 indexes 2 fks
+loans 6 columns 0 indexes 2 fks
+
+No schema changes, nothing to migrate 😴
+files changed/added after generate:
+?? pnpm-lock.yaml
+################ exit=0
+
+################ $ npx vitest run --config tools/nile-offerings/vitest.config.ts
+
+ RUN  v4.1.12 /home/user/repos/nilesys
+
+ ✓ tools/nile-offerings/offerings.test.ts (17 tests) 15ms
+
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  13:49:02
+   Duration  227ms (transform 61ms, setup 0ms, import 76ms, tests 15ms, environment 0ms)
+
+################ exit=0
+
+################ $ npx tsc -p tools/nile-offerings/tsconfig.json
+################ exit=0
+
+################ $ cd prototypes/nilesys && node --test tests/regression.test.js
+TAP version 13
+# Subtest: PERM-3: HR employee cannot read POS products, create POS sales, or read POS reports
+ok 1 - PERM-3: HR employee cannot read POS products, create POS sales, or read POS reports
+  ---
+  duration_ms: 77.26968
+  ...
+# Subtest: PERM-3: a manager of another system is not a POS manager
+ok 2 - PERM-3: a manager of another system is not a POS manager
+  ---
+  duration_ms: 20.55917
+  ...
+# Subtest: PERM-3: POS users keep access; non-POS users keep their generic bootstrap
+ok 3 - PERM-3: POS users keep access; non-POS users keep their generic bootstrap
+  ---
+  duration_ms: 8.257425
+  ...
+# Subtest: SALE-2: selling more than stock is rejected with 409 and stock is unchanged
+ok 4 - SALE-2: selling more than stock is rejected with 409 and stock is unchanged
+  ---
+  duration_ms: 8.901875
+  ...
+# Subtest: SALE-2: repeated lines of the same product are aggregated before the stock check
+ok 5 - SALE-2: repeated lines of the same product are aggregated before the stock check
+  ---
+  duration_ms: 11.571035
+  ...
+# Subtest: SALE-2: selling exactly the remaining stock is allowed and leaves stock at 0
+ok 6 - SALE-2: selling exactly the remaining stock is allowed and leaves stock at 0
+  ---
+  duration_ms: 11.950314
+  ...
+# Subtest: SALE-2: concurrent sales never oversell (sum of accepted qty == stock consumed)
+ok 7 - SALE-2: concurrent sales never oversell (sum of accepted qty == stock consumed)
+  ---
+  duration_ms: 38.031268
+  ...
+# Subtest: SALE-3: cash paid below total is rejected with 400 and stock is unchanged
+ok 8 - SALE-3: cash paid below total is rejected with 400 and stock is unchanged
+  ---
+  duration_ms: 6.279738
+  ...
+# Subtest: SALE-3: cash paid >= total is stored; omitted paid defaults to total; card is always exact
+ok 9 - SALE-3: cash paid >= total is stored; omitted paid defaults to total; card is always exact
+  ---
+  duration_ms: 7.699361
+  ...
+# Subtest: SALE-6: creating a product with an existing active barcode is rejected with 409
+ok 10 - SALE-6: creating a product with an existing active barcode is rejected with 409
+  ---
+  duration_ms: 5.350098
+  ...
+# Subtest: SALE-6: unique barcodes are accepted; a deactivated product frees its barcode
+ok 11 - SALE-6: unique barcodes are accepted; a deactivated product frees its barcode
+  ---
+  duration_ms: 8.141161
+  ...
+# Subtest: SHIFT-2: a partial cash return during the shift is deducted from expected cash
+ok 12 - SHIFT-2: a partial cash return during the shift is deducted from expected cash
+  ---
+  duration_ms: 9.835215
+  ...
+# Subtest: SHIFT-2: discounted sale returned in two steps nets to zero cash; card refunds do not touch the drawer
+ok 13 - SHIFT-2: discounted sale returned in two steps nets to zero cash; card refunds do not touch the drawer
+  ---
+  duration_ms: 14.150207
+  ...
+# Subtest: RESET-2: the resetting manager and other users keep valid sessions after reset
+ok 14 - RESET-2: the resetting manager and other users keep valid sessions after reset
+  ---
+  duration_ms: 9.583056
+  ...
+# Subtest: RESET-2: demo user ids are deterministic across resets
+ok 15 - RESET-2: demo user ids are deterministic across resets
+  ---
+  duration_ms: 8.089552
+  ...
+# Subtest: SEED-1: seeded demo sales are never timestamped in the future
+ok 16 - SEED-1: seeded demo sales are never timestamped in the future
+  ---
+  duration_ms: 6.686399
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 314.004146
+################ exit=0
+
+################ $ OUT=/tmp/parity-int bash /home/user/deliverables/parity/run-parity.sh /home/user/repos/nilesys
+repo=b25cb65 old=099dc14 new=b25cb65 out=/tmp/parity-int
+
+ID        | v2 @ old         | v2 @ new         | v3 @ old         | v3 @ new        
+          | verdict/outcome  | verdict/outcome  | verdict/outcome  | verdict/outcome 
+AUTH-1    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+AUTH-2    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+AUTH-3    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+AUTH-4    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+PERM-1    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+PERM-2    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+PERM-3    | FAIL/ok          | FAIL/ok          | FAIL/not_ok      | PASS/ok         
+PERSIST-1 | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+RESET-1   | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+RESET-2   | FAIL/not_ok      | PASS/ok          | FAIL/not_ok      | PASS/ok         
+RESET-3   | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+RET-1     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+RET-2     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+RET-3     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+RET-4     | PASS/not_ok      | PASS/not_ok      | PASS/ok          | PASS/ok         
+SALE-1    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SALE-2    | FAIL/ok          | PASS/not_ok      | FAIL/not_ok      | PASS/ok         
+SALE-3    | FAIL/ok          | —/not_ok       | FAIL/not_ok      | PASS/ok         
+SALE-4    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SALE-5    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SALE-6    | FAIL/ok          | PASS/not_ok      | FAIL/not_ok      | PASS/ok         
+SALE-7    | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SEC-1     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SEC-2     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SETUP     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SHIFT-1   | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+SHIFT-2   | FAIL/not_ok      | PASS/ok          | FAIL/not_ok      | PASS/ok         
+SHIFT-3   | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+VAL-1     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+VAL-2     | PASS/ok          | PASS/ok          | PASS/ok          | PASS/ok         
+v2-old: verdict PASS=24 FAIL=6 | node:test ok=27 not_ok=3
+v2-new: verdict PASS=28 FAIL=1 | node:test ok=26 not_ok=4
+v3-old: verdict PASS=24 FAIL=6 | node:test ok=24 not_ok=6
+v3-new: verdict PASS=30 FAIL=0 | node:test ok=30 not_ok=0
+regression @ old: # pass 2 # fail 14 
+   not ok 1 - PERM-3: HR employee cannot read POS products, create POS sales, or read POS reports
+   not ok 2 - PERM-3: a manager of another system is not a POS manager
+   not ok 4 - SALE-2: selling more than stock is rejected with 409 and stock is unchanged
+   not ok 5 - SALE-2: repeated lines of the same product are aggregated before the stock check
+   not ok 6 - SALE-2: selling exactly the remaining stock is allowed and leaves stock at 0
+   not ok 7 - SALE-2: concurrent sales never oversell (sum of accepted qty == stock consumed)
+   not ok 8 - SALE-3: cash paid below total is rejected with 400 and stock is unchanged
+   not ok 9 - SALE-3: cash paid >= total is stored; omitted paid defaults to total; card is always exact
+   not ok 10 - SALE-6: creating a product with an existing active barcode is rejected with 409
+   not ok 12 - SHIFT-2: a partial cash return during the shift is deducted from expected cash
+   not ok 13 - SHIFT-2: discounted sale returned in two steps nets to zero cash; card refunds do not touch the drawer
+   not ok 14 - RESET-2: the resetting manager and other users keep valid sessions after reset
+   not ok 15 - RESET-2: demo user ids are deterministic across resets
+   not ok 16 - SEED-1: seeded demo sales are never timestamped in the future
+regression @ new: # pass 16 # fail 0 
+logs: /tmp/parity-int
+################ exit=0
+
+################ $ psql -At postgres://postgres@127.0.0.1:5471/postgres -c "select count(*) as leftover_nile_dbs from pg_database where datname like 'nile_%'"
+0
+################ exit=0

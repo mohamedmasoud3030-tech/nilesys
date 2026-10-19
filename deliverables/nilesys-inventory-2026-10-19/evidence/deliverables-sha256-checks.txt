@@ -1,0 +1,6 @@
+./integration-probes: entries=5 not_ok=0
+./integration-probes/mission11-payment-mismatch: entries=11 not_ok=0
+./integration-probes/mission9-verify: entries=35 not_ok=0
+./integration-probes/mission9-refund: entries=7 not_ok=0
+./integration-probes/mission9: entries=12 not_ok=0
+./integration-probes/mission9-refund-review: entries=6 not_ok=0

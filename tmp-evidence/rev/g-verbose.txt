@@ -1,0 +1,18 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/home/user/repos/nilesys[39m
+
+(node:6732) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m engines/transactions/test/refund-concurrency.pg.test.ts[2m > [22mconcurrent refunds of one sale (real PostgreSQL)[2m > [22mA: card + card — the same unit refunded through both payments at once is refunded once (x20)[33m 636[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/refund-concurrency.pg.test.ts[2m > [22mconcurrent refunds of one sale (real PostgreSQL)[2m > [22mB: card + cash — different methods (and different locks) still refund the unit once (x20)[33m 389[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/refund-concurrency.pg.test.ts[2m > [22mconcurrent refunds of one sale (real PostgreSQL)[2m > [22mC: the same refund request sent three times at once is recorded once and replayed twice[32m 17[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/refund-concurrency.pg.test.ts[2m > [22mconcurrent refunds of one sale (real PostgreSQL)[2m > [22mD: refunds that fit are not blocked — 2 units sold, one refunded through each payment at once[32m 19[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/refund-concurrency.pg.test.ts[2m > [22mconcurrent refunds of one sale (real PostgreSQL)[2m > [22mE: four concurrent refunds of 1 unit through one payment, 2 units sold — exactly two succeed[32m 21[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/refund-concurrency.pg.test.ts[2m > [22mconcurrent refunds of one sale (real PostgreSQL)[2m > [22mF: sequential limits are unchanged — amount above the payment, quantity after a full refund[32m 18[2mms[22m[39m
+ [32m✓[39m engines/transactions/test/refund-concurrency.pg.test.ts[2m > [22mconcurrent refunds of one sale (real PostgreSQL)[2m > [22mG: a payment that belongs to another sale is refused and writes nothing — no refund, stock or cash change[32m 30[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m   Start at [22m 09:12:03
+[2m   Duration [22m 1.76s[2m (transform 186ms, setup 0ms, import 334ms, tests 1.31s, environment 0ms)[22m
+

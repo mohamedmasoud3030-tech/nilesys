@@ -1,0 +1,277 @@
+# Nilesys CI — PROPOSAL (not committed, not pushed). Target path: .github/workflows/ci.yml
+#
+# Design rules
+# - Read-only token (permissions: contents: read). No repository secrets are used.
+# - Every database is an ephemeral service container on the runner; nothing ever
+#   connects to Supabase, Vercel or any shared/production database.
+# - Third-party actions are pinned to a full commit SHA (tag in the comment).
+# - Workflow expressions are passed to shell steps through env:, never interpolated
+#   into scripts (prevents script injection from branch names / PR titles).
+# - Tests that skip are never counted as passed: the PostgreSQL job fails if any
+#   test is skipped or if the run is not 100 % passed.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'integration/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NO_COLOR: '1'
+  FORCE_COLOR: '0'
+  npm_config_fund: 'false'
+  npm_config_audit: 'false'
+
+jobs:
+  # 1 — static checks + unit/integration tests on PGlite, per Node version.
+  static:
+    name: static & unit (Node ${{ matrix.node }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { node: '22', experimental: false } # active choice: Node 20 reached EOL 2026-04-30
+          - { node: '20', experimental: false } # still allowed by package.json "engines": ">=20"
+          - { node: '24', experimental: true }  # locally: vitest workers killed (SIGKILL) on PGlite files — unconfirmed, see report
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Single lockfile (npm, per AGENTS.md)
+        run: |
+          test -f package-lock.json || { echo "::error::package-lock.json missing"; exit 1; }
+          for f in pnpm-lock.yaml yarn.lock bun.lockb; do
+            if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then echo "::error::$f is tracked; this repo uses npm"; exit 1; fi
+          done
+      - name: Install (exactly the lockfile)
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit and integration tests (PGlite; *.pg.test.ts skip here and run in the postgres job)
+        run: npm test
+      - name: Offerings registry
+        run: |
+          npx vitest run --config tools/nile-offerings/vitest.config.ts
+          npx tsc -p tools/nile-offerings/tsconfig.json
+      - name: Drizzle snapshots and journal are consistent
+        run: npx drizzle-kit check
+      - name: Drizzle schema has no ungenerated changes
+        run: |
+          npx drizzle-kit generate
+          if [ -n "$(git status --porcelain -- engines/db/migrations)" ]; then
+            git status --porcelain -- engines/db/migrations
+            echo "::error::schema.ts differs from the committed migrations; run npm run db:generate and commit"; exit 1
+          fi
+      - name: Prototype regression tests
+        working-directory: prototypes/nilesys
+        run: node --test tests/regression.test.js
+      - name: Africa/Cairo tz data in Node ICU (2026 DST)
+        run: |
+          node -e '
+            const f = (iso) => new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Cairo", timeZoneName: "shortOffset" }).formatToParts(new Date(iso)).find((p) => p.type === "timeZoneName").value;
+            const s = f("2026-07-15T12:00:00Z"), w = f("2026-12-15T12:00:00Z");
+            console.log("summer", s, "winter", w);
+            if (s !== "GMT+3" || w !== "GMT+2") { console.error("::error::Node ICU tz data does not know Egypt 2026 DST"); process.exit(1); }'
+
+  # 2 — the full suite against real PostgreSQL (the PGlite runs are not a substitute).
+  postgres:
+    name: real PostgreSQL ${{ matrix.pg }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { pg: '17', experimental: false } # planned production: Supabase PostgreSQL 17
+          - { pg: '18', experimental: true }  # used by the 2026-10-14 security reviews; not yet verified on this branch
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}
+        env:
+          POSTGRES_PASSWORD: ci-throwaway-not-a-secret # container lives only for this job, bound to the runner
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      NILE_TEST_PG_ADMIN_URL: postgres://postgres:ci-throwaway-not-a-secret@127.0.0.1:5432/postgres
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Server facts
+        run: |
+          psql "$NILE_TEST_PG_ADMIN_URL" -Atc "select version()"
+          test "$(psql "$NILE_TEST_PG_ADMIN_URL" -Atc "select count(*) from pg_timezone_names where name='Africa/Cairo'")" = 1
+      - name: Full suite on real PostgreSQL (fails on any skip)
+        run: |
+          npx vitest run --reporter=default --reporter=json --outputFile=vitest-pg.json
+          node -e '
+            const r = require("./vitest-pg.json");
+            const bad = r.testResults.flatMap((f) => f.assertionResults.filter((a) => a.status !== "passed").map((a) => `${a.status}: ${f.name.replace(process.cwd() + "/", "")} > ${a.fullName}`));
+            console.log(`total=${r.numTotalTests} passed=${r.numPassedTests} failed=${r.numFailedTests} skipped=${r.numPendingTests + r.numTodoTests}`);
+            const pg = r.testResults.filter((f) => /\.pg\.test\.ts$/.test(f.name));
+            console.log(`real-PG files=${pg.length} tests=${pg.reduce((n, f) => n + f.assertionResults.length, 0)}`);
+            if (bad.length || r.numPassedTests !== r.numTotalTests || pg.length === 0) { bad.forEach((b) => console.error(b)); console.error("::error::not every test ran and passed on real PostgreSQL"); process.exit(1); }'
+      - name: Shift-close race, repeated
+        run: |
+          for i in 1 2 3; do npx vitest run engines/transactions/test/shift-close-race.pg.test.ts; done
+      - name: No leftover test databases
+        run: test "$(psql "$NILE_TEST_PG_ADMIN_URL" -Atc "select count(*) from pg_database where datname like 'nile_%'")" = 0
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vitest-pg-${{ matrix.pg }}
+          path: vitest-pg.json
+          retention-days: 14
+
+  # 3 — boot the real API against PostgreSQL with production-shaped roles and smoke it over HTTP.
+  api-smoke:
+    name: API boot + HTTP smoke (PostgreSQL 17)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci-throwaway-not-a-secret
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      PG_ADMIN: postgres://postgres:ci-throwaway-not-a-secret@127.0.0.1:5432/postgres
+      PORT: '3300'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Production-shaped roles (non-superuser owner, NOBYPASSRLS runtime login in nile_app)
+        run: |
+          PW="$(openssl rand -hex 16)"; echo "::add-mask::$PW"
+          psql "$PG_ADMIN" -v ON_ERROR_STOP=1 -q \
+            -c "CREATE ROLE nile_app NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE" \
+            -c "CREATE ROLE ci_owner LOGIN CREATEROLE NOSUPERUSER PASSWORD '$PW'" \
+            -c "CREATE ROLE ci_app LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD '$PW'" \
+            -c "GRANT nile_app TO ci_app" \
+            -c "CREATE DATABASE nile_ci OWNER ci_owner"
+          echo "DATABASE_URL=postgres://ci_app:$PW@127.0.0.1:5432/nile_ci" >> "$GITHUB_ENV"
+          echo "MIGRATION_DATABASE_URL=postgres://ci_owner:$PW@127.0.0.1:5432/nile_ci" >> "$GITHUB_ENV"
+      - name: Production mode refuses to start without BETTER_AUTH_SECRET
+        run: |
+          if NODE_ENV=production DATABASE_URL= MIGRATION_DATABASE_URL= timeout 60 npx tsx apps/api/src/main.ts > guard.log 2>&1; then
+            echo "::error::server started in production without a secret"; exit 1; fi
+          grep -q "BETTER_AUTH_SECRET is required in production" guard.log
+      - name: Start API (migrates as owner, runs as nile_app)
+        run: |
+          nohup npx tsx apps/api/src/main.ts > api.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS "http://127.0.0.1:$PORT/api/health"
+          grep -q "db=postgres" api.log
+      - name: Unauthenticated access is refused
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/api/v1/reports/daily?from=2026-01-01&to=2026-01-01")" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -d '{}' "http://127.0.0.1:$PORT/api/v1/checkout")" = 401
+      - name: Smoke (login → catalog → sale → receipt)
+        run: npm run api:smoke
+        env:
+          API_URL: http://127.0.0.1:3300
+      - name: POS flow over HTTP (shift → split cash → replay → close → late sale refused)
+        run: |
+          cat > pos-flow.mjs <<'EOF'
+          const API = `http://127.0.0.1:${process.env.PORT}`; const jar = {};
+          async function call(who, method, path, body) {
+            const res = await fetch(API + path, { method, headers: { origin: API, ...(body ? { 'content-type': 'application/json' } : {}), ...(jar[who] ? { cookie: jar[who] } : {}) }, body: body ? JSON.stringify(body) : undefined });
+            const set = res.headers.getSetCookie(); if (set.length) jar[who] = set.map((c) => c.split(';')[0]).join('; ');
+            const t = await res.text(); return { status: res.status, body: t ? JSON.parse(t) : null };
+          }
+          await call('c', 'POST', '/api/auth/sign-in/email', { email: 'cashier@nile.demo', password: 'demo1234' });
+          await call('m', 'POST', '/api/auth/sign-in/email', { email: 'pos-manager@nile.demo', password: 'demo1234' });
+          const wtr = (await call('c', 'GET', '/api/v1/catalog/items')).body.items.flatMap((i) => i.variants).find((v) => v.sku === 'WTR-600').id;
+          const s = await call('c', 'POST', '/api/v1/shifts', { registerCode: 'ci', openingMinor: 10000, idempotencyKey: 'ci-shift-0001' });
+          const body = { idempotencyKey: 'ci-split-0001', shiftId: s.body.shift.id, lines: [{ variantId: wtr, quantity: '1' }], tenders: [{ method: 'cash', amountMinor: 375 }, { method: 'cash', amountMinor: 375 }] };
+          const c1 = await call('c', 'POST', '/api/v1/checkout', body), c2 = await call('c', 'POST', '/api/v1/checkout', body);
+          const cl = await call('m', 'POST', `/api/v1/shifts/${s.body.shift.id}/close`, { countedMinor: 10750 });
+          const late = await call('c', 'POST', '/api/v1/checkout', { ...body, idempotencyKey: 'ci-late-0001' });
+          const got = [s.status, c1.status, c2.status, c2.body?.replayed, cl.status, cl.body?.closure?.expectedMinor, cl.body?.closure?.differenceMinor, late.status];
+          console.log(JSON.stringify(got));
+          if (JSON.stringify(got) !== JSON.stringify([201, 201, 200, true, 201, 10750, 0, 409])) process.exit(1);
+          EOF
+          node pos-flow.mjs
+      - if: always()
+        name: API log
+        run: cat api.log || true
+
+  # 4 — supply chain, secrets and the workflow itself.
+  security:
+    name: security
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # full history for the secret scan
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: npm audit (fail on high/critical)
+        # Known: 4 moderate via drizzle-kit → @esbuild-kit → esbuild <=0.24.2 (GHSA-67mh-4wv8-2f99, dev-server only).
+        run: npm audit --audit-level=high
+      - name: npm registry signatures
+        run: npm audit signatures
+      - name: gitleaks (full history, checksum-verified binary)
+        env:
+          GL_VERSION: 8.30.1
+        run: |
+          curl -sSL -o gl.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GL_VERSION}/gitleaks_${GL_VERSION}_linux_x64.tar.gz"
+          curl -sSL -o gl.sums "https://github.com/gitleaks/gitleaks/releases/download/v${GL_VERSION}/gitleaks_${GL_VERSION}_checksums.txt"
+          grep "_linux_x64.tar.gz" gl.sums | awk '{print $1"  gl.tgz"}' | sha256sum -c -
+          tar xzf gl.tgz gitleaks
+          # Needs .gitleaks.toml in the repo (proposal in deliverables/ci/gitleaks.toml) — test fixtures otherwise trip generic-api-key.
+          ./gitleaks git --no-banner --redact --config .gitleaks.toml .
+      - name: actionlint
+        env:
+          AL_VERSION: 1.7.12
+        run: |
+          curl -sSL -o al.tgz "https://github.com/rhysd/actionlint/releases/download/v${AL_VERSION}/actionlint_${AL_VERSION}_linux_amd64.tar.gz"
+          curl -sSL -o al.sums "https://github.com/rhysd/actionlint/releases/download/v${AL_VERSION}/actionlint_${AL_VERSION}_checksums.txt"
+          grep "_linux_amd64.tar.gz" al.sums | awk '{print $1"  al.tgz"}' | sha256sum -c -
+          tar xzf al.tgz actionlint
+          ./actionlint -color=false
+
+  dependency-review:
+    name: dependency review (PRs)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high

@@ -1,0 +1,35 @@
+From b0c17fc7dcb3db79119da813dfe1823e0549c979 Mon Sep 17 00:00:00 2001
+From: LENA parallel agent <lena-parallel-agent@users.noreply.local>
+Date: Sun, 18 Oct 2026 07:51:37 +0000
+Subject: [PATCH 1/5] fix(prototype): scope prototypes/nilesys as CommonJS so
+ it runs again
+
+The root package.json declares "type": "module", so `node server.js` and
+`node --test tests/review.test.js` both died with
+'ReferenceError: require is not defined in ES module scope'. The README's
+documented run command did not work on main.
+
+A nested package.json with "type": "commonjs" restores both, with no change to
+any prototype source file. Verified 2026-10-18: home 200, /systems/pos.html 200,
+review suite runs 27 cases and reproduces the 6 defects listed in REVIEW.md
+(PERM-3, SALE-2, SALE-3, SALE-6, SHIFT-2, RESET-2). Prototype stays HISTORICAL.
+---
+ prototypes/nilesys/package.json | 6 ++++++
+ 1 file changed, 6 insertions(+)
+ create mode 100644 prototypes/nilesys/package.json
+
+diff --git a/prototypes/nilesys/package.json b/prototypes/nilesys/package.json
+new file mode 100644
+index 0000000..789041d
+--- /dev/null
++++ b/prototypes/nilesys/package.json
+@@ -0,0 +1,6 @@
++{
++  "name": "nilesys-prototype",
++  "private": true,
++  "description": "HISTORICAL plain-Node prototype. CommonJS scope so `node server.js` and its node:test suite run under the repository root's \"type\": \"module\".",
++  "type": "commonjs"
++}
+-- 
+2.47.3
+

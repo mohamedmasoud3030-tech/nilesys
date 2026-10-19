@@ -1,0 +1,238 @@
+From 099dc1431a43e18abac88f8f33b5645a9001f611 Mon Sep 17 00:00:00 2001
+From: LENA parallel agent <lena-parallel-agent@users.noreply.local>
+Date: Sun, 18 Oct 2026 08:01:52 +0000
+Subject: [PATCH 5/5] chore(tools): registry reflects the admin lead and people
+ service layers
+
+system:admin and system:hr move to in-progress (owner: parallel-agent) with
+their service files as evidence; next steps now point at API exposure and the
+tenant-resolution decision. New rule: every in-progress claim must cite an
+engines/ or apps/ file. No destination added; cards stay 'In development',
+never 'Available'. 17/17.
+---
+ tools/nile-offerings/README.md         |  6 ++--
+ tools/nile-offerings/offerings.test.ts | 25 ++++++++++----
+ tools/nile-offerings/offerings.ts      | 45 +++++++++++++-------------
+ 3 files changed, 45 insertions(+), 31 deletions(-)
+
+diff --git a/tools/nile-offerings/README.md b/tools/nile-offerings/README.md
+index 6f071c2..af8f9de 100644
+--- a/tools/nile-offerings/README.md
++++ b/tools/nile-offerings/README.md
+@@ -9,7 +9,7 @@ label: **Available to try** only with a verified HTTP-200 destination, **In deve
+ on the production path, otherwise **Planned**.
+ 
+ ```bash
+-npx vitest run --config tools/nile-offerings/vitest.config.ts   # 16 tests
++npx vitest run --config tools/nile-offerings/vitest.config.ts   # 17 tests
+ npx tsc -p tools/nile-offerings/tsconfig.json --noEmit
+ ```
+ 
+@@ -24,7 +24,9 @@ owner-approved change.
+ - System ids match `DEMO_ACCOUNTS` in the platform engine. Site ids match `LeadSource` in the catalog
+   engine. Both are also enforced at compile time through `SystemId` / `SiteId`.
+ - Every evidence and engine path exists.
+-- Only `system:pos` is in progress (owner: primary agent). Only POS has a working legacy screen.
++- Only `system:pos` (primary agent) and the `system:admin` / `system:hr` service layers (parallel agent)
++  are in progress, and each in-progress claim must cite a file under `engines/` or `apps/`. Only POS has
++  a working legacy screen.
+ - No destination exists without HTTP 200 evidence. None is verified today: `nilesys.vercel.app` returns
+   404 `NOT_FOUND`.
+ - Windows entries carry no size, OS, trial or download facts. The two unverified claims in the prototype
+diff --git a/tools/nile-offerings/offerings.test.ts b/tools/nile-offerings/offerings.test.ts
+index 3ed889b..2be382f 100644
+--- a/tools/nile-offerings/offerings.test.ts
++++ b/tools/nile-offerings/offerings.test.ts
+@@ -88,11 +88,20 @@ describe('registry cannot drift from repository evidence', () => {
+ });
+ 
+ describe('status honesty rules', () => {
+-  it('only POS (owned by the primary agent) is in progress; every other offering is not started', () => {
++  it('only POS (primary agent) and the admin/HR service layers (parallel agent) are in progress', () => {
+     const inProgress = ALL_OFFERINGS.filter((o) => o.production === 'in-progress').map((o) => `${o.kind}:${o.id}`);
+-    expect(inProgress).toEqual(['system:pos']);
++    expect(inProgress).toEqual(['system:pos', 'system:hr', 'system:admin']);
+     expect(findOffering('system', 'pos')?.owner).toBe('primary-agent');
+-    for (const o of ALL_OFFERINGS) if (o.production === 'in-progress') expect(o.owner).toBe('primary-agent');
++    for (const o of ALL_OFFERINGS) {
++      if (o.production === 'in-progress') expect(o.owner).not.toBe('unassigned');
++      else expect(o.owner).toBe('unassigned');
++    }
++  });
++
++  it('an in-progress claim cites at least one production-path file (engines/ or apps/) as evidence', () => {
++    for (const o of ALL_OFFERINGS.filter((x) => x.production === 'in-progress')) {
++      expect(o.evidence.some((p) => /^(engines|apps)\//.test(p)), `${o.kind}:${o.id}`).toBe(true);
++    }
+   });
+ 
+   it('only POS has a working legacy prototype screen, and that screen exists', () => {
+@@ -132,10 +141,12 @@ describe('status honesty rules', () => {
+ describe('cardStatus', () => {
+   const fake = (patch: Partial<Offering>): Offering => ({ ...(SITES[0] as Offering), ...patch });
+ 
+-  it('renders POS as in development and everything else as planned, with no link', () => {
+-    expect(cardStatus(findOffering('system', 'pos')!, 'en')).toEqual({ tone: 'building', label: 'In development', href: null });
+-    expect(cardStatus(findOffering('system', 'pos')!, 'ar').label).toBe('قيد التنفيذ');
+-    for (const o of ALL_OFFERINGS.filter((x) => !(x.kind === 'system' && x.id === 'pos'))) {
++  it('renders in-progress systems as in development and everything else as planned, with no link', () => {
++    for (const id of ['pos', 'hr', 'admin']) {
++      expect(cardStatus(findOffering('system', id)!, 'en')).toEqual({ tone: 'building', label: 'In development', href: null });
++      expect(cardStatus(findOffering('system', id)!, 'ar').label).toBe('قيد التنفيذ');
++    }
++    for (const o of ALL_OFFERINGS.filter((x) => !(x.kind === 'system' && ['pos', 'hr', 'admin'].includes(x.id)))) {
+       expect(cardStatus(o, 'en'), `${o.kind}:${o.id}`).toEqual({ tone: 'planned', label: 'Planned', href: null });
+       expect(cardStatus(o, 'ar').label).toBe('مخطط');
+     }
+diff --git a/tools/nile-offerings/offerings.ts b/tools/nile-offerings/offerings.ts
+index 456a402..8c84d2e 100644
+--- a/tools/nile-offerings/offerings.ts
++++ b/tools/nile-offerings/offerings.ts
+@@ -18,7 +18,7 @@
+  * STATUS VOCABULARY (two independent axes — never merge them)
+  *   production: is anything being built on the production path
+  *               (engines/ + apps/api, ADR-0001..0007)?
+- *     'in-progress'  — commits exist on main or a published branch for THIS offering.
++ *     'in-progress'  — offering-specific production code exists in the tree this file ships in.
+  *     'not-started'  — no offering-specific production code. Reusable engine code
+  *                      may exist (listed under `engines`) but is not the offering.
+  *   prototype:  what the HISTORICAL plain-Node prototype provides.
+@@ -81,7 +81,7 @@ export interface Offering {
+   production: ProductionStatus;
+   prototype: PrototypeStatus;
+   /** Who is allowed to change implementation for this offering right now. */
+-  owner: 'primary-agent' | 'unassigned';
++  owner: 'primary-agent' | 'parallel-agent' | 'unassigned';
+   destination: VerifiedDestination | null;
+   /** In-repo files that prove the stated status. */
+   evidence: readonly RepoPath[];
+@@ -222,11 +222,11 @@ export const SYSTEMS = [
+     id: 'hr',
+     name: { ar: 'الموارد البشرية والمرتبات', en: 'HR & Payroll' },
+     purpose: 'Employees, attendance with lateness/overtime, leaves, advances, payroll slips.',
+-    production: 'not-started',
++    production: 'in-progress',
+     prototype: 'card-only',
+-    owner: 'unassigned',
++    owner: 'parallel-agent',
+     destination: null,
+-    evidence: [PROTOTYPE_HOME, DEMO_SEED, 'engines/people/test/people.test.ts'],
++    evidence: [PROTOTYPE_HOME, DEMO_SEED, 'engines/people/test/people.test.ts', 'engines/people/src/people-service.ts', 'engines/people/test/people-service.test.ts'],
+     engines: [
+       { path: 'engines/people/src/attendance.ts', provides: 'work hours, lateness and overtime minutes' },
+       { path: 'engines/people/src/payroll.ts', provides: 'leave balances, loan schedules, payslips' },
+@@ -235,29 +235,30 @@ export const SYSTEMS = [
+     legacyAssets: [
+       { repo: 'larabeauty-', path: 'src/domain/attendance.ts', note: 'source of the people engine (see docs/REUSE.md)' },
+     ],
+-    mustNotClaim: [NO_LIVE_DEMO],
+-    nextStep: 'Add a tenant-scoped people service (record attendance → payslip) with PGlite tests, mirroring sale-service.ts; no UI.',
+-    blockedBy: null,
++    mustNotClaim: [NO_LIVE_DEMO, 'an HR API or screen (service layer only)', 'stored payroll runs or automatic loan deduction (payslips are computed, not persisted)'],
++    nextStep: 'Expose the people service through apps/api (employee:manage, attendance:record/read) with an e2e test, once routing changes are coordinated with the POS/payments work.',
++    blockedBy: 'apps/api routing is shared with the primary agent\'s payments API.',
+   },
+   {
+     kind: 'system',
+     id: 'admin',
+     name: { ar: 'لوحة تحكم المواقع', en: 'Websites Control Panel' },
+     purpose: 'One back office for all 7 sites: units, gym plans, customer requests inbox, site copy.',
+-    production: 'not-started',
++    production: 'in-progress',
+     prototype: 'card-only',
+-    owner: 'unassigned',
++    owner: 'parallel-agent',
+     destination: null,
+-    evidence: [PROTOTYPE_HOME, DEMO_SEED],
++    evidence: [PROTOTYPE_HOME, DEMO_SEED, 'engines/catalog/src/lead-service.ts', 'engines/catalog/test/lead-service.test.ts'],
+     engines: [
+       { path: 'engines/catalog/src/catalog.ts', provides: 'lead pipeline: all 7 site sources → one inbox, stage transitions' },
++      { path: 'engines/catalog/src/lead-service.ts', provides: 'tenant-scoped captureLead / listLeads / moveLead' },
+     ],
+     legacyAssets: [
+       { repo: 'platform', path: 'artifacts/api-server/src/trpc/routers/inquiries.ts', note: 'LENA inquiry inbox with rate limiting and admin CRUD — the closest working pattern' },
+     ],
+-    mustNotClaim: [NO_LIVE_DEMO],
+-    nextStep: 'Add a lead-capture service over the existing Lead/LeadStage contract (one POST, one list), tested; this unblocks every site form.',
+-    blockedBy: null,
++    mustNotClaim: [NO_LIVE_DEMO, 'a public lead form or admin inbox screen (service layer only)'],
++    nextStep: 'Expose lead capture through apps/api: authenticated list/move (lead:read/manage) plus a public POST whose tenant comes from server-side site config.',
++    blockedBy: 'Owner decision: how an anonymous public site resolves its tenant; edge rate limiting. apps/api routing is shared with the payments work.',
+   },
+ ] as const satisfies readonly (Offering & { id: SystemId })[];
+ 
+@@ -273,7 +274,7 @@ const siteBase = {
+   destination: null,
+ } as const;
+ 
+-const SITE_NEXT = 'Blocked on the admin lead-capture service; then one static page whose single form posts a lead.';
++const SITE_NEXT = 'Once the admin lead API is exposed: one static page whose single form posts a lead.';
+ 
+ export const SITES = [
+   {
+@@ -286,7 +287,7 @@ export const SITES = [
+     legacyAssets: [],
+     mustNotClaim: [NO_LIVE_DEMO, 'instant confirmed booking'],
+     nextStep: SITE_NEXT,
+-    blockedBy: 'admin lead-capture service; courts booking service (G-10).',
++    blockedBy: 'public lead API; courts booking service (G-10).',
+   },
+   {
+     ...siteBase,
+@@ -298,7 +299,7 @@ export const SITES = [
+     legacyAssets: [],
+     mustNotClaim: [NO_LIVE_DEMO, 'live order tracking'],
+     nextStep: SITE_NEXT,
+-    blockedBy: 'admin lead-capture service.',
++    blockedBy: 'public lead API (tenant resolution decision).',
+   },
+   {
+     ...siteBase,
+@@ -310,7 +311,7 @@ export const SITES = [
+     legacyAssets: [],
+     mustNotClaim: [NO_LIVE_DEMO],
+     nextStep: SITE_NEXT,
+-    blockedBy: 'admin lead-capture service; booking service (G-10).',
++    blockedBy: 'public lead API; booking service (G-10).',
+   },
+   {
+     ...siteBase,
+@@ -324,7 +325,7 @@ export const SITES = [
+     ],
+     mustNotClaim: [NO_LIVE_DEMO, 'that MALEK is this website'],
+     nextStep: SITE_NEXT,
+-    blockedBy: 'admin lead-capture service.',
++    blockedBy: 'public lead API (tenant resolution decision).',
+   },
+   {
+     ...siteBase,
+@@ -336,7 +337,7 @@ export const SITES = [
+     legacyAssets: [],
+     mustNotClaim: [NO_LIVE_DEMO],
+     nextStep: SITE_NEXT,
+-    blockedBy: 'admin lead-capture service.',
++    blockedBy: 'public lead API (tenant resolution decision).',
+   },
+   {
+     ...siteBase,
+@@ -348,7 +349,7 @@ export const SITES = [
+     legacyAssets: [],
+     mustNotClaim: [NO_LIVE_DEMO, 'online checkout or payment'],
+     nextStep: SITE_NEXT,
+-    blockedBy: 'admin lead-capture service.',
++    blockedBy: 'public lead API (tenant resolution decision).',
+   },
+   {
+     ...siteBase,
+@@ -362,7 +363,7 @@ export const SITES = [
+     ],
+     mustNotClaim: [NO_LIVE_DEMO, 'online checkout or shipping'],
+     nextStep: SITE_NEXT,
+-    blockedBy: 'admin lead-capture service.',
++    blockedBy: 'public lead API (tenant resolution decision).',
+   },
+ ] as const satisfies readonly (Offering & { id: SiteId })[];
+ 
+-- 
+2.47.3
+
