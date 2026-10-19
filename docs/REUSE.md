@@ -40,6 +40,32 @@ not a company asset) and `Test` (457-line experiment with tracked ZIPs).
 | `engines/platform/src/branding.ts` | Nile benchmark feature "try it with your name" (visitor-local only) |
 | `engines/people/src/payroll.ts`, `engines/catalog/src/catalog.ts` (rest) | Domain rules from the Nile benchmark brief (HR tasks, variant stock states, installment calculators, lead pipeline) |
 
+## Related material outside this repository (read-only inventory, 2026-10-19)
+
+Every branch, all history and every PR title and body of the owner's other repositories were scanned for
+Nile. The search terms were `nilesys`, `nile`, `نايل` and the old repository name `Mohamed-App-Factory`.
+
+- **No Nile code exists anywhere else.** The hits were zero in file paths, file contents and commit messages
+  outside `platform`. In `bug-free-garbanzo` the only hits were the word «نايلون» (nylon, a scrap
+  material), which are false positives.
+- **`Mohamed-App-Factory` is this repository's former name.** GitHub redirects it here (same repository id).
+- **Source repositories are unchanged since extraction.** Each extracted file was compared with its source
+  after removing the provenance header. The only differences are that header, import paths, and the
+  documented adaptations. No source file listed above has a commit after 2026-10-13.
+- **Planning documents about Nile live in the private `platform` repository and stay there.** They are not
+  copied here, because this repository is public and they contain internal audit notes. Before acting on
+  any of them, check it against [`STATUS.md`](STATUS.md). Several figures in them are older than this
+  repository's state.
+
+  | `platform` ref | State (2026-10-19) | Content relevant to Nile |
+  |---|---|---|
+  | PR #98 `docs/session-handoff-2026-10-18` (`a54ed5f`) | open | `docs/handoff/*` (handoff, POS and Kayyal task lists, portfolio review) and `docs/ops-kit/*` (portfolio index, audit, templates) |
+  | PR #96 `docs/2026-10-15-portfolio-execution-baseline` (`db51d64`) | open | `docs/portfolio/EXECUTION_PLAN.md`: Platform is the gallery, and Nile holds the shared capabilities |
+  | PR #95 `docs/2026-10-15-autonomous-execution-protocol` (`f591750`) | open | Twin of this repository's PR #5 (see `STATUS.md` §3) |
+
+  Known inaccuracy in PR #98: `ops-kit/PORTFOLIO.md` labels this repository «Kayyal». Kayyal is the separate
+  product in `bug-free-garbanzo`. This repository only extracted Kayyal's calculation core (table above).
+
 ## Not yet extracted (next phases, in order)
 
 > Extraction history only. The canonical roadmap and task status is [`STATUS.md`](STATUS.md).

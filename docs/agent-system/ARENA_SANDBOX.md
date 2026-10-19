@@ -38,7 +38,7 @@ cd nilesys
 git remote get-url origin 2>/dev/null || git remote add origin https://github.com/mohamedmasoud3030-tech/nilesys.git
 git fetch origin --prune
 git checkout docs/unified-plan-2026-10-19   # until PRODUCT_PLAN/STATUS updates are merged; then use the base STATUS names
-npm ci                                  # npm only: never `corepack pnpm`, never `pnpm install` (D-H is open)
+npm ci                                  # npm only: never `corepack pnpm`, never `pnpm install` (ADR-0011: npm only)
 
 # Real PostgreSQL 17 (needed for every *.pg.test.ts; PGlite has one connection and cannot prove races)
 command -v /usr/lib/postgresql/17/bin/initdb || sudo apt-get install -y postgresql-17

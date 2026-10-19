@@ -16,8 +16,14 @@ Known gaps between accepted ADRs and the code are listed in [ARCHITECTURE.md](AR
 | [0008](adr/0008-build-vs-adopt-ledger-substrate.md) | Build vs. adopt: how the factory obtains its regulated core (ledger) | **Proposed** — awaiting Mohamed's decision | 2026-10-14 |
 | [0009](adr/0009-localization-arabic-rtl-first.md) | Arabic and RTL are first-class requirements; English remains the repository language | Accepted | 2026-10-13 |
 | [0010](adr/0010-engines-continue-behind-ledger-provider-port.md) | Engine development continues; accounting is reached only through a provider-neutral port | Accepted | 2026-10-14 |
+| [0011](adr/0011-repository-tooling-npm.md) | Repository tooling stays on npm; Nx + pnpm not adopted now (supersedes ADR-0001's workspace bullet only) | Accepted | 2026-10-19 |
+| [0012](adr/0012-nile-sites-live-in-nilesys.md) | Nile's marketing site and system sites live in this repository; Platform (LENA) links to them | Accepted | 2026-10-19 |
 
 ## Numbering notes
+
+- `adr/kayyal-core/0001…0012` are **reference copies of another product's decisions** (Kayyal, repository
+  `bug-free-garbanzo`). They are not this repository's ADRs and do not use its number space. See
+  [adr/kayyal-core/README.md](adr/kayyal-core/README.md).
 
 - ADR-0007 existed on `main` but was missing from this index; added on 2026-10-14.
 - ADR-0008 and ADR-0009 came from branch `arena/bfcb5ed1-mohamed-app-factory` (commit `e61cd06`).

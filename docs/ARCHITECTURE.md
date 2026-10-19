@@ -48,7 +48,7 @@ Append-only protection for the five ledger tables is **open on `main`** and fixe
 
 | ADR | Decision | Status | Known gap between the ADR and the code |
 | --- | --- | --- | --- |
-| 0001 | TypeScript modular monolith; NestJS/Fastify; Next.js; Nx + pnpm; PostgreSQL; boundaries enforced in CI | ACCEPTED | **Gap:** the workspace uses npm without Nx; there is no Next.js app and **no CI**, so boundaries are not mechanically enforced. Needs catch-up work or a superseding ADR |
+| 0001 | TypeScript modular monolith; NestJS/Fastify; Next.js; Nx + pnpm; PostgreSQL; boundaries enforced in CI | ACCEPTED | **Gap:** there is no Next.js app and **no CI**, so boundaries are not mechanically enforced. The Nx + pnpm part is superseded by [ADR-0011](adr/0011-repository-tooling-npm.md) (npm, 2026-10-19) |
 | 0002 | Multi-tenant from day one; shared PostgreSQL for Milestone 1; each vertical independently deployable | ACCEPTED | **Gap:** one `apps/api` serves all systems; there are no per-vertical apps. Needs a decision when the first product UI is built |
 | 0003 | Milestone 1 = Sales walking skeleton (auth, tenancy, customers, audit, migrations, design-system UI, tests, CI, boundaries) | ACCEPTED | **Gap:** no customer/party module, no design-system UI, no CI, no boundary enforcement. Auth, tenancy, audit, migrations and tests exist |
 | 0004 | Drizzle ORM + Drizzle Kit | ACCEPTED | none known |

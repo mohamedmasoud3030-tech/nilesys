@@ -1,5 +1,10 @@
 # Architecture Decision Records
 
+> **Reference copies, Nile status (added 2026-10-19).** These are the **Kayyal** product's ADRs, copied
+> from `bug-free-garbanzo` `docs/adr/`. Nile's extracted calculation code cites them. They are **not** Nile
+> ADRs. Nile's decisions are indexed in [`../../DECISIONS.md`](../../DECISIONS.md), and where the two
+> differ, Nile's win. References below to `docs/ARCHITECTURE.md` mean Kayyal's file, not Nile's.
+
 One record per decision that is important or expensive to reverse. Every ADR has: Context · Decision ·
 Alternatives rejected · Consequences · Reversibility · Security implications.
 

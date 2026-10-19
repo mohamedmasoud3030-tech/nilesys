@@ -23,7 +23,7 @@ Update it in the same change as anything that alters what is below. Do not creat
 | CI | **None on GitHub.** There is no `.github/workflows` file. A reviewed draft exists on branch `rescue/2026-10-19-workspace-archive`, at `deliverables/ci/nilesys-ci.yml` | repository tree |
 | Hosting | **UNRESOLVED (D5).** The Vercel project builds previews on every push, but `https://nilesys.vercel.app` returns 404 (there is no web app) | `curl` 2026-10-19 |
 | Production database | Not chosen. The target candidate is Supabase PostgreSQL 17 (conditionally viable, **not chosen**) | `docs/reviews/2026-10-14-supabase-feasibility.md` (branch `handoff/2026-10-14-evidence`) |
-| Toolchain | npm with `package-lock.json` v3, Node `>=20`. There is an untracked `pnpm-lock.yaml` in one sandbox; it is not committed and its future is D-H | `package.json`; `PRODUCT_PLAN.md` F0-10 |
+| Toolchain | npm with `package-lock.json` v3, Node `>=20`. **npm only ([ADR-0011](adr/0011-repository-tooling-npm.md), 2026-10-19).** `pnpm-lock.yaml` is git-ignored and is never committed or used. Copies on disk are not deleted | `package.json`; ADR-0011 |
 
 ### Verification evidence for the integration branch (local sandboxes only, never CI)
 
@@ -46,9 +46,9 @@ None of these results comes from GitHub Actions, staging or production.
 | `fix/nile-pool-error-listener` | `29390fa` | **CANDIDATE for N-1, not merged** | Task F0-5 |
 | `investigation/g7-runtime-role-boundary-incomplete` | `60342be` | **INCOMPLETE, not a fix** | See G-7a. The redesign is in `docs/reviews/2026-10-14-g7-redesign-design-review.md` (branch `handoff/2026-10-14-evidence`) |
 | `handoff/2026-10-14-evidence` | `315ebe7` | evidence, not merged | Supabase feasibility, G-7 redesign, publication audit, archived agent reports |
-| `docs/resolve-source-of-truth-citations` | `ac1f367` | not merged | `docs/FINANCIAL_RULES.md` and `docs/adr/kayyal-core/*` (source-repository decisions) |
+| `docs/resolve-source-of-truth-citations` | `ac1f367` | **docs commit taken** on `docs/unified-plan-2026-10-19` as `8523eae` (cherry-pick `-x`). Its parent `c489a23` (payments alternative) was **not** taken | `docs/FINANCIAL_RULES.md` (Kayyal v1.0 reference, Nile-status banner added) and `docs/adr/kayyal-core/*` |
 | `docs/skill-manifest-and-dead-refs` | `a8bbd9d` | not merged | — |
-| PR #5 `docs/2026-10-15-autonomous-execution-protocol` | `644f7f6` | **OPEN** | Autonomous execution protocol |
+| PR #5 `docs/2026-10-15-autonomous-execution-protocol` | `644f7f6` | OPEN. **Technical decision 2026-10-19: do not merge** (§3) | It replaces the current `AGENTS.md` with an older pre-cleanup version ("Mohamed App Factory") and adds an execution-first «FULL POWER MODE» protocol that conflicts with `AGENTS.md`'s owner rules. Superseded by `agent-system/ARENA_SANDBOX.md` and `owner/AGENT_PLAYBOOK_ar.md`. To close: tag `archive/…`, then close the PR. Owner approval needed for both. Its twin is `platform` PR #95 |
 | `rescue/2026-10-19-workspace-archive` | `27bf9b3` | **archive only; never merge** | Byte-identical copies of the sandbox's local reports, evidence, backups and the CI draft (290 files, `RESCUE_MANIFEST.tsv`) |
 | `arena/bfcb5ed1-mohamed-app-factory` | `e61cd06` | HISTORICAL | Odoo evaluation. Never merge it wholesale |
 | `arena/01a06b01-…`, `feat/nile-engines-v1`, `feat/nile-engines-wave2-db`, `feat/nile-e2e-auth-sale`, `fix/nile-gate-ledger-append-only-demo-lock`, `docs/source-of-truth-cleanup` | — | **MERGED IN `main`** | Deleting them needs the owner's approval |
@@ -64,15 +64,30 @@ None of these results comes from GitHub Actions, staging or production.
   - UPDATE stays allowed on leads and attendance.
   - LENA is the umbrella brand and Nile is integrated into it.
 - **PROPOSED:** ADR-0008; proposals 0002–0007; `PRODUCT_PLAN.md`.
-- **OPEN (owner):** D-A…D-H and D5, listed with options in [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) §10:
+- **ACCEPTED (technical, 2026-10-19).** The owner delegated technical decisions ("make the technical
+  decisions, without creating new repositories"):
+  - **D-H → npm** ([ADR-0011](adr/0011-repository-tooling-npm.md)). `pnpm-lock.yaml` is git-ignored, not deleted.
+  - **D-F → Nile sites live here** (`apps/marketing`, [ADR-0012](adr/0012-nile-sites-live-in-nilesys.md)).
+    The LENA site in `platform` only links to it.
+  - **No new repositories.** Archives stay in this repository as `archive/<branch>` tags plus
+    `rescue/2026-10-19-workspace-archive`. The proposed private `nilesys-archive` repository is dropped.
+  - **`platform` planning documents stay in `platform`.** They are not copied into this public
+    repository, which only indexes them ([`REUSE.md`](REUSE.md), "Related material outside this repository").
+  - **PR #5 is not merged** (superseded; see §2). The same recommendation applies to its `platform` twin, PR #95.
+  - **Kayyal reference rules are pinned to v1.0**, the version the code was extracted from. Kayyal v1.1 is
+    not imported (reasons in the `FINANCIAL_RULES.md` banner). Kayyal's boundary-hardening tests are
+    adopted (`kayyal-hardening.test.ts`, 9 tests).
+  - **Merge order for branch consolidation:** integration code first (task 5), then each money decision
+    (D-A…D-E) as its own small PR, then docs. Unique branches are resolved per §2; merged branches get an
+    `archive/<branch>` tag before any deletion. Every push, PR, merge, tag or deletion still needs
+    owner approval.
+- **OPEN (owner, business):** D-A…D-E, D-G and D5, listed with options in [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) §10:
   - D-A: payment model and the list of payment methods.
   - D-B: cash correction policy.
   - D-C: who may close a shift.
   - D-D: who may read the daily report.
   - D-E: definition of gross sales.
-  - D-F: where the marketing site lives.
   - D-G: product order.
-  - D-H: Nx + pnpm or npm.
   - D5: hosting.
 
   D2–D4 (ledger provider) remain open and block nothing in phases 0–2.
@@ -132,10 +147,10 @@ recorded in its PR description. Nothing is merged without the owner.
 | 5 | F0-4: open a PR from the integration branch (after #2 and #3) and request review | BLOCKED BY #2, #3 | The owner alone merges |
 | 6 | F0-5: N-1 pool `error` listener (rebase `29390fa` onto the then-current base), with a real-PostgreSQL test | PROPOSED, unblocked | — |
 | 7 | F0-6: G-7a redesign (closed-world allow-list) and its adversarial real-PostgreSQL matrix | WAITING ON OWNER (approve the redesign) | — |
-| 8 | F0-10 / D-H: Nx + pnpm or npm, decided by ADR **before** the first UI app | WAITING ON OWNER | Blocks #10 |
+| 8 | F0-10 / D-H: Nx + pnpm or npm | **DONE 2026-10-19: npm ([ADR-0011](adr/0011-repository-tooling-npm.md))** | — |
 | 9 | F0-7 / D5: disposable Supabase PG 17 project; read-only hosted checks; then staging | WAITING ON OWNER | Creating cloud resources needs approval |
 | 10 | Phase 1 APIs: POS-04 receipt, POS-05 sales list, POS-08 profit/top/hourly, POS-09 product writes, POS-10 branding, MKT-09 lead endpoint, POS-11 demo reset | BLOCKED BY #5 merged | One feature per PR, tests first |
-| 11 | Phase 1 UI: marketing site (MKT-*) and cashier (POS-*) on Next.js | BLOCKED BY #8, #10, D-F, and the UI blockers in §6 | — |
+| 11 | Phase 1 UI: marketing site (MKT-*, in `apps/marketing` here per [ADR-0012](adr/0012-nile-sites-live-in-nilesys.md)) and cashier (POS-*) on Next.js, in an npm workspace | BLOCKED BY #10 and the UI blockers in §6 | — |
 | 12 | Phase 1 acceptance (`PRODUCT_PLAN.md` §5.3) on staging; the owner tests it personally | BLOCKED BY #9, #11 | Owner sign-off |
 | 13 | Phase 2 design: purchase receipt contract over the shared stock-movement path; restaurant tables and kitchen domain | PROPOSED (design only; no code before Phase 1 acceptance) | — |
 | 14 | P4-1: tests for the remaining locked demo paths (change-email, delete-user) | PROPOSED, unblocked | — |
@@ -165,13 +180,13 @@ IDs:
 | P4-1 | — | Locked demo paths change-email and delete-user have no committed test (revoke-sessions is covered in `e2e-sale.test.ts`) | OPEN (task 14) |
 | P4-4 | — | Each new append-only table's migration must REVOKE UPDATE/DELETE from `nile_app` | Rule in `AGENTS.md` |
 | N-1 | Low | The runtime pool has no `error` listener, so an idle-connection kill crashes the API | OPEN. Candidate `29390fa` (task 6) |
-| DOC-1 | Low | `cash.ts` cites `docs/adr/0009-cash-reconciliation.md` and `money-by-currency.ts` cites `docs/OPEN_BUSINESS_DECISIONS.md`. Neither exists in this repository; they are source-repository citations (`docs/REUSE.md`) | OPEN (document) |
+| DOC-1 | Low | Extracted files cited source-repository documents that were missing here | Mostly FIXED on `docs/unified-plan-2026-10-19` (`8523eae`): `FINANCIAL_RULES.md` and `adr/kayyal-core/*` are present, with no dead `kayyal-core` link. Remaining: `money-by-currency.ts` mentions Terranex's `docs/OPEN_BUSINESS_DECISIONS.md` as a source-repo note (documented in `REUSE.md`) |
 | E-receipt | — | Egyptian B2C e-receipts never measured | OPEN (evaluation) |
 
 ## 7. Approvals required from the owner
 
 1. Approve or amend `PRODUCT_PLAN.md`. Once approved, mark it ACCEPTED and move it to tier 4 in `docs/README.md`.
-2. Decide D-A…D-E (task 1), then D-F, D-G, D-H and D5.
+2. Decide D-A…D-E (task 1), then D-G and D5. (D-F and D-H were decided technically on 2026-10-19.)
 3. Approve pushing the CI workflow (task 3).
 4. Approve the G-7a redesign (task 7).
 5. Later: review and merge the integration PR (task 5); delete merged branches if wanted.

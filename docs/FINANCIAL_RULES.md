@@ -1,5 +1,20 @@
 # Financial Rules
 
+> **Reference copy, Nile status (added 2026-10-19).** This is Kayyal's `docs/FINANCIAL_RULES.md`
+> **v1.0**, byte-identical to `bug-free-garbanzo` `main` (blob `4422839`). That is the version the
+> calculation code in `engines/transactions/src/` was extracted from. In Nile it is authoritative **only**
+> for those extracted calculations (rounding, lines, costing, cash drawer math, regrade). Where it conflicts
+> with a Nile decision (`DECISIONS.md`, ADRs, the append-only ledger, or open owner decision D-B on cash
+> correction), the **Nile decision wins**.
+>
+> **Kayyal has a v1.1, and it is deliberately not imported.** It exists only on the unmerged branch
+> `arena/01a087cd-bug-free-garbanzo` (blob `3d8c160`) and adds Kayyal-application rules: §4.1 opening
+> balances and adjustments, §5.1 party position, and §8.1 closed-day purchase correction. Its §4.1 changes
+> a pending cash row from pending to posted **in place**. That conflicts with Nile's append-only ledger and
+> would pre-empt D-B. The v1.1 closed-day formula (§8: reject a negative prospective value; average rounded
+> to scale 6) is **already what `applyCostAdjustment` does**. It is pinned by
+> `engines/transactions/test/kayyal-hardening.test.ts`.
+
 **Version:** 1.0 · **Authority:** the single source of truth for every calculation. Code implements this file;
 where they disagree, this file wins. **Sources:** PRD §9.2, FR-2/3/7/8/9/10, D27, D32, D33 · ADR-0004, 0006, 0007
 
