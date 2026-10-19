@@ -20,6 +20,7 @@ not a company asset) and `Test` (457-line experiment with tracked ZIPs).
 | `engines/transactions/src/money-minor.ts` | `Terranex` `src/shared/money/index.ts` — canonical storage/API money: integer minor units |
 | `engines/transactions/src/money-by-currency.ts` | `Terranex` `src/shared/money/by-currency.ts` (import path adapted) |
 | `engines/platform/src/locale/{arabic,dates,phone}.ts` | `starting` (Hospitality Ops) `src/lib/` |
+| `engines/transactions/test/kayyal-hardening.test.ts` | `bug-free-garbanzo` `tests/domain/hardening.test.ts` @ `1343ffc` (branch `arena/01a087cd-bug-free-garbanzo`) — boundary invariants; extracted 2026-10-19, import paths only |
 
 ## Adapted (concept kept, app coupling removed)
 
