@@ -1,0 +1,68 @@
+commit 0207c1355a6e287f8724ff877c7c3be79fcb75ec
+Author: LENA-integration-agent <lena-integration-agent@users.noreply.local>
+Date:   Mon Oct 19 09:13:01 2026 +0000
+
+    test(refunds): pin payment_mismatch — a foreign payment is refused and writes nothing
+    
+    The per-sale refund lock (d90b7c9) covers every refund of a sale only because
+    createRefund refuses a payment that does not belong to the named sale
+    (payment_mismatch). Nothing tested that check: deleting it left every test green.
+    
+    G (real PG, same file, skipped without NILE_TEST_PG_ADMIN_URL): two sales of
+    the same item, one card, one cash in an open shift. Naming each sale with the
+    other's payment — sequentially and concurrently — is refused with
+    payment_mismatch, and tenant-wide refund rows, refund stock movements, item
+    stock and the shift's cash movements are unchanged; each sale can still refund
+    its unit through its own payment afterwards.
+    
+    Mutation check: with the payment_mismatch line removed, G fails ("promise
+    resolved instead of rejecting"); A-F still pass. Test-only, no logic change.
+
+diff --git a/engines/transactions/test/refund-concurrency.pg.test.ts b/engines/transactions/test/refund-concurrency.pg.test.ts
+index 8958d86..661be2e 100644
+--- a/engines/transactions/test/refund-concurrency.pg.test.ts
++++ b/engines/transactions/test/refund-concurrency.pg.test.ts
+@@ -149,4 +149,43 @@ describe.skipIf(!ADMIN_URL)('concurrent refunds of one sale (real PostgreSQL)',
+     const l = await ledger(sale.sale.id, water);
+     expect([l.rows.length, l.refundedQty]).toEqual([1, 1]);
+   });
++
++  // The per-sale lock above covers every refund of a sale ONLY because a payment
++  // must belong to the sale the request names (payment_mismatch). Pin that check.
++  it('G: a payment that belongs to another sale is refused and writes nothing — no refund, stock or cash change', async () => {
++    const shiftId = await newShift();
++    const water = await variant(WATER);
++    // Both sales contain the same item, so the request is valid in every way except the payment.
++    const s1 = await checkout(db, actor(), { idempotencyKey: key('rcG1'), lines: [{ variantId: water, quantity: '1' }], tenders: [{ method: 'card', amountMinor: WATER }] });
++    const s2 = await checkout(db, actor(), { idempotencyKey: key('rcG2'), shiftId, lines: [{ variantId: water, quantity: '1' }], tenders: [{ method: 'cash', amountMinor: WATER }] });
++    const card1 = s1.payments[0]!; const cash2 = s2.payments[0]!;
++    expect([card1.method, cash2.method]).toEqual(['card', 'cash']);
++
++    /** Every row a refund could write, tenant-wide, read back as nile_app. */
++    const snapshot = () => withTenant(db, T, async (tx: any) => {
++      const [r] = await tx.select({ n: sql<string>`COUNT(*)` }).from(refunds);
++      const [m] = await tx.select({ n: sql<string>`COUNT(*)` }).from(stockMovements).where(eq(stockMovements.reason, 'refund'));
++      const [s] = await tx.select({ s: catalogVariants.stock }).from(catalogVariants).where(eq(catalogVariants.id, water));
++      const [c] = await tx.select({ n: sql<string>`COUNT(*)`, out: sql<string>`COALESCE(SUM(${cashMovements.amountMinor}) FILTER (WHERE ${cashMovements.direction} = 'out'),0)` })
++        .from(cashMovements).where(eq(cashMovements.shiftId, shiftId));
++      return { refunds: Number(r.n), refundMoves: Number(m.n), stock: Number(s.s), cashRows: Number(c.n), cashOut: Number(c.out) };
++    });
++    const before = await snapshot();
++
++    // cash payment of sale 2 named against sale 1 (with the open shift, so only the payment is wrong)
++    await expect(refund(s1.sale.id, cash2.id, water, '1', shiftId)).rejects.toMatchObject({ code: 'payment_mismatch' });
++    // card payment of sale 1 named against sale 2
++    await expect(refund(s2.sale.id, card1.id, water, '1')).rejects.toMatchObject({ code: 'payment_mismatch' });
++    // and both at once
++    const rs = await Promise.allSettled([refund(s1.sale.id, cash2.id, water, '1', shiftId), refund(s2.sale.id, card1.id, water, '1')]);
++    expect(tally(rs)).toEqual(['payment_mismatch', 'payment_mismatch']);
++
++    expect(await snapshot()).toEqual(before);
++    expect([(await ledger(s1.sale.id, water)).rows.length, (await ledger(s2.sale.id, water)).rows.length]).toEqual([0, 0]);
++    // nothing was consumed: each sale can still refund its unit through its OWN payment
++    await refund(s1.sale.id, card1.id, water, '1');
++    await refund(s2.sale.id, cash2.id, water, '1', shiftId);
++    const after = await snapshot();
++    expect([after.refunds - before.refunds, after.refundMoves - before.refundMoves, after.stock - before.stock, after.cashOut - before.cashOut]).toEqual([2, 2, 2, WATER]);
++  });
+ });

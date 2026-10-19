@@ -1,4 +1,5 @@
 path_in_branch	sha256	size	original_path
+README.md	1beb77efeda59b7faf78dbf846feedb8a6e9847ae34e4139e499c4a3fa91f42e	2644	generated for this branch
 backups/session-2026-10-18/BRANCHES.txt	14bdd66bddeb7debf2cf00c8e6fc82a59a36c9916dc9ba650e9c6855dba69599	445	/home/user/backups/session-2026-10-18/BRANCHES.txt
 backups/session-2026-10-18/RESTORE.md	799807952f61da7f708ed619dd18c73ca4d356cb5f67c18b6aef8dc6596f1a70	1764	/home/user/backups/session-2026-10-18/RESTORE.md
 backups/session-2026-10-18/SHA256SUMS	ca98b8e52eba48b5e8e89650a9a641d702280f92638be988625ab675c216e86c	695	/home/user/backups/session-2026-10-18/SHA256SUMS
@@ -27,7 +28,9 @@ deliverables/ci/run-workflow-local.py	7862ee0984eaeddd645c834d4ba8d5611b95efd1f7
 deliverables/integration-probes/README.md	f55528d1864ccc397ada7afc8314f88ce096c9bd0927869f02d1748dcaaa8b98	1442	/home/user/deliverables/integration-probes/README.md
 deliverables/integration-probes/SHA256SUMS	d3716c9b60fb47570ccacb2ac78d2e707814213cb50684136f1c816b8fc99d89	435	/home/user/deliverables/integration-probes/SHA256SUMS
 deliverables/integration-probes/dst-typecheck-errors.txt	41e2451a4bf1a94dca0c0931cf2fbf6f50f067708f7167c89cab7effb69ee940	6779	/home/user/deliverables/integration-probes/dst-typecheck-errors.txt
+deliverables/integration-probes/mission11-payment-mismatch/0207c13.diff	09b089ce3bcae72973c439679a814956218faae38d608699d0e597d55bee3b6c	4743	/home/user/deliverables/integration-probes/mission11-payment-mismatch/0207c13.diff
 deliverables/integration-probes/mission11-payment-mismatch/SHA256SUMS	67d055e99a41a0ac80f49c48d7e70c149160c5b044242fecba553a67facc9a18	880	/home/user/deliverables/integration-probes/mission11-payment-mismatch/SHA256SUMS
+deliverables/integration-probes/mission11-payment-mismatch/b25cb65..0207c13.diff	3e51491eced1fa35837c0370d42b619253e1c03207b14e2020afadfa52506661	15718	/home/user/deliverables/integration-probes/mission11-payment-mismatch/b25cb65..0207c13.diff
 deliverables/integration-probes/mission11-payment-mismatch/g-mutant.txt	843179a1ab511e4a1823e32f3ceb76459555a174e699fdc55b90cc312563b5cf	3469	/home/user/deliverables/integration-probes/mission11-payment-mismatch/g-mutant.txt
 deliverables/integration-probes/mission11-payment-mismatch/g-nopg.txt	f68f035d8f895bcceabdd854f26cec7dcfdaf10019c9d5a6f34d251741b15a61	292	/home/user/deliverables/integration-probes/mission11-payment-mismatch/g-nopg.txt
 deliverables/integration-probes/mission11-payment-mismatch/g-run2.txt	a689ace40a56ac9f5cd13cf56107774c1442f6188d62f9d51356de8f61502a28	795	/home/user/deliverables/integration-probes/mission11-payment-mismatch/g-run2.txt
@@ -45,6 +48,7 @@ deliverables/integration-probes/mission9-refund-review/remote-shas.txt	2a82cf9d3
 deliverables/integration-probes/mission9-refund-review/tsc.txt	46a1e9d1d67fd39f335fb9bf40ad61350d66c3abd18938af61c637c878db32bc	55	/home/user/deliverables/integration-probes/mission9-refund-review/tsc.txt
 deliverables/integration-probes/mission9-refund-review/tx.txt	783fbb162c435b2ae7f4449696f3c9fa44a3c872aa88f958f60603d155734870	4623	/home/user/deliverables/integration-probes/mission9-refund-review/tx.txt
 deliverables/integration-probes/mission9-refund/SHA256SUMS	61c3020feb95b2edefff25db3f93d35610fca2c0bb2124aa8e3df04942b4cb44	580	/home/user/deliverables/integration-probes/mission9-refund/SHA256SUMS
+deliverables/integration-probes/mission9-refund/d90b7c9.diff	ca2ec65a3e0c49340403bd13df4ffff1f3943ecd2abbe3c4e2d431462e3a6c34	14180	/home/user/deliverables/integration-probes/mission9-refund/d90b7c9.diff
 deliverables/integration-probes/mission9-refund/full-suite.txt	bfc7edf9fd0cc3bfd82f4be1798cd47f924f9bdf3eec02a934153879c462bc73	14278	/home/user/deliverables/integration-probes/mission9-refund/full-suite.txt
 deliverables/integration-probes/mission9-refund/refund-after-1.txt	2a0c8cc3283722818d588aaf27d01823c287a8d584e075017a1b4d9c94ebd6b5	795	/home/user/deliverables/integration-probes/mission9-refund/refund-after-1.txt
 deliverables/integration-probes/mission9-refund/refund-after-2.txt	f59980c756e7933c3c94cbe0c3924aa9056779de768887f58af4e01ab1d35c20	795	/home/user/deliverables/integration-probes/mission9-refund/refund-after-2.txt
@@ -246,7 +250,8 @@ deliverables/parity/parity-matrix-final-c72f746.txt	7727be0de54b24458347afb0fc56
 deliverables/parity/parity-matrix-run2.txt	3f9e6fccba9991924431a088b4c599e425571c8f434a756bd9b98ad1ecd9944f	4422	/home/user/deliverables/parity/parity-matrix-run2.txt
 deliverables/parity/parity-matrix-run3.txt	81e5c669f49c1807b30b4bf0b2b34b52ba0da57e9915f7f885e3bc5756f2e06b	4422	/home/user/deliverables/parity/parity-matrix-run3.txt
 deliverables/parity/run-parity.sh	7efab90326c8e6aed50ff60f85ef2835f15d57bd87bc2e1cddfb002fa012d935	4710	/home/user/deliverables/parity/run-parity.sh
-deliverables/rescue-2026-10-19/README_RESCUE.md	f957a1f92e59eb099116cc6b8f5fc34a7ef2da6a2afa372ae37ffaf098b13317	2526	/home/user/deliverables/rescue-2026-10-19/README_RESCUE.md
+deliverables/rescue-2026-10-19/README_RESCUE.md	1beb77efeda59b7faf78dbf846feedb8a6e9847ae34e4139e499c4a3fa91f42e	2644	/home/user/deliverables/rescue-2026-10-19/README_RESCUE.md
+deliverables/rescue-2026-10-19/RESCUE_STATUS.md	07d35508a75d6c9497f9cffe0e83a2697d4da63485ba938b1c51965b90ca01e5	1367	/home/user/deliverables/rescue-2026-10-19/RESCUE_STATUS.md
 deliverables/rescue-2026-10-19/evidence/LOCAL_FILES_CLASSIFIED.tsv	9fa6ff556b2222087c7baa3101a338fe611158bac722a12159806ae0c3e981a2	110050	/home/user/deliverables/rescue-2026-10-19/evidence/LOCAL_FILES_CLASSIFIED.tsv
 deliverables/rescue-2026-10-19/evidence/gitleaks-backups.json	37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570	3	/home/user/deliverables/rescue-2026-10-19/evidence/gitleaks-backups.json
 deliverables/rescue-2026-10-19/evidence/gitleaks-deliverables.json	37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570	3	/home/user/deliverables/rescue-2026-10-19/evidence/gitleaks-deliverables.json
@@ -281,3 +286,4 @@ tmp-evidence/rev/tx.txt	783fbb162c435b2ae7f4449696f3c9fa44a3c872aa88f958f60603d1
 tmp-evidence/tar.sha	e305add497e841d824bb8dfd1692ccbc2ea3619dfdc550bb32e1e0580f066f0a	2993	/tmp/tar.sha
 tmp-evidence/tsc-refund.txt	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855	0	/tmp/tsc-refund.txt
 untracked/repos/nilesys/pnpm-lock.yaml	b6a75fb549e06930e378c20028dd68b6d11188c8505391533a82df5fba82dc2a	94940	/home/user/repos/nilesys/pnpm-lock.yaml
+vercel.json	97c511ff0e6603449e6f627b818d54a0e0a9ace9695d879e640d95f3fb90e66f	60	generated for this branch
