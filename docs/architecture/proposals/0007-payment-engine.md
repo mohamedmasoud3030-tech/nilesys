@@ -2,9 +2,9 @@
 
 | Field | Value |
 | --- | --- |
-| Status | **PROPOSED, design only.** No code, no branch. It becomes the implementation contract once its gate opens |
-| Date | 2026-10-14 |
-| Gate | Implementation starts **only after PR #4 is merged**, on a new branch from the then-current `main`. The cashier UI starts only after this engine and the gate pass |
+| Status | **PROPOSED.** The gate below opened on 2026-10-18 (PR #4 merged as `52af469`); the engine is now **partly built** on `integration/nile-2026-10-18`. Conformance is tracked in §8, added 2026-10-19 |
+| Date | 2026-10-14, revised 2026-10-19 |
+| Gate | ✅ **Opened.** PR #4 merged into `main` as `52af469` on 2026-10-18, so work moved to `integration/nile-2026-10-18` (branch base `0207c13`). The cashier UI still waits for this engine plus the gates in `STATUS.md` §6 |
 | Base examined | `main` `ebcfe72`; PR #4 head `784e50c` |
 | Depends on | [ADR-0010](../../adr/0010-engines-continue-behind-ledger-provider-port.md) (Accepted): engines own operational records; nothing in ADR-0008 |
 
@@ -145,3 +145,86 @@ Error messages are bilingual, using the existing `DomainError` pattern.
   - one register per branch at launch.
 - **Before commercial launch, separately:** G-4 for existing tables, G-10 double booking, and the
   B2C e-receipt question (proposal 0006 §1).
+
+---
+
+## 8. Revision 2 — conformance against the code (2026-10-19)
+
+This section replaces the assumption in §1–§7 that the engine is unbuilt. It is a **measurement, not a
+plan**: every row below is backed by a file and, where marked, by a test that fails when the guarantee is
+removed.
+
+**Base measured:** `integration/nile-2026-10-18` `0207c13`, plus this branch
+(`feat/plt-0005-payment-db-constraints`) which carries migration `0005`.
+
+**Headline:** the engine exists and is tested. What was missing was not design but **enforcement
+boundaries** — three invariants lived in TypeScript only, and two of the six §5 service functions were
+never written.
+
+### 8.1 Invariant-by-invariant
+
+| # | Invariant | Enforced where, today | Evidence | Verdict |
+| --- | --- | --- | --- | --- |
+| **I1** | Σ tenders − change = sale total | Service | `checkout.ts:162-170` computes `sumTenders`/`sumChange` and throws `tender_mismatch` | ✅ met |
+| **I2** | Change only from cash; change ≤ cash tendered | Service **and DB** (added here) | `checkout.ts:105` (`change_exceeds_tendered`), `:108` (`change_only_cash`); DB `payments_tender_identity` in `0005` | ✅ met |
+| **I3** | Every cash tender/change/refund writes a `cash_movements` row in an **open** shift of the same tenant and register | Service + **DB FK** (added here) | `checkout.ts:114` (`shift_required_for_cash`), `:136-143` (shift exists, shift open); DB `payments_shift_fk`, `refunds_shift_fk` in `0005` | ✅ met — *was service-only* |
+| **I4** | Append-only: insert-only; corrections are compensating rows | DB | `0004_payments_append_only.sql` revokes UPDATE/DELETE on all five tables from `nile_app` and forces RLS | ✅ met |
+| **I5** | Σ refunds per payment ≤ payment amount | Service under a lock | `refunds.ts:138-142` (`refund_over_limit`); per-item quantity bound at `:150-151`; locks at `:95-96` | ✅ met (needs real PG for the race tests, which are skipped without a server) |
+| **I6** | Idempotent per tenant; same key + different body ⇒ 409 | DB unique + service hash | `checkout.ts:120-122`, `unique(tenant_id, idempotency_key)` on every new table | ✅ met |
+| **I7** | No cross-tenant references | Composite FKs + RLS | all child tables use `(tenant_id, parent_id)`; `0005` adds the two missing shift links | ✅ met — *was incomplete* |
+| **I8** | Money is a positive integer in minor units; enum columns constrained | **DB** (added here) + service | `checkout.ts:101`; DB `payments_amount_positive`, `payments_method_known`, `refunds_amount_positive` in `0005` | ✅ met — *was service-only* |
+| **I9** | Concurrent refunds / open / close serialise | DB advisory locks | `shifts.ts:47-53` `lockShift`, `:78`; `refunds.ts:95-96` | ✅ met (one key shared by cash sale, refund and close — the C4 fix `d90b7c9`) |
+| **I10** | Payment status is **derived**, never stored | — | No `getPaymentStatus` exists; nothing stores a status, so nothing can drift | ⚠️ **hole** — see §8.2 |
+| **I11** | Pending cash is in the drawer but not in revenue; resolving it appends a row | DB table + CHECK | `cash_movement_resolutions` exists with `resolution in (posted, returned)` after `0005` | ⚠️ **half-built** — the table and its constraint exist, **but nothing writes to it** |
+| **I12** | At most one open shift per (tenant, register) | Service advisory lock only | `shifts.ts:78` | ⚠️ **service-only** — §3 said the two-table state cannot use a partial unique index; a trigger or a `closed` flag on `cash_shifts` would close it |
+
+### 8.2 What §5 promised and does not exist
+
+| Service function (§5) | Reality | Consequence |
+| --- | --- | --- |
+| `openShift`, `closeShift`, `checkout`, `refund` | implemented in `shifts.ts`, `checkout.ts`, `refunds.ts` | — |
+| `recordPayment` — settle a sale later (bookings, deposits) | **absent** | A deposit cannot be taken before the goods are chosen. Phase 2–4 (restaurant orders, booking deposits) depend on it |
+| `getPaymentStatus` (I10) | **absent** | The caller must sum `payments` and `refunds` itself; the moment an API does that in two places, I10 is broken in practice |
+| `resolvePendingCash` (I11) | **absent** | A pending cash movement can be created but never resolved: **money sits in the drawer for ever and never reaches revenue.** This is the most serious functional hole in the engine |
+| `getDrawer` (§5: "existing `cash.ts` math") | `computeDrawer`/`closeDifference` exist in `cash.ts` and are used inside `closeShift`; there is no read endpoint | A cashier cannot ask "what should be in the drawer right now?" mid-shift |
+
+### 8.3 Migration `0005_money_constraints` (this branch)
+
+Generated by `npm run db:generate` from `engines/transactions/src/db/schema.ts` — never hand-written.
+It moves four invariants from code to the database:
+
+| Table | Constraint | Invariant |
+| --- | --- | --- |
+| `payments` | `amount_minor > 0` | I8 |
+| `payments` | `method in (cash, card, wallet, transfer)` | I8 |
+| `payments` | `tendered_minor - change_minor = amount_minor` when change is recorded | I1, I2 |
+| `payments` | `(tenant_id, shift_id) → cash_shifts` | I3, I7 |
+| `refunds` | `amount_minor > 0` | I8 |
+| `refunds` | `(tenant_id, shift_id) → cash_shifts` | I7 |
+| `cash_shifts` | `opening_minor >= 0` | I8 |
+| `cash_shift_closures` | `counted_minor >= 0` | I8 |
+| `cash_shift_closures` | `difference_minor = counted_minor - expected_minor` | I12 (honest difference) |
+| `cash_movement_resolutions` | `resolution in (posted, returned)` | I11 |
+
+**A correction to §3 I2 as originally written.** The draft said only *change ≤ cash tendered*. That
+accepts a receipt that does not add up: 1000 handed over, 250 change returned, 1000 recorded as the
+amount covered. The database now enforces the identity `tendered − change = amount`. The test that
+exposed this is `payment-constraints.test.ts` › "rejects a receipt where tendered − change does not
+equal the amount covered".
+
+**Deliberately out of scope**, because it is the owner's G-4 decision: no constraints were added to
+`sales_transactions`, `transaction_lines` or `cash_movements`.
+
+### 8.4 What must happen next, in order
+
+1. **`resolvePendingCash` + `getDrawer`** (I11). Until I11 has a writer, the pending-cash rule is
+   decoration. Needs a service, an endpoint and a drawer test that passes with pending cash present.
+2. **`recordPayment`** (settle later). Blocks phase 2 restaurant orders and deposits.
+3. **`getPaymentStatus`** — a single derived query, so I10 has exactly one implementation.
+4. **I12 at the database level.** Decide between a `closed_at` column on `cash_shifts` with a partial
+   unique index `WHERE closed_at IS NULL`, or a trigger. The first is simpler and matches "a shift is
+   open while it has no closure row" better than the current two-table shape.
+5. **The §6 acceptance suite on real PostgreSQL**, including test 8 (mutation check) for every
+   constraint in `0005`: drop a constraint, confirm a test goes red.
+
+None of items 1–4 needs an owner decision. Items 1–3 change behaviour, so each needs its own PR.

@@ -33,6 +33,8 @@ Update it in the same change as anything that alters what is below. Do not creat
 | `d90b7c9` | full suite on real PostgreSQL 17: 236/236 · refund concurrency tests A–F: 6/6, three runs each |
 | `0207c13` | `npm run typecheck` exit 0 · `refund-concurrency.pg.test.ts` 7/7 · refund-related tests 57/57 · mutation check: only test G fails · **2026-10-19 re-run: full suite on real PostgreSQL 17.11 (fresh cluster, `--maxWorkers=1`): 25 files, 237/237, 0 skipped, 4 real-PG files / 22 real-PG tests, 0 leftover test databases** |
 
+| `4dd74f1` (branch `feat/plt-0005-payment-db-constraints`, base `364b51f`) | migration `0005_money_constraints`: `npm run typecheck` exit 0 · `npx vitest run` 23 files passed / 4 skipped, **247 passed / 22 skipped** (23 new assertions in `payment-constraints.test.ts`) · `drizzle-kit check` no drift · `generate` no changes. **No real PostgreSQL available in that sandbox**, so the 4 real-PG files were skipped, as they were before the change |
+
 None of these results comes from GitHub Actions, staging or production.
 
 ## 2. Branches and pull requests
@@ -112,6 +114,8 @@ None of these results comes from GitHub Actions, staging or production.
   - Cash shifts with a locked close.
   - Daily report (Africa/Cairo).
   - Lead capture service and people service.
+  - **Migration `0005_money_constraints`** (branch `feat/plt-0005-payment-db-constraints`, not merged): moves
+    I2/I3/I7/I8/I11 for the payment tables from TypeScript into the database.
   - API endpoints:
     - `POST /api/v1/checkout`
     - `POST /api/v1/sales`
@@ -173,7 +177,7 @@ IDs:
 | G-1 (= H4) | High | Runtime role could rewrite or delete ledger and audit rows | MERGED IN `52af469` (PR #4) |
 | G-2 | High | One visitor could lock out or deface shared demo logins | MERGED IN `52af469` (PR #4) |
 | G-3 | Medium | A sale stores no payment | FIXED ON `integration/nile-2026-10-18` `0207c13`; OPEN on `main`. **Cashier-UI blocker until merged** |
-| G-4 (= H7) | Medium | Missing CHECK constraints on money, quantity and enum columns | OPEN, not re-verified since 2026-10-14. Option (1) of D-A adds the payment constraints (`0005`). Required before public exposure |
+| G-4 (= H7) | Medium | Missing CHECK constraints on money, quantity and enum columns | **PARTLY CLOSED** on `feat/plt-0005-payment-db-constraints` (`4dd74f1`, migration `0005`): every table added in `0003` is now constrained. Still OPEN for `sales_transactions`, `transaction_lines`, `cash_movements` — that is the owner's option (1) of D-A. Required before public exposure |
 | G-5 | Medium | Dev mode trusts any origin; per-boot secret; insecure cookies; no rate limit | OPEN (F0-8). **UI/public blocker** |
 | G-6 | Low | Origin/CSRF checks skipped under `NODE_ENV=test` | OPEN |
 | G-7 / G-7a | Low / **High** | Runtime-role assertion; the candidate `60342be` accepts 17 of 18 escalation vectors on PG 17.10/18.4 | OPEN. Redesign PROPOSED (task 7). **Public blocker** |
