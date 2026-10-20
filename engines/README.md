@@ -8,6 +8,17 @@ Current implementation status and gaps: [`docs/STATUS.md`](../docs/STATUS.md).
 
 **Rule: no product screen is built before its engine exists and is tested.**
 
+**Running the tests:**
+
+```bash
+npx vitest run                 # fast path: in-process PGlite, 1 connection
+./tools/local-pg.sh test       # full path: real PostgreSQL 17, run this before claiming concurrency works
+```
+
+The four `.pg.test.ts` files skip themselves unless `NILE_TEST_PG_ADMIN_URL` is set. `tools/local-pg.sh`
+installs, starts and exports it. Until 2026-10-19 no sandbox set it, so 22 concurrency assertions never ran.
+Do not report a suite as green without saying which of the two commands produced it.
+
 | Engine | What it owns | Main sources |
 |---|---|---|
 | `platform/` | Tenant context (fail-closed, ADR-0002/0005), command idempotency, visitor branding, Arabic/date/phone locale utils | Terranex, starting, ADR-0005 |

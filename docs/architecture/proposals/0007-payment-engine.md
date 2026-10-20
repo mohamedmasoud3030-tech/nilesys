@@ -157,6 +157,9 @@ removed.
 **Base measured:** `integration/nile-2026-10-18` `0207c13`, plus this branch
 (`feat/plt-0005-payment-db-constraints`) which carries migration `0005`.
 
+**Headline (revised 2026-10-19 after the first real-PostgreSQL run):** concurrency is now *verified*, not
+merely designed. `./tools/local-pg.sh test` → 296/296 with nothing skipped.
+
 **Headline:** the engine exists and is tested. What was missing was not design but **enforcement
 boundaries** — four invariants lived in TypeScript only, and four of the six §5 service functions were
 never written. Both are addressed below (migration `0005`, `payments.ts`, `drawer.ts`).
@@ -228,9 +231,10 @@ equal the amount covered".
    `POST /cash-movements/:id/resolution`, `GET /sales/:id/payment-status`). The engine is done; the API
    surface is not. Permissions from ADR-0007 — note D-C and D-D are still open, and they decide exactly
    this.
-2. **The §6 acceptance suite on real PostgreSQL**, including test 8 (mutation check) for every
-   constraint in `0005`: drop a constraint, confirm a test goes red. Everything on this branch ran on
-   PGlite, which has one connection and cannot test the concurrency items.
+2. ~~**The §6 acceptance suite on real PostgreSQL.**~~ **Done 2026-10-19.** `./tools/local-pg.sh test`
+   (PostgreSQL 17.11, `--maxWorkers=1`) runs **29 files, 296/296, nothing skipped** — the refund races
+   (A–G) and the double-shift-open race now execute instead of skipping. Still owed: test 8, the mutation
+   check, for each constraint in `0005` (drop a constraint, confirm a test goes red).
 3. **A producer for pending cash**, the day a credit sale exists. `resolvePendingCash` is ready and
    idle until then.
 4. **Receipts and the sales list** (POS-04, POS-05) — the remaining engine gaps before a cashier screen.

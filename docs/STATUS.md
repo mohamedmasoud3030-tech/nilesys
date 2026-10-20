@@ -25,7 +25,12 @@ Update it in the same change as anything that alters what is below. Do not creat
 | Production database | Not chosen. The target candidate is Supabase PostgreSQL 17 (conditionally viable, **not chosen**) | `docs/reviews/2026-10-14-supabase-feasibility.md` (branch `handoff/2026-10-14-evidence`) |
 | Toolchain | npm with `package-lock.json` v3, Node `>=20`. **npm only ([ADR-0011](adr/0011-repository-tooling-npm.md), 2026-10-19).** `pnpm-lock.yaml` is git-ignored and is never committed or used. Copies on disk are not deleted | `package.json`; ADR-0011 |
 
-### Verification evidence for the integration branch (local sandboxes only, never CI)
+### Verification evidence (local sandboxes only, never CI)
+
+**2026-10-19: a local PostgreSQL makes the skipped files run.** `tools/local-pg.sh` installs, starts and
+points a disposable PostgreSQL at the suite. Before it, `ADMIN_URL` was unset in every sandbox and the
+22 concurrency assertions never executed — an agent could not honestly claim concurrency was correct.
+Now `./tools/local-pg.sh test` runs all 29 files with nothing skipped.
 
 | Commit | Command and result |
 | --- | --- |
@@ -34,6 +39,8 @@ Update it in the same change as anything that alters what is below. Do not creat
 | `0207c13` | `npm run typecheck` exit 0 · `refund-concurrency.pg.test.ts` 7/7 · refund-related tests 57/57 · mutation check: only test G fails · **2026-10-19 re-run: full suite on real PostgreSQL 17.11 (fresh cluster, `--maxWorkers=1`): 25 files, 237/237, 0 skipped, 4 real-PG files / 22 real-PG tests, 0 leftover test databases** |
 
 | `4dd74f1` (branch `feat/plt-0005-payment-db-constraints`, base `364b51f`) | migration `0005_money_constraints`: `npm run typecheck` exit 0 · `npx vitest run` 23 files passed / 4 skipped, **247 passed / 22 skipped** (23 new assertions in `payment-constraints.test.ts`) · `drizzle-kit check` no drift · `generate` no changes. **No real PostgreSQL available in that sandbox**, so the 4 real-PG files were skipped, as they were before the change |
+
+| `7959fb9` + `tools/local-pg.sh` (2026-10-19) | **First full run with a real PostgreSQL.** `./tools/local-pg.sh test` on PostgreSQL 17.11 (fresh cluster, `--maxWorkers=1`): **29 files passed, 0 skipped · 296/296 tests, 0 skipped.** This is the first time the two `.pg.test.ts` race files ran in a sandbox: 9 concurrency assertions (refund races A–G, double shift open) now pass instead of skipping. 0 leftover test databases. Reproduce with `./tools/local-pg.sh test` |
 
 None of these results comes from GitHub Actions, staging or production.
 
@@ -151,7 +158,7 @@ recorded in its PR description. Nothing is merged without the owner.
 | # | Task | Status | Gate |
 | --- | --- | --- | --- |
 | 1 | **Owner decisions D-A…D-D** (payment methods, cash correction, shift close, who reads the report). **D-E is decided** — [ADR-0014](adr/0014-collected-is-the-sales-total.md) | PARTLY DONE: D-E decided and implemented; D-A…D-D WAITING ON OWNER | — |
-| 2 | F0-2: implement the money decisions on a branch from `integration/nile-2026-10-18` (migration `0005`, the method list, permissions), failing-test-first; full suite on real PostgreSQL | **PARTLY DONE** on `feat/plt-0005-payment-db-constraints`: D-E done (`reports.ts`), migration `0005` done. The rest waits on D-A…D-D | Full suite still needs real PostgreSQL |
+| 2 | F0-2: implement the money decisions on a branch from `integration/nile-2026-10-18` (migration `0005`, the method list, permissions), failing-test-first; full suite on real PostgreSQL | **PARTLY DONE** on `feat/plt-0005-payment-db-constraints`: D-E done (`reports.ts`), migration `0005` done. The rest waits on D-A…D-D | **Full suite now runs on real PostgreSQL: 296/296, 0 skipped** |
 | 3 | F0-3: add the CI workflow from the draft; first green run on GitHub Actions | PROPOSED, unblocked | The owner approves pushing a workflow file |
 | 4 | F0-9: update `tools/nile-offerings/offerings.ts`, whose POS `mustNotClaim` still says payments live on an unmerged branch | **DONE** on `feat/plt-0005-payment-db-constraints` — POS entry lists nine engine files and no longer claims payments are unbuilt; `offerings.test.ts` 17/17 | — |
 | 5 | F0-4: open a PR from the integration branch (after #2 and #3) and request review | BLOCKED BY #2, #3 | The owner alone merges |
@@ -179,7 +186,7 @@ IDs:
 | G-1 (= H4) | High | Runtime role could rewrite or delete ledger and audit rows | MERGED IN `52af469` (PR #4) |
 | G-2 | High | One visitor could lock out or deface shared demo logins | MERGED IN `52af469` (PR #4) |
 | G-3 | Medium | A sale stores no payment | FIXED ON `integration/nile-2026-10-18` `0207c13`; OPEN on `main`. **Cashier-UI blocker until merged** |
-| G-3b | — | `resolvePendingCash`, `getDrawer`, `recordPayment` and `getPaymentStatus` existed only as a design in proposal 0007 §5 | IMPLEMENTED on `feat/plt-0005-payment-db-constraints` (`payments.ts`, `drawer.ts`), with 21 assertions. Not merged |
+| G-3b | — | `resolvePendingCash`, `getDrawer`, `recordPayment` and `getPaymentStatus` existed only as a design in proposal 0007 §5 | IMPLEMENTED on `feat/plt-0005-payment-db-constraints` (`payments.ts`, `drawer.ts`), with 21 assertions. Not merged. **Still no HTTP layer**: the engine is reachable only from tests until D-C and D-D fix the permissions |
 | G-4 (= H7) | Medium | Missing CHECK constraints on money, quantity and enum columns | **PARTLY CLOSED** on `feat/plt-0005-payment-db-constraints` (`4dd74f1`, migration `0005`): every table added in `0003` is now constrained. Still OPEN for `sales_transactions`, `transaction_lines`, `cash_movements` — that is the owner's option (1) of D-A. Required before public exposure |
 | G-5 | Medium | Dev mode trusts any origin; per-boot secret; insecure cookies; no rate limit | OPEN (F0-8). **UI/public blocker** |
 | G-6 | Low | Origin/CSRF checks skipped under `NODE_ENV=test` | OPEN |
