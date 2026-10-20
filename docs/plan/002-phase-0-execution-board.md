@@ -37,15 +37,15 @@ Columns: **ID** (from `PRODUCT_PLAN.md` §4) · **Owner** = who must act · **Re
 
 | ID | Task | Owner | Ready now? | Evidence that closes it |
 | --- | --- | --- | --- | --- |
-| **F0-1** | Answer D-A…D-E (§4 below) | Owner | ✅ **the only blocker on the critical path** | Each answer written into `STATUS.md` §3 with a date. One line each is enough |
-| **F0-2** | Implement the answers (migration `0005`, method list, permissions, gross definition) | Agent | ⛔ blocked by F0-1 | One small PR per decision, each with a test that was red before it |
+| **F0-1** | Answer D-A…D-D (D-E is decided: [ADR-0014](../adr/0014-collected-is-the-sales-total.md)) | Owner | ✅ **the only blocker on the critical path** | Each answer written into `STATUS.md` §3 with a date. One line each is enough |
+| **F0-2** | Implement the answers (method list, permissions) | Agent | ⛔ blocked by F0-1; **D-E done** and migration `0005` done | One small PR per decision, each with a test that was red before it |
 | **F0-3** | CI workflow | Agent prepares, **Owner approves the push** | ✅ **ready** — the reviewed draft is `deliverables/ci/nilesys-ci.yml` on `rescue/2026-10-19-workspace-archive` | A green run on GitHub Actions, and its URL |
 | **F0-4** | Merge the integration branch | Agent opens the PR, **Owner merges** | ⛔ after F0-2 and F0-3 | PR description carries commit SHAs + the commands and their output |
-| **F0-5** | N-1: pool `error` listener | Agent | ✅ **ready** — `fix/nile-pool-error-listener` `29390fa` needs a rebase | A real-PostgreSQL test that kills an idle connection while the API stays up |
+| **F0-5** | N-1: pool `error` listener | Agent | ✅ **DONE** on `feat/plt-0005-payment-db-constraints` | Still owed: the live kill-a-backend test on a real server (`attachPoolErrorHandler` has 4 wiring tests) |
 | **F0-6** | G-7a: closed-world role allow-list | Owner approves the design, agent builds | ⛔ waiting on approval | The 18-vector escalation matrix, all rejected, on PG 17 |
 | **F0-7** | D5 hosting → then staging | Owner decides, agent builds | ⛔ waiting on a disposable Supabase project | `/api/health` returns 200 on staging with production roles |
 | **F0-8** | G-5: deployment settings (origins, fixed secret, secure cookies, rate limit) | Agent | ✅ ready, but pointless before F0-7 | Tests proving the rejection happens in production mode |
-| **F0-9** | Refresh the offerings registry — it still claims payments live on an unmerged branch | Agent | ✅ **ready** | `offerings.test.ts` green and describing today's truth |
+| **F0-9** | Refresh the offerings registry — it still claimed payments live on an unmerged branch | Agent | ✅ **DONE** | `offerings.test.ts` 17/17; the POS entry now lists nine engine files |
 | **F0-10** | Repository tooling | — | ✅ **done 2026-10-19** — npm, [ADR-0011](../adr/0011-repository-tooling-npm.md) | — |
 
 ### 2.1 Suggested run order

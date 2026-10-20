@@ -158,8 +158,8 @@ removed.
 (`feat/plt-0005-payment-db-constraints`) which carries migration `0005`.
 
 **Headline:** the engine exists and is tested. What was missing was not design but **enforcement
-boundaries** — three invariants lived in TypeScript only, and two of the six §5 service functions were
-never written.
+boundaries** — four invariants lived in TypeScript only, and four of the six §5 service functions were
+never written. Both are addressed below (migration `0005`, `payments.ts`, `drawer.ts`).
 
 ### 8.1 Invariant-by-invariant
 
@@ -174,19 +174,26 @@ never written.
 | **I7** | No cross-tenant references | Composite FKs + RLS | all child tables use `(tenant_id, parent_id)`; `0005` adds the two missing shift links | ✅ met — *was incomplete* |
 | **I8** | Money is a positive integer in minor units; enum columns constrained | **DB** (added here) + service | `checkout.ts:101`; DB `payments_amount_positive`, `payments_method_known`, `refunds_amount_positive` in `0005` | ✅ met — *was service-only* |
 | **I9** | Concurrent refunds / open / close serialise | DB advisory locks | `shifts.ts:47-53` `lockShift`, `:78`; `refunds.ts:95-96` | ✅ met (one key shared by cash sale, refund and close — the C4 fix `d90b7c9`) |
-| **I10** | Payment status is **derived**, never stored | — | No `getPaymentStatus` exists; nothing stores a status, so nothing can drift | ⚠️ **hole** — see §8.2 |
-| **I11** | Pending cash is in the drawer but not in revenue; resolving it appends a row | DB table + CHECK | `cash_movement_resolutions` exists with `resolution in (posted, returned)` after `0005` | ⚠️ **half-built** — the table and its constraint exist, **but nothing writes to it** |
-| **I12** | At most one open shift per (tenant, register) | Service advisory lock only | `shifts.ts:78` | ⚠️ **service-only** — §3 said the two-table state cannot use a partial unique index; a trigger or a `closed` flag on `cash_shifts` would close it |
+| **I10** | Payment status is **derived**, never stored | Service, single implementation | `derivePaymentStatus` in `payments.ts` is a pure function of three sums; `getPaymentStatus` is its only reader. Nothing stores a status, so nothing can drift | ✅ met (was a hole) |
+| **I11** | Pending cash is in the drawer but not in revenue; resolving it appends a row | Service + DB | `drawer.ts` `getDrawer` feeds `computeDrawer` the *effective* status (resolution if any, row status otherwise) and `resolvePendingCash` appends to `cash_movement_resolutions` without ever updating the movement; DB CHECK `resolution in (posted, returned)` | ✅ met (was half-built) |
+| **I12** | At most one open shift per (tenant, register) | Advisory lock + rejection | `shifts.ts:78` serialises open per register and rejects with `shift_already_open`; proven by the concurrency gate in `review-gates.test.ts` | ✅ met **by design** — see §8.5 for why not a partial unique index |
 
-### 8.2 What §5 promised and does not exist
+### 8.2 What §5 promised — status after this branch
 
-| Service function (§5) | Reality | Consequence |
+| Service function (§5) | Status | Where |
 | --- | --- | --- |
-| `openShift`, `closeShift`, `checkout`, `refund` | implemented in `shifts.ts`, `checkout.ts`, `refunds.ts` | — |
-| `recordPayment` — settle a sale later (bookings, deposits) | **absent** | A deposit cannot be taken before the goods are chosen. Phase 2–4 (restaurant orders, booking deposits) depend on it |
-| `getPaymentStatus` (I10) | **absent** | The caller must sum `payments` and `refunds` itself; the moment an API does that in two places, I10 is broken in practice |
-| `resolvePendingCash` (I11) | **absent** | A pending cash movement can be created but never resolved: **money sits in the drawer for ever and never reaches revenue.** This is the most serious functional hole in the engine |
-| `getDrawer` (§5: "existing `cash.ts` math") | `computeDrawer`/`closeDifference` exist in `cash.ts` and are used inside `closeShift`; there is no read endpoint | A cashier cannot ask "what should be in the drawer right now?" mid-shift |
+| `openShift`, `closeShift`, `checkout`, `refund` | built | `shifts.ts`, `checkout.ts`, `refunds.ts` |
+| `recordPayment` — settle a sale later (deposits, balances) | **built here** | `payments.ts`; over-payment, closed shift, cash-without-shift, idempotency and replay all tested |
+| `getPaymentStatus` (I10) | **built here** | `payments.ts`; one pure derivation, six assertions |
+| `resolvePendingCash` (I11) | **built here** | `drawer.ts`; posted/returned, replay, conflict, and a test proving the movement row is never rewritten |
+| `getDrawer` (§5) | **built here** | `drawer.ts`; opening float, cash in at tendered, change as cash out, pending bucket, closed-shift numbers |
+
+**A correction to the first edition of this section.** It said *"a pending cash movement can be created
+but never resolved: money sits in the drawer for ever"*. That was **wrong**, and reading the writers is
+what showed it: no production code writes `status = 'pending'` — `checkout` and `refunds` both insert
+`'posted'`. The truth is narrower and still serious: the pending-cash mechanism, inherited from Kayyal,
+had **neither a producer nor a resolver**, so I11 was a rule with no code behind it in either direction.
+`resolvePendingCash` now exists; a producer is a product decision for whoever first needs credit sales.
 
 ### 8.3 Migration `0005_money_constraints` (this branch)
 
@@ -217,14 +224,29 @@ equal the amount covered".
 
 ### 8.4 What must happen next, in order
 
-1. **`resolvePendingCash` + `getDrawer`** (I11). Until I11 has a writer, the pending-cash rule is
-   decoration. Needs a service, an endpoint and a drawer test that passes with pending cash present.
-2. **`recordPayment`** (settle later). Blocks phase 2 restaurant orders and deposits.
-3. **`getPaymentStatus`** — a single derived query, so I10 has exactly one implementation.
-4. **I12 at the database level.** Decide between a `closed_at` column on `cash_shifts` with a partial
-   unique index `WHERE closed_at IS NULL`, or a trigger. The first is simpler and matches "a shift is
-   open while it has no closure row" better than the current two-table shape.
-5. **The §6 acceptance suite on real PostgreSQL**, including test 8 (mutation check) for every
-   constraint in `0005`: drop a constraint, confirm a test goes red.
+1. **HTTP mapping** for the new engine functions (`GET /shifts/:id/drawer`, `POST /payments/:id/payments`,
+   `POST /cash-movements/:id/resolution`, `GET /sales/:id/payment-status`). The engine is done; the API
+   surface is not. Permissions from ADR-0007 — note D-C and D-D are still open, and they decide exactly
+   this.
+2. **The §6 acceptance suite on real PostgreSQL**, including test 8 (mutation check) for every
+   constraint in `0005`: drop a constraint, confirm a test goes red. Everything on this branch ran on
+   PGlite, which has one connection and cannot test the concurrency items.
+3. **A producer for pending cash**, the day a credit sale exists. `resolvePendingCash` is ready and
+   idle until then.
+4. **Receipts and the sales list** (POS-04, POS-05) — the remaining engine gaps before a cashier screen.
 
-None of items 1–4 needs an owner decision. Items 1–3 change behaviour, so each needs its own PR.
+None of these needs an owner decision except item 1's permissions (D-C, D-D).
+
+### 8.5 Why I12 is not a database constraint
+
+§3 said a partial unique index is impossible because "a shift is open while it has no closure row" is a
+two-table state. That is true, and the alternatives are worse:
+
+- a `closed_at` column on `cash_shifts` needs an `UPDATE` at close, and `UPDATE` is deliberately revoked
+  from the runtime role on that table (migration `0004`). Append-only and "one open shift" pull in
+  opposite directions here;
+- a separate register-state table would need `DELETE` or `UPDATE` on close — the same collision.
+
+The advisory lock is therefore the correct instrument: it serialises `openShift` per (tenant, register)
+and the loser receives `shift_already_open`, which `review-gates.test.ts` gate 2 proves. Writing this
+down matters, because the next reader will otherwise propose the index a third time.

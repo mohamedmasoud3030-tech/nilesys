@@ -86,12 +86,14 @@ None of these results comes from GitHub Actions, staging or production.
   ([ADR-0013](adr/0013-marketing-site-in-lena-platform.md), which supersedes ADR-0012). This repository
   serves it over HTTP: a public readiness endpoint, lead intake and demo links. **Where the seven system
   sites (phase 4) live is still OPEN (owner).**
-- **OPEN (owner, business):** D-A…D-E, D-G, D5 and the location of the seven system sites, listed with options in [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) §10:
+- **DECIDED 2026-10-19: D-E → money collected is the sales total**, refunds as their own line
+  ([ADR-0014](adr/0014-collected-is-the-sales-total.md)). The owner delegated the choice; `getDailyReport`
+  now returns `collectedMinor`, `netCollectedMinor` and `outstandingMinor` alongside the billed figure.
+- **OPEN (owner, business):** D-A, D-B, D-C, D-D, D-G, D5 and the location of the seven system sites, listed with options in [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) §10:
   - D-A: payment model and the list of payment methods.
   - D-B: cash correction policy.
   - D-C: who may close a shift.
   - D-D: who may read the daily report.
-  - D-E: definition of gross sales.
   - D-G: product order.
   - D5: hosting.
   - Where the seven system sites (phase 4) live ([ADR-0013](adr/0013-marketing-site-in-lena-platform.md) §4).
@@ -148,12 +150,12 @@ recorded in its PR description. Nothing is merged without the owner.
 
 | # | Task | Status | Gate |
 | --- | --- | --- | --- |
-| 1 | **Owner decisions D-A…D-E** (payments, cash correction, shift close, report access, gross) | WAITING ON OWNER | — |
-| 2 | F0-2: implement D-A…D-E on a branch from `integration/nile-2026-10-18` (for example migration `0005`, the method list and permissions), failing-test-first; full suite on real PostgreSQL | BLOCKED BY #1 | — |
+| 1 | **Owner decisions D-A…D-D** (payment methods, cash correction, shift close, who reads the report). **D-E is decided** — [ADR-0014](adr/0014-collected-is-the-sales-total.md) | PARTLY DONE: D-E decided and implemented; D-A…D-D WAITING ON OWNER | — |
+| 2 | F0-2: implement the money decisions on a branch from `integration/nile-2026-10-18` (migration `0005`, the method list, permissions), failing-test-first; full suite on real PostgreSQL | **PARTLY DONE** on `feat/plt-0005-payment-db-constraints`: D-E done (`reports.ts`), migration `0005` done. The rest waits on D-A…D-D | Full suite still needs real PostgreSQL |
 | 3 | F0-3: add the CI workflow from the draft; first green run on GitHub Actions | PROPOSED, unblocked | The owner approves pushing a workflow file |
-| 4 | F0-9: update `tools/nile-offerings/offerings.ts`, whose POS `mustNotClaim` still says payments live on an unmerged branch | PROPOSED, unblocked | — |
+| 4 | F0-9: update `tools/nile-offerings/offerings.ts`, whose POS `mustNotClaim` still says payments live on an unmerged branch | **DONE** on `feat/plt-0005-payment-db-constraints` — POS entry lists nine engine files and no longer claims payments are unbuilt; `offerings.test.ts` 17/17 | — |
 | 5 | F0-4: open a PR from the integration branch (after #2 and #3) and request review | BLOCKED BY #2, #3 | The owner alone merges |
-| 6 | F0-5: N-1 pool `error` listener (rebase `29390fa` onto the then-current base), with a real-PostgreSQL test | PROPOSED, unblocked | — |
+| 6 | F0-5: N-1 pool `error` listener | **DONE** on `feat/plt-0005-payment-db-constraints` (`attachPoolErrorHandler`, 4 tests). Still open: the live kill-a-backend test on a real server | — |
 | 7 | F0-6: G-7a redesign (closed-world allow-list) and its adversarial real-PostgreSQL matrix | WAITING ON OWNER (approve the redesign) | — |
 | 8 | F0-10 / D-H: Nx + pnpm or npm | **DONE 2026-10-19: npm ([ADR-0011](adr/0011-repository-tooling-npm.md))** | — |
 | 9 | F0-7 / D5: disposable Supabase PG 17 project; read-only hosted checks; then staging | WAITING ON OWNER | Creating cloud resources needs approval |
@@ -177,6 +179,7 @@ IDs:
 | G-1 (= H4) | High | Runtime role could rewrite or delete ledger and audit rows | MERGED IN `52af469` (PR #4) |
 | G-2 | High | One visitor could lock out or deface shared demo logins | MERGED IN `52af469` (PR #4) |
 | G-3 | Medium | A sale stores no payment | FIXED ON `integration/nile-2026-10-18` `0207c13`; OPEN on `main`. **Cashier-UI blocker until merged** |
+| G-3b | — | `resolvePendingCash`, `getDrawer`, `recordPayment` and `getPaymentStatus` existed only as a design in proposal 0007 §5 | IMPLEMENTED on `feat/plt-0005-payment-db-constraints` (`payments.ts`, `drawer.ts`), with 21 assertions. Not merged |
 | G-4 (= H7) | Medium | Missing CHECK constraints on money, quantity and enum columns | **PARTLY CLOSED** on `feat/plt-0005-payment-db-constraints` (`4dd74f1`, migration `0005`): every table added in `0003` is now constrained. Still OPEN for `sales_transactions`, `transaction_lines`, `cash_movements` — that is the owner's option (1) of D-A. Required before public exposure |
 | G-5 | Medium | Dev mode trusts any origin; per-boot secret; insecure cookies; no rate limit | OPEN (F0-8). **UI/public blocker** |
 | G-6 | Low | Origin/CSRF checks skipped under `NODE_ENV=test` | OPEN |
@@ -187,14 +190,14 @@ IDs:
 | C-res | Low | 32-bit advisory-lock key collisions can serialise unrelated work (no correctness loss); not verified on PG 18 | OPEN (accepted risk, document) |
 | P4-1 | — | Locked demo paths change-email and delete-user have no committed test (revoke-sessions is covered in `e2e-sale.test.ts`) | OPEN (task 14) |
 | P4-4 | — | Each new append-only table's migration must REVOKE UPDATE/DELETE from `nile_app` | Rule in `AGENTS.md` |
-| N-1 | Low | The runtime pool has no `error` listener, so an idle-connection kill crashes the API | OPEN. Candidate `29390fa` (task 6) |
+| N-1 | Low | The runtime pool has no `error` listener, so an idle-connection kill crashes the API | **FIXED** on `feat/plt-0005-payment-db-constraints` (`attachPoolErrorHandler` in `engines/db/open.ts`, 4 wiring tests). The live kill-a-backend test still needs a real PostgreSQL server |
 | DOC-1 | Low | Extracted files cited source-repository documents that were missing here | Mostly FIXED on `docs/unified-plan-2026-10-19` (`8523eae`): `FINANCIAL_RULES.md` and `adr/kayyal-core/*` are present, with no dead `kayyal-core` link. Remaining: `money-by-currency.ts` mentions Terranex's `docs/OPEN_BUSINESS_DECISIONS.md` as a source-repo note (documented in `REUSE.md`) |
 | E-receipt | — | Egyptian B2C e-receipts never measured | OPEN (evaluation) |
 
 ## 7. Approvals required from the owner
 
 1. Approve or amend `PRODUCT_PLAN.md`. Once approved, mark it ACCEPTED and move it to tier 4 in `docs/README.md`.
-2. Decide D-A…D-E (task 1), then D-G, D5, and where the seven system sites live. (D-H was decided technically and D-F by the owner on 2026-10-19.)
+2. Decide D-A…D-D (task 1), then D-G, D5, and where the seven system sites live. (D-H decided technically, D-F and D-E by the owner on 2026-10-19.)
 3. Approve pushing the CI workflow (task 3).
 4. Approve the G-7a redesign (task 7).
 5. Later: review and merge the integration PR (task 5); delete merged branches if wanted.

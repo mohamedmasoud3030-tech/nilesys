@@ -64,7 +64,25 @@ export async function openPglite(opts: { dataDir?: string } = {}): Promise<Opene
   return { db, driver: 'pglite', close: () => client.close() };
 }
 
-export async function openPostgres(opts: { url: string; migrationUrl?: string }): Promise<OpenedDatabase> {
+/**
+ * An idle pooled connection can be terminated by the server at any moment: `pg_terminate_backend`,
+ * a PostgreSQL restart, a failover, a pooler cutting an idle session. `pg` re-emits that as an
+ * `error` event on the Pool, and an EventEmitter `error` with no listener throws — which took the
+ * whole API process down (finding N-1, observed on PostgreSQL 18.4, pg 8.23.1, SQLSTATE 57P01).
+ *
+ * The pool already discards the dead client and opens a fresh one; the process only has to survive
+ * the notification. Exported separately so the wiring is testable without a live server.
+ */
+export function attachPoolErrorHandler(
+  pool: { on: (event: 'error', fn: (err: Error) => void) => unknown },
+  onError: (err: Error) => void = (err) => console.error('[db] idle connection error (pool will replace the client):', err.message),
+): void {
+  // pg types the Pool 'error' listener as (err: Error, client: PoolClient). A narrower
+  // (err) => void is assignable at runtime and is all this handler needs.
+  pool.on('error', onError as (err: Error) => void);
+}
+
+export async function openPostgres(opts: { url: string; migrationUrl?: string; onPoolError?: (err: Error) => void }): Promise<OpenedDatabase> {
   if (opts.migrationUrl) {
     const owner = new pg.Pool({ connectionString: opts.migrationUrl, max: 1 });
     try {
@@ -74,6 +92,8 @@ export async function openPostgres(opts: { url: string; migrationUrl?: string })
     }
   }
   const pool = new pg.Pool({ connectionString: opts.url });
+  // N-1: survive a server-side kill of an idle client instead of exiting the process.
+  attachPoolErrorHandler(pool, opts.onPoolError);
   // Every pooled connection assumes the runtime role before first use.
   pool.on('connect', (c) => void c.query(`SET ROLE ${RUNTIME_ROLE}`));
   const db = drizzlePg(pool, { schema });
