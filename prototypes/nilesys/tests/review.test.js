@@ -253,11 +253,21 @@ test('RET-4: التقارير بعد مرتجع — هل المبلغ المرت
   const afterSale = (await req('GET', '/api/reports/summary?range=today', { cookie: l.cookie })).data;
   await req('POST', '/api/returns', { cookie: l.cookie, body: { saleId: sale.id, items: [{ productId: p.id, qty: 5 }] } });
   const afterRet = (await req('GET', '/api/reports/summary?range=today', { cookie: l.cookie })).data;
-  const delta = afterRet.salesTotal - before.salesTotal;
-  const expected = 0; // مرتجع كامل → المفروض مبيعات اليوم ماتتغيرش
-  record('RET-4', Math.abs(delta - expected) < 1,
-    `salesTotal ${before.salesTotal} →(+sale) ${afterSale.salesTotal} →(+مرتجع كامل) ${afterRet.salesTotal} | Δ=${delta} المتوقع ${expected}`);
-  assert.ok(Math.abs(delta - expected) < 1);
+
+  // 2026-10-21 — العقد تغيّر عن قصد، لا لتمرير الاختبار.
+  // كان: salesTotal بعد مرتجع كامل = زي ما كان (الفاتورة المرتجعة تُستبعد من الإجمالي).
+  // صار (قرار D-E / ADR-0014، وproposal 0007 §2): الإجمالي هو ما خرج من المحل،
+  // والمرتجع سطر مستقل، والصافي = الإجمالي − المرتجعات. فالتأكيد انتقل إلى:
+  //   grossTotal يزيد بقيمة الفاتورة، refundsTotal يزيد بقيمة المرتجع، net يرجع لمكانه.
+  const grossDelta = afterRet.grossTotal - before.grossTotal;
+  const refundsDelta = afterRet.refundsTotal - before.refundsTotal;
+  const netDelta = afterRet.net - before.net;
+  const ok = Math.abs(grossDelta - sale.total) < 1
+    && Math.abs(refundsDelta - sale.total) < 1
+    && Math.abs(netDelta) < 1;
+  record('RET-4', ok,
+    `gross Δ=${grossDelta} (متوقع ${sale.total}) · refunds Δ=${refundsDelta} (متوقع ${sale.total}) · net Δ=${netDelta} (متوقع 0)`);
+  assert.ok(ok);
 });
 
 /* ================= 5) الورديات ================= */

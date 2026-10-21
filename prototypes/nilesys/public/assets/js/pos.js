@@ -30,6 +30,18 @@
     window.addEventListener('nile:lang', () => { applyI18n(); if (state.user) { renderUser(); renderCurrent(); } });
     window.addEventListener('resize', checkMobile);
     checkMobile();
+    bindShortcuts();
+  }
+
+  // اختصارات: الكاشير بيفضل إيده على الكيبورد. F2 بحث · F4 دفع · F9 تعليق · Esc إغلاق
+  function bindShortcuts() {
+    document.addEventListener('keydown', (e) => {
+      if (!state.user) return;
+      if (e.key === 'Escape') { const back = document.querySelector('.modal-back'); if (back) back._close(); return; }
+      if (e.key === 'F2') { e.preventDefault(); state.view = 'sell'; location.hash = '#/sell'; const b = $('#searchBox'); if (b) { b.focus(); b.select(); } }
+      else if (e.key === 'F4') { e.preventDefault(); if (state.view === 'sell' && state.cart.length) checkout(); }
+      else if (e.key === 'F9') { e.preventDefault(); if (state.view === 'sell' && state.cart.length) holdCart(); }
+    });
   }
   function checkMobile() { $('#menuBtn').style.display = window.innerWidth <= 900 ? '' : 'none'; }
 
@@ -96,10 +108,19 @@
     renderCurrent();
   }
   function renderCurrent() {
-    ({ sell: renderSell, sales: renderSales, returns: renderReturns, shifts: renderShifts, reports: renderReports, products: renderProducts, branding: renderBranding }[state.view] || renderSell)();
+    ({ sell: renderSell, sales: renderSales, returns: renderReturns, shifts: renderShifts, reports: renderReports, products: renderProducts, branding: renderBranding, audit: renderAudit }[state.view] || renderSell)();
   }
 
   /* ================= نقطة البيع ================= */
+  // أسماء طرق الدفع في مكان واحد — تُستخدم في الشاشة والإيصال والفواتير والتقارير.
+  const TENDER_LABEL = {
+    cash: () => `💵 ${t('pos.cash')}`,
+    card: () => `💳 ${t('pos.card')}`,
+    wallet: () => `📱 ${t('pos.wallet') || 'Wallet'}`,
+    transfer: () => `🏦 ${t('pos.transfer') || 'Transfer'}`,
+  };
+  const tenderLabel = (m) => (TENDER_LABEL[m] ? TENDER_LABEL[m]() : m);
+
   function renderSell() {
     const cats = [...new Set(state.products.map((p) => p.category))];
     const list = state.products.filter((p) =>
@@ -137,13 +158,14 @@
             <div class="line"><span>${t('pos.discount')}</span><input class="input" style="width:90px;text-align:center" type="number" min="0" value="0" id="cartDiscount" /></div>
             <div class="line grand"><span>${t('common.total')}</span><span class="mono" id="tGrand">0</span></div>
           </div>
-          <div class="row mt-2" style="gap:8px">
-            <select class="select" id="payMethod" style="flex:1">
-              <option value="cash">${t('pos.cash')}</option>
-              <option value="card">${t('pos.card')}</option>
-            </select>
-            <button class="btn btn-success" style="flex:1" id="checkoutBtn">${t('pos.checkout')}</button>
+          <div class="row mt-2" style="gap:6px" id="tenderRow">
+            ${['cash', 'card', 'wallet', 'transfer'].map((m) => `<button class="chip ${(state.method || 'cash') === m ? 'active' : ''}" data-tender="${m}" style="flex:1">${tenderLabel(m)}</button>`).join('')}
           </div>
+          <div class="row mt-2" style="gap:8px">
+            <button class="btn btn-ghost" style="flex:1" id="holdBtn" title="F9">⏸ ${t('pos.hold') || 'تعليق'}</button>
+            <button class="btn btn-success" style="flex:2" id="checkoutBtn" title="F4">${t('pos.checkout')}</button>
+          </div>
+          <div id="heldBox" class="mt-2"></div>
         </div>
       </div>`;
 
@@ -160,8 +182,14 @@
     bindProductCards();
     $('#cartDiscount').oninput = () => renderCart();
     $('#checkoutBtn').onclick = checkout;
+    $$('#tenderRow .chip').forEach((b) => (b.onclick = () => {
+      state.method = b.dataset.tender;
+      $$('#tenderRow .chip').forEach((x) => x.classList.toggle('active', x === b));
+    }));
+    $('#holdBtn').onclick = holdCart;
     const ob = $('#openShiftBtn'); if (ob) ob.onclick = openShiftModal;
     renderCart();
+    renderHeld();
   }
 
   function productCard(p) {
@@ -223,36 +251,104 @@
     if (!state.cart.length) return toast(t('pos.cartEmpty'), 'bad');
     if (!state.openShift) return toast(t('pos.shiftNeeded'), 'bad');
     const { discount, total } = cartTotals();
-    const m = openModal({
+    const method = state.method || 'cash';
+    const cash = method === 'cash';
+    // مفتاح تكرار واحد لكل محاولة دفع: ضغطتان على «تأكيد» لا تصنعان فاتورتين.
+    const idemKey = `pos-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+    openModal({
       title: t('pos.checkout'),
       body: `<div class="field"><label class="label">${t('common.total')}</label><div class="mono" style="font-size:30px;font-weight:900">${money(total)}</div></div>
-        <div class="field"><label class="label">${t('pos.paid')}</label><input class="input input-lg mono" id="paidInput" type="number" min="0" value="${total}" /></div>
-        <div class="field"><label class="label">${t('pos.change')}</label><div class="mono" id="changeOut" style="font-size:22px;font-weight:800;color:var(--ok)">${money(0)}</div></div>
-        <div class="small muted">${t('pos.method')}: <b id="mOut">${$('#payMethod').value === 'cash' ? t('pos.cash') : t('pos.card')}</b></div>`,
+        <div class="field"><label class="label">${t('pos.method')}</label><div class="mono" style="font-size:18px;font-weight:800">${tenderLabel(method)}</div></div>
+        ${cash ? `<div class="field"><label class="label">${t('pos.paid')}</label><input class="input input-lg mono" id="paidInput" type="number" min="0" value="${total}" /></div>
+        <div class="field"><label class="label">${t('pos.change')}</label><div class="mono" id="changeOut" style="font-size:22px;font-weight:800;color:var(--ok)">${money(0)}</div></div>`
+          : `<div class="small muted">${t('pos.exactOnly') || 'المبلغ يُسجَّل بالضبط — لا باقي خارج الكاش.'}</div>`}`,
       footer: `<button class="btn btn-ghost" id="cCancel">${t('common.cancel')}</button><button class="btn btn-success" id="cOk">${t('common.confirm')}</button>`,
     });
-    const paid = $('#paidInput');
-    paid.oninput = () => {
-      const chg = (Number(paid.value) || 0) - total;
-      $('#changeOut').textContent = money(Math.max(0, chg));
-      $('#changeOut').style.color = chg < 0 ? 'var(--bad)' : 'var(--ok)';
-    };
+    if (cash) {
+      const paid = $('#paidInput');
+      paid.oninput = () => {
+        const chg = (Number(paid.value) || 0) - total;
+        $('#changeOut').textContent = money(Math.max(0, chg));
+        $('#changeOut').style.color = chg < 0 ? 'var(--bad)' : 'var(--ok)';
+      };
+    }
     $('#cCancel').onclick = closeModal;
+    let busy = false;
     $('#cOk').onclick = async () => {
-      const paidVal = Number(paid.value) || 0;
-      if (paidVal < total) return toast(t('pos.short'), 'bad');
+      if (busy) return;
+      const paidVal = cash ? Number($('#paidInput')?.value) || 0 : total;
+      if (cash && paidVal < total) return toast(t('pos.short'), 'bad');
+      busy = true;
+      $('#cOk').disabled = true;
       try {
         const { sale } = await api('/api/sales', {
           method: 'POST',
-          body: { items: state.cart.map((l) => ({ productId: l.id, qty: l.qty })), discount, method: $('#payMethod').value, paid: paidVal },
+          body: {
+            items: state.cart.map((l) => ({ productId: l.id, qty: l.qty })),
+            discount, method, paid: paidVal,
+            idempotencyKey: idemKey,
+            heldId: state.heldId || undefined,
+          },
         });
         state.cart = [];
+        state.heldId = null;
+        state.q = '';
         state.products = (await api('/api/products')).products;
         renderSell();
         toast(t('pos.done'), 'ok');
         showReceipt(sale);
-      } catch (err) { toast(err.message, 'bad'); }
+      } catch (err) {
+        toast(err.message, 'bad');
+      } finally {
+        busy = false;
+        const ok = $('#cOk'); if (ok) ok.disabled = false;
+      }
     };
+  }
+
+  /* ================= السلال المعلّقة ================= */
+
+  async function holdCart() {
+    if (!state.cart.length) return toast(t('pos.cartEmpty'), 'bad');
+    try {
+      const { discount } = cartTotals();
+      await api('/api/held', {
+        method: 'POST',
+        body: { items: state.cart.map((l) => ({ productId: l.id, qty: l.qty })), discount },
+      });
+      state.cart = [];
+      state.heldId = null;
+      renderSell();
+      toast(t('pos.heldSaved') || 'السلة اتعلّقت', 'ok');
+    } catch (err) { toast(err.message, 'bad'); }
+  }
+
+  async function renderHeld() {
+    const box = $('#heldBox');
+    if (!box) return;
+    try {
+      const { held } = await api('/api/held');
+      if (!held.length) { box.innerHTML = ''; return; }
+      box.innerHTML = `<div class="small muted mb-1">${t('pos.heldCarts') || 'سلال معلّقة'} (${held.length})</div>
+        ${held.map((h) => `<div class="row between card card-pad mb-1" style="padding:8px">
+          <div><b class="small">${esc(h.label)}</b><div class="small muted">${h.items.reduce((a, i) => a + i.qty, 0)} ${t('common.qty')} · ${money(h.items.reduce((a, i) => a + i.price * i.qty, 0) - (h.discount || 0))}</div></div>
+          <div class="row" style="gap:4px">
+            <button class="btn btn-primary btn-sm" data-recall="${h.id}">↩ ${t('common.open') || 'استرجاع'}</button>
+            <button class="btn btn-ghost btn-sm" data-drop="${h.id}">✕</button>
+          </div></div>`).join('')}`;
+      $$('#heldBox [data-recall]').forEach((b) => (b.onclick = () => {
+        const h = held.find((x) => x.id === b.dataset.recall);
+        state.cart = h.items.map((i) => ({ id: i.productId, name: i.name, emoji: i.emoji, price: i.price, qty: i.qty }));
+        state.heldId = h.id;
+        renderSell();
+        toast(t('common.open') || 'اترجعت', 'ok');
+      }));
+      $$('#heldBox [data-drop]').forEach((b) => (b.onclick = async () => {
+        await api('/api/held/' + b.dataset.drop, { method: 'DELETE' }).catch(() => {});
+        renderHeld();
+      }));
+    } catch { /* الديمو يستمر حتى لو القائمة فشلت */ }
   }
 
   function showReceipt(sale) {
@@ -272,8 +368,9 @@
             <tr><td>${t('common.total')}</td><td style="text-align:end" class="mono">${money(sale.subtotal)}</td></tr>
             <tr><td>${t('pos.discount')}</td><td style="text-align:end" class="mono">${money(sale.discount)}</td></tr>
             <tr><td><b>${t('common.total')}</b></td><td style="text-align:end"><b class="mono">${money(sale.total)}</b></td></tr>
+            <tr><td>${t('pos.method')}</td><td style="text-align:end">${tenderLabel(sale.method)}</td></tr>
             <tr><td>${t('pos.paid')}</td><td style="text-align:end" class="mono">${money(sale.paid)}</td></tr>
-            <tr><td>${t('pos.change')}</td><td style="text-align:end" class="mono">${money(Math.max(0, sale.paid - sale.total))}</td></tr>
+            <tr><td>${t('pos.change')}</td><td style="text-align:end" class="mono">${money(sale.change ?? Math.max(0, sale.paid - sale.total))}</td></tr>
           </table>
         </div>
         <div class="center small muted mt-2">${t('pos.thanks')} ★</div>
@@ -293,7 +390,7 @@
         <td class="mono">${dmy(s.createdAt)} ${hm(s.createdAt)}</td>
         <td class="mono">${s.items.reduce((a, i) => a + i.qty, 0)}</td>
         <td class="mono"><b>${money(s.total)}</b></td>
-        <td>${s.method === 'cash' ? t('pos.cash') : t('pos.card')}</td>
+        <td>${tenderLabel(s.method)}</td>
         <td><span class="badge ${s.status === 'completed' ? 'badge-ok' : 'badge-bad'}">${s.status === 'completed' ? '✓' : '↩'} ${s.status}</span></td>
         <td class="row" style="gap:6px">
           <button class="btn btn-ghost btn-sm" data-view-sale="${s.id}">👁</button>
@@ -418,6 +515,22 @@
     }
   }
 
+  /* ================= سجل العمليات ================= */
+  async function renderAudit() {
+    if (state.user.role !== 'manager') return renderSell();
+    $('#content').innerHTML = `<div class="mb-2"><div class="view-title" data-i18n="pos.audit"></div>
+      <div class="view-sub small muted">${t('pos.auditSub')}</div></div>
+      <div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr>
+        <th>${t('common.date')}</th><th>${t('common.name')}</th><th>${t('pos.audit')}</th><th></th>
+      </tr></thead><tbody id="aRows"></tbody></table></div></div>`;
+    const { audit } = await api('/api/audit?limit=100');
+    $('#aRows').innerHTML = audit.map((a) => `<tr>
+      <td class="mono small">${dmy(a.at)} ${hm(a.at)}</td>
+      <td>${esc(a.userName)}</td>
+      <td class="small"><b class="mono">${esc(a.action)}</b><div class="muted">${esc(a.detail)}</div></td>
+      <td></td></tr>`).join('') || `<tr><td colspan="4" class="center muted">${t('common.none')}</td></tr>`;
+  }
+
   /* ================= التقارير ================= */
   async function renderReports() {
     $('#content').innerHTML = `<div class="row between mb-2">
@@ -435,22 +548,27 @@
       <div class="card card-pad mt-3"><b>${t('pos.byMethod')}</b><div id="methodBox" class="mt-2"></div></div>`;
     $$('#content .chip[data-r]').forEach((c) => (c.onclick = () => { state.reportRange = c.dataset.r; renderReports(); }));
     const r = await api('/api/reports/summary?range=' + state.reportRange);
+    // المال كما قرّره D-E: الصافي هو الرقم الرئيسي، والمرتجع سطر مستقل.
+    // لا «ربح» في الشاشة: بدون تكلفة موثوقة الربح رقم مضلِّل (خطة 001 §2).
     $('#kpis').innerHTML = `
-      <div class="card"><div class="lbl">${t('pos.todaySales')}</div><div class="val mono" style="color:var(--brand-600)">${money(r.salesTotal)}</div></div>
-      <div class="card"><div class="lbl">${t('pos.todayProfit')}</div><div class="val mono" style="color:var(--ok)">${money(r.profit)}</div><div class="sub muted">${t('pos.margin')} ${r.salesTotal ? Math.round((r.profit / r.salesTotal) * 100) : 0}%</div></div>
+      <div class="card"><div class="lbl">${t('pos.netSales') || 'صافي المحصَّل'}</div><div class="val mono" style="color:var(--brand-600)">${money(r.net)}</div><div class="sub muted">${t('pos.todaySales')}: ${money(r.grossTotal)}</div></div>
+      <div class="card"><div class="lbl">${t('pos.returns')}</div><div class="val mono" style="color:var(--bad)">− ${money(r.refundsTotal)}</div><div class="sub muted">${num(r.returns)} ${t('pos.invoices')}</div></div>
       <div class="card"><div class="lbl">${t('pos.invoices')}</div><div class="val mono">${num(r.invoices)}</div><div class="sub muted">${t('pos.avgInvoice')} ${money(r.avg)}</div></div>
-      <div class="card"><div class="lbl">${t('pos.returns')}</div><div class="val mono">${num(r.returns)}</div></div>`;
+      <div class="card"><div class="lbl">${t('pos.returnedCount') || 'مرتجع بالكامل'}</div><div class="val mono">${num(r.returnedCount)}</div><div class="sub muted">${t('pos.netHint') || 'الصافي = الإجمالي − المرتجعات'}</div></div>`;
     $('#topRows').innerHTML = r.topProducts.map((p) => `<tr><td>${esc(p.name)}</td><td class="mono">${num(p.qty)}</td><td class="mono">${money(p.total)}</td></tr>`).join('')
       || `<tr><td colspan="3" class="center muted">${t('common.none')}</td></tr>`;
     const max = Math.max(1, ...r.byHour);
     $('#bars').innerHTML = r.byHour.map((v, h) => `<div class="b" style="height:${(v / max) * 100}%" data-tip="${h}:00 — ${money(v)}"></div>`).join('');
     $('#barsX').innerHTML = r.byHour.map((_, h) => `<span>${h % 3 === 0 ? h : ''}</span>`).join('');
-    const tot = r.byMethod.cash + r.byMethod.card || 1;
-    $('#methodBox').innerHTML = `
-      <div class="row between small mb-2"><span>💵 ${t('pos.cash')}</span><b class="mono">${money(r.byMethod.cash)} (${Math.round((r.byMethod.cash / tot) * 100)}%)</b></div>
-      <div style="height:10px;background:var(--bg);border-radius:99px;overflow:hidden"><div style="width:${(r.byMethod.cash / tot) * 100}%;height:100%;background:var(--brand)"></div></div>
-      <div class="row between small mt-3 mb-2"><span>💳 ${t('pos.card')}</span><b class="mono">${money(r.byMethod.card)} (${Math.round((r.byMethod.card / tot) * 100)}%)</b></div>
-      <div style="height:10px;background:var(--bg);border-radius:99px;overflow:hidden"><div style="width:${(r.byMethod.card / tot) * 100}%;height:100%;background:#2563eb"></div></div>`;
+    const methods = Object.keys(r.byMethod || {});
+    const tot = Math.max(1, methods.reduce((a, k) => a + Math.abs(r.byMethod[k]), 0));
+    const colors = { cash: 'var(--brand)', card: '#2563eb', wallet: '#7c3aed', transfer: '#0f766e' };
+    $('#methodBox').innerHTML = methods.map((m) => {
+      const v = r.byMethod[m];
+      const pct = Math.round((Math.abs(v) / tot) * 100);
+      return `<div class="row between small mb-2"><span>${tenderLabel(m)}</span><b class="mono">${money(v)} (${pct}%)</b></div>
+        <div style="height:10px;background:var(--bg);border-radius:99px;overflow:hidden;margin-bottom:10px"><div style="width:${pct}%;height:100%;background:${colors[m] || 'var(--brand)'}"></div></div>`;
+    }).join('');
   }
 
   /* ================= الأصناف ================= */

@@ -30,6 +30,10 @@ const STATE_ID = process.env.DEMO_STATE_ID || 'nilesys-demo';
 const REMOTE_STORE = Boolean(SUPABASE_URL && SUPABASE_KEY);
 const PORT = Number(process.env.PORT || 3000);
 const DAY = 24 * 60 * 60 * 1000;
+// طرق الدفع المسموحة (proposal 0007 §7). الباقي (change) من الكاش فقط.
+const TENDERS = ['cash', 'card', 'wallet', 'transfer'];
+// أقصى خصم يمنحه الكاشير بدون مدير. المدير بلا حد.
+const CASHIER_MAX_DISCOUNT_RATIO = 0.10;
 
 /* ================= بذور البيانات (Demo Seed) ================= */
 
@@ -232,6 +236,24 @@ function initialize() {
     }
   })();
   return initPromise;
+}
+
+/* ================= سجل العمليات (append-only) ================= */
+
+function audit(user, action, detail, meta) {
+  if (!Array.isArray(db.audit)) db.audit = [];
+  db.audit.push({
+    id: crypto.randomUUID(),
+    at: new Date().toISOString(),
+    system: user ? user.system : 'system',
+    userId: user ? user.id : null,
+    userName: user ? user.name : '—',
+    action,
+    detail: detail || '',
+    meta: meta || null,
+  });
+  // نحتفظ بآخر 2000 حدث فقط: سجل ديمو، لا أرشيف.
+  if (db.audit.length > 2000) db.audit = db.audit.slice(-2000);
 }
 
 let saveTimer = null;
@@ -475,15 +497,41 @@ async function handleApi(req, res, url) {
       if (qty > p.stock) return sendError(res, 409, `المخزون غير كافٍ: ${p.name} (المتاح ${p.stock})`);
     }
     const t = saleTotals(items, b.discount);
-    // SALE-3: الكاش لازم يغطي الإجمالي؛ الكارت يُسجَّل بالإجمالي بالضبط.
-    const method = b.method === 'card' ? 'card' : 'cash';
+
+    // PERM-4: الخصم الكبير يحتاج مدير. الكاشير محدود بنسبة، والمدير بلا حد.
+    const ratio = t.subtotal > 0 ? t.discount / t.subtotal : 0;
+    if (!isManager && ratio > CASHIER_MAX_DISCOUNT_RATIO + 1e-9) {
+      return sendError(res, 403, `الخصم الأقصى للكاشير ${Math.round(CASHIER_MAX_DISCOUNT_RATIO * 100)}% — اطلب مدير`);
+    }
+
+    // TENDER-1: أربع طرق دفع. الباقي من الكاش فقط، وغير الكاش يُسجَّل بالضبط.
+    const method = TENDERS.includes(b.method) ? b.method : 'cash';
     let paid = t.total;
-    if (method === 'cash' && b.paid !== undefined && b.paid !== null && b.paid !== '') {
-      paid = Number(b.paid);
-      if (!Number.isFinite(paid) || paid < t.total) {
-        return sendError(res, 400, `المبلغ المدفوع أقل من الإجمالي (${t.total})`);
+    let change = 0;
+    if (method === 'cash') {
+      if (b.paid !== undefined && b.paid !== null && b.paid !== '') {
+        paid = Number(b.paid);
+        if (!Number.isFinite(paid) || paid < t.total) {
+          return sendError(res, 400, `المبلغ المدفوع أقل من الإجمالي (${t.total})`);
+        }
+      }
+      change = Math.round((paid - t.total) * 100) / 100;
+    }
+
+    // IDEM-1: نفس مفتاح التكرار بنفس الطلب → نفس الفاتورة (بدون خصم مخزون تاني).
+    // نفس المفتاح بجسم مختلف → 409. هذا ما يمنع الفاتورة المزدوجة عند ضغطتين.
+    const idemKey = String(b.idempotencyKey || req.headers['idempotency-key'] || '').trim();
+    if (idemKey) {
+      const prior = db.sales.find((x) => x.idempotencyKey === idemKey);
+      if (prior) {
+        const sameBody = JSON.stringify(prior.items.map((i) => [i.productId, i.qty]))
+          === JSON.stringify(items.map((i) => [i.productId, i.qty]))
+          && prior.discount === t.discount && prior.method === method;
+        if (!sameBody) return sendError(res, 409, 'نفس مفتاح التكرار بطلب مختلف');
+        return sendJSON(res, 200, { sale: prior, replay: true });
       }
     }
+
     for (const it of items) {
       const p = db.products.find((x) => x.id === it.productId);
       p.stock = Math.max(0, p.stock - it.qty);
@@ -492,9 +540,14 @@ async function handleApi(req, res, url) {
       id: crypto.randomUUID(), no: (db.sales.reduce((m, s) => Math.max(m, s.no), 1000) + 1),
       system: 'pos', userId: user.id, createdAt: new Date().toISOString(),
       items, ...t, method,
-      paid, status: 'completed', returned: [], refunds: [],
+      paid, change, status: 'completed', returned: [], refunds: [],
+      idempotencyKey: idemKey || null,
     };
-    db.sales.push(sale); save();
+    db.sales.push(sale);
+    // HELD-1: لو السلة كانت محفوظة، إتمام البيع يشيلها.
+    if (b.heldId) db.held = (db.held || []).filter((h) => h.id !== b.heldId);
+    audit(user, 'sale.created', `فاتورة ${sale.no} · ${sale.total} · ${method}`, { saleId: sale.id });
+    save();
     return sendJSON(res, 201, { sale });
   }
   if (route === 'GET /api/sales') {
@@ -546,6 +599,7 @@ async function handleApi(req, res, url) {
       : (sale.subtotal > 0 ? Math.round((gross * sale.total / sale.subtotal) * 100) / 100 : 0);
     sale.refunds.push({ at: new Date().toISOString(), amount: refund, method: sale.method });
     sale.status = allBack ? 'returned' : 'partial';
+    audit(user, 'sale.refunded', `مرتجع على فاتورة ${sale.no} · ${refund}`, { saleId: sale.id, refund });
     save();
     return sendJSON(res, 201, { sale, refund });
   }
@@ -559,7 +613,9 @@ async function handleApi(req, res, url) {
         openedAt: new Date().toISOString(), startingCash: Number(b.startingCash) || 0,
         closedAt: null, countedCash: null, expectedCash: null, diff: null,
       };
-      db.shifts.push(shift); save();
+      db.shifts.push(shift);
+      audit(user, 'shift.opened', `فتح وردية برصيد ${shift.startingCash}`, { shiftId: shift.id });
+      save();
       return sendJSON(res, 201, { shift });
     }
     if (b.action === 'close') {
@@ -571,6 +627,7 @@ async function handleApi(req, res, url) {
       open.expectedCash = expected;
       open.countedCash = counted;
       open.diff = counted - expected;
+      audit(user, 'shift.closed', `إغلاق وردية — متوقع ${expected} · معدود ${counted} · فرق ${open.diff}`, { shiftId: open.id });
       save();
       return sendJSON(res, 201, { shift: open });
     }
@@ -581,27 +638,106 @@ async function handleApi(req, res, url) {
     const open = found ? { ...found, expectedCashNow: shiftExpectedCash(found) } : null;
     return sendJSON(res, 200, { openShift: open, shifts: db.shifts.filter((s) => s.system === 'pos').slice(-10).reverse() });
   }
+  /* ================= السلال المحفوظة (تعليق الفاتورة) ================= */
+
+  if (route === 'GET /api/held') {
+    if (!Array.isArray(db.held)) db.held = [];
+    const mine = db.held.filter((h) => h.system === user.system);
+    return sendJSON(res, 200, { held: mine });
+  }
+  if (route === 'POST /api/held') {
+    const b = await readBody(req);
+    if (!Array.isArray(db.held)) db.held = [];
+    const lines = (b.items || []).map((it) => {
+      const p = db.products.find((x) => x.id === it.productId);
+      return p ? { productId: p.id, name: p.name, price: p.price, emoji: p.emoji, qty: Math.max(1, Number(it.qty) || 1) } : null;
+    }).filter(Boolean);
+    if (!lines.length) return sendError(res, 400, 'السلة فاضية');
+    const held = {
+      id: crypto.randomUUID(),
+      system: user.system,
+      userId: user.id,
+      userName: user.name,
+      label: String(b.label || '').slice(0, 40) || `سلة ${(db.held.filter((h) => h.system === user.system).length + 1)}`,
+      items: lines,
+      discount: Math.max(0, Number(b.discount) || 0),
+      at: new Date().toISOString(),
+    };
+    db.held.push(held);
+    audit(user, 'cart.held', `تعليق ${held.label}`, { heldId: held.id });
+    save();
+    return sendJSON(res, 201, { held });
+  }
+  if (route.startsWith('DELETE /api/held/')) {
+    const id = route.split('/').pop();
+    if (!Array.isArray(db.held)) db.held = [];
+    const before = db.held.length;
+    db.held = db.held.filter((h) => h.id !== id);
+    if (db.held.length === before) return sendError(res, 404, 'السلة مش موجودة');
+    audit(user, 'cart.released', 'إلغاء سلة معلّقة', { heldId: id });
+    save();
+    return sendJSON(res, 200, { ok: true });
+  }
+
+  /* ================= سجل العمليات ================= */
+
+  if (route === 'GET /api/audit') {
+    if (!isManager) return sendError(res, 403, 'سجل العمليات للمدير بس');
+    const limit = Math.min(200, Math.max(1, Number(q.get('limit')) || 50));
+    return sendJSON(res, 200, { audit: (db.audit || []).slice(-limit).reverse() });
+  }
+
   if (route === 'GET /api/reports/summary') {
     const range = q.get('range') || 'today';
     const from = range === 'week' ? Date.now() - 7 * DAY : new Date(new Date().setHours(0, 0, 0, 0)).getTime();
     const sales = db.sales.filter((s) => s.system === 'pos' && new Date(s.createdAt).getTime() >= from);
-    const valid = sales.filter((s) => s.status !== 'returned');
-    const salesTotal = valid.reduce((a, s) => a + s.total, 0);
-    const profit = valid.reduce((a, s) => a + s.profit, 0);
+
+    // المال: المحصَّل ناقص المرتجعات — قرار D-E (ADR-0014). المرتجع سطر مستقل،
+    // ولا يُطرح من "إجمالي البيع" أبداً: إجمالي البيع هو ما خرج من المحل فعلاً.
+    const refundsOf = (s) => (s.refunds || []).reduce((a, r) => a + r.amount, 0);
+    const grossTotal = sales.reduce((a, s) => a + s.total, 0);
+    const refundsTotal = sales.reduce((a, s) => a + refundsOf(s), 0);
+    const net = Math.round((grossTotal - refundsTotal) * 100) / 100;
+
     const byHour = Array(24).fill(0);
-    valid.forEach((s) => { byHour[new Date(s.createdAt).getHours()] += s.total; });
+    sales.forEach((s) => { byHour[new Date(s.createdAt).getHours()] += s.total; });
+
     const top = {};
-    valid.forEach((s) => s.items.forEach((it) => {
+    sales.forEach((s) => s.items.forEach((it) => {
+      const back = (s.returned || []).find((r) => r.productId === it.productId);
+      const netQty = it.qty - (back ? back.qty : 0);
+      if (netQty <= 0) return;
       if (!top[it.name]) top[it.name] = { name: it.name, qty: 0, total: 0 };
-      top[it.name].qty += it.qty; top[it.name].total += it.price * it.qty;
+      top[it.name].qty += netQty;
+      top[it.name].total += it.price * netQty;
     }));
-    const byMethod = { cash: 0, card: 0 };
-    valid.forEach((s) => { byMethod[s.method] += s.total; });
+
+    // لكل طريقة دفع: المحصَّل ثم المرتجع بنفس الطريقة. البدء من أربع طرق ثابتة
+    // حتى لا تختفي طريقة لم تُستخدم بعد من الشاشة.
+    const byMethod = { cash: 0, card: 0, wallet: 0, transfer: 0 };
+    for (const s of sales) {
+      if (byMethod[s.method] === undefined) byMethod[s.method] = 0;
+      byMethod[s.method] += s.total;
+      for (const r of s.refunds || []) {
+        const m = r.method || s.method;
+        if (byMethod[m] === undefined) byMethod[m] = 0;
+        byMethod[m] -= r.amount;
+      }
+    }
+    Object.keys(byMethod).forEach((k) => { byMethod[k] = Math.round(byMethod[k] * 100) / 100; });
+
     return sendJSON(res, 200, {
-      range, salesTotal, profit, invoices: valid.length,
-      avg: valid.length ? Math.round(salesTotal / valid.length) : 0,
-      byHour, topProducts: Object.values(top).sort((a, b) => b.total - a.total).slice(0, 6),
-      byMethod, returns: sales.filter((s) => s.status !== 'completed').length,
+      range,
+      grossTotal,            // إجمالي المبيعات (قبل أي مرتجع)
+      refundsTotal,          // المرتجعات كسطر مستقل
+      net,                   // صافي المحصَّل — الرقم الرئيسي
+      invoices: sales.length,
+      avg: sales.length ? Math.round((grossTotal / sales.length) * 100) / 100 : 0,
+      byHour,
+      topProducts: Object.values(top).sort((a, b) => b.total - a.total).slice(0, 6),
+      byMethod,
+      returns: sales.filter((s) => (s.refunds || []).length > 0).length,
+      returnedCount: sales.filter((s) => s.status === 'returned').length,
     });
   }
   if (route === 'PUT /api/branding') {
