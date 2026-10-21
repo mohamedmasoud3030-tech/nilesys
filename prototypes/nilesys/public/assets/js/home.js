@@ -36,7 +36,7 @@
       en: { n: 'HR & Payroll', d: 'Employees, attendance with lateness and overtime, leaves, advances and payroll slips.', f: ['Attendance', 'Leaves & balances', 'Advances & payroll'] },
     },
     {
-      id: 'admin', icon: '🗂️', ready: false,
+      id: 'admin', icon: '🗂️', ready: true, href: '/systems/sites.html',
       ar: { n: 'لوحة تحكم المواقع', d: 'المواقع بتتدار من هنا: الوحدات العقارية، اشتراكات الجيم، طلبات العملاء، وكلام كل موقع.', f: ['وحدات بالصور', 'اشتراكات وكلاسات', 'صندوق طلبات العملاء'] },
       en: { n: 'Websites Control Panel', d: 'Manage all sites from here: real-estate units, gym subscriptions, customer requests and site copy.', f: ['Units with photos', 'Plans & classes', 'Customer requests inbox'] },
     },

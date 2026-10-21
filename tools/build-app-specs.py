@@ -263,6 +263,26 @@ def main():
     )
     (SRC / "index.html").write_text(idx_html, encoding="utf-8")
 
+    # سجل الأنظمة كبيانات: لوحة المواقع تقرأ منه عدد الأنظمة العاملة
+    # بدل رقم مكتوب في الكود، فيبقى الرقم صادقاً بعد كل تحديث.
+    import json
+    reg = {
+        "generatedAt": __import__("datetime").date.today().isoformat(),
+        "rev": git_rev(),
+        "systems": [
+            {
+                "slug": m.get("slug", ""), "name": m.get("name", ""),
+                "status": m.get("status", ""), "order": int(m.get("order", 99) or 99),
+                "entry": m.get("entry", ""), "criteria": f"{c}/{t}",
+            }
+            for m, _, c, t in specs
+        ],
+    }
+    out = PROTO / "public" / "data" / "systems.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(reg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"سجل الأنظمة → {out.relative_to(ROOT)} ({len(specs)} نظاماً)")
+
     print(f"كُتبت {len(specs)} مواصفة + فهرس في {SRC}")
     for m, _, c, t in specs:
         print(f"  {m.get('order')}. {m.get('name'):<22} {m.get('status'):<8} {c}/{t} معيار")

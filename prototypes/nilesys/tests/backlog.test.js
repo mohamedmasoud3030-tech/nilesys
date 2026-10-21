@@ -450,8 +450,28 @@ test('F-16: the systems registry tells the truth about each system', async () =>
   assert.ok(planned.every((s) => s.note && s.note.length > 0), 'a planned system says what it is missing');
 });
 
-test('F-17: the seven sites are listed, and none claims to be live', async () => {
-  const r = await req('GET', '/api/sites', { cookie: MGR });
+test('F-17: الحالات صادقة — كل موقع يعلن حالته كما في صفحته', async () => {
+  // كان الاختبار يشترط ألا يدّعي موقع أنه يعمل، لأن اللوحة كانت قائمة مكتوبة
+  // بأيدينا بحالة «planned» ثابتة. اللوحة الآن تقرأ الحالة الحقيقية: موقعان
+  // يعملان فعلاً، وخمسة قيد التنفيذ — والاختبار يتحقق من التطابق مع الصفحات.
+  // اللوحة صارت تطبيقاً مستقلاً بمستخدميه (admin/manager في نظام admin)،
+  // فمدير نقاط البيع لا يقرأ قائمتها — وهذا بذاته فحص صلاحيات.
+  const own = await req('GET', '/api/sites', { cookie: MGR });
+  assert.equal(own.status, 403, 'مدير الكاشير ليس مستخدم لوحة المواقع');
+  const adminCookie = (await req('POST', '/api/login', {
+    body: { system: 'admin', username: 'admin', password: 'demo1234' },
+  })).cookie;
+  const r = await req('GET', '/api/sites', { cookie: adminCookie });
   assert.equal(r.data.sites.length, 7);
-  assert.ok(r.data.sites.every((s) => s.status === 'planned'));
+  const live = r.data.sites.filter((s) => s.status === 'live');
+  const coming = r.data.sites.filter((s) => s.status === 'coming');
+  assert.equal(live.length + coming.length, 7, 'كل موقع له حالة معروفة');
+  assert.ok(live.length >= 2, 'موقعان على الأقل يعملان');
+  for (const s of r.data.sites) {
+    const page = await fetch(`${BASE}${s.url}`);
+    assert.equal(page.status, 200, `صفحة ${s.slug}`);
+    const html = await page.text();
+    const declaredLive = /class="b live"/.test(html);
+    assert.equal(s.status === 'live', declaredLive, `حالة ${s.slug} تطابق شارة صفحته`);
+  }
 });

@@ -49,7 +49,7 @@ hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
 </header>
 <div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-restaurant</div></div><div class="fact"><div class="k">النظام</div><div class="v">restaurant</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/restaurant.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">manager, waiter, kitchen</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">10/10</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/restaurant.test.js</div></div></div>
 <main class="body">
-<blockquote>الحالة: <strong>مبني ويعمل</strong>. المحرك <code>lib/restaurant.js</code> (14/14 اختبار API) والشاشة <code>public/systems/restaurant.html</code> (19/19 اختبار متصفح) — وكل معيار قبول تحته دليل يُعاد تشغيله بأمر واحد.</blockquote>
+<blockquote>الحالة: <strong>مبني ويعمل</strong>. المحرك <code>lib/restaurant.js</code> (14/14 اختبار API) والشاشة <code>public/systems/restaurant.html</code> (21/21 اختبار متصفح) — وكل معيار قبول تحته دليل يُعاد تشغيله بأمر واحد.</blockquote>
 <h2>1) الغرض في سطر</h2>
 <p>الطلب يتكتب على الترابيزة، يوصل للمطبخ في نفس اللحظة، ويُحاسب مرة واحدة — بلا ورق يضيع ولا أوردر يتكرر.</p>
 <h2>2) المستخدمون</h2>
@@ -102,8 +102,8 @@ GET  /api/restaurant/summary?range=today</pre>
 <h2>8) كيف يُثبت ذلك</h2>
 <pre>BASE=http://localhost:4000 node --test tests/restaurant.test.js   # 14/14
 BASE=http://localhost:4000 sh tools/setup-browser.sh tools/ui-restaurant.js   # 19/19</pre>
-<p>نتيجة آخر تشغيل: <strong>14/14</strong> للـ API و<strong>19/19</strong> للمتصفح، وصفر أخطاء JavaScript.</p>
+<p>نتيجة آخر تشغيل: <strong>14/14</strong> للـ API و<strong>21/21</strong> للمتصفح، وصفر أخطاء JavaScript.</p>
 <h2>9) خارج النطاق الآن</h2>
 <ul><li>التطبيق الخارجي للتوصيل (ت Aggregator).</li><li>شاشة مطبخ على طابعة حرارية.</li><li>حساب البقشيش وتوزيعه.</li></ul></main>
-<footer class="foot">مُولَّد من <code>docs/product/systems/restaurant.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@6aced0a</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
+<footer class="foot">مُولَّد من <code>docs/product/systems/restaurant.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@2ecec2e</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
 </div></body></html>

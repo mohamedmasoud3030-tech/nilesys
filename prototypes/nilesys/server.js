@@ -73,6 +73,7 @@ function seedUsers() {
     mk('courts', 'manager', 'مدير ملعبنا', 'manager'),
     mk('courts', 'reception', 'هدى عبد الله', 'reception'),
     mk('admin', 'admin', 'مدير الموقع', 'admin'),
+    mk('admin', 'manager', 'مسؤول موقع الأزياء', 'manager'),
   ];
 }
 
@@ -235,6 +236,7 @@ function migrate() {
   if (typeof clinic !== 'undefined' && clinic.seedDefaults(db)) changed = true;
   if (typeof courts !== 'undefined' && courts.seedDefaults(db)) changed = true;
   if (typeof hr !== 'undefined' && hr.seedDefaults(db)) changed = true;
+  if (typeof sites !== 'undefined' && sites.seedDefaults(db)) changed = true;
   if (changed) {
     try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); } catch { /* /tmp */ }
   }
@@ -489,6 +491,16 @@ const courts = require('./lib/courts.js')({
   readBody: (req) => readBody(req),
 });
 
+// لوحة المواقع — التطبيق السابع، مساراته تحت /api/sites.
+const sites = require('./lib/sites.js')({
+  getDb: () => db,
+  save: () => save(),
+  audit: (u, a, d2, m) => audit(u, a, d2, m),
+  sendJSON: (res, code, body, headers) => sendJSON(res, code, body, headers),
+  sendError: (res, code, msg) => sendError(res, code, msg),
+  readBody: (req) => readBody(req),
+});
+
 // نظام الموارد البشرية — تطبيق مستقل، مساراته تحت /api/hr.
 const hr = require('./lib/hr.js')({
   getDb: () => db,
@@ -561,6 +573,9 @@ async function handleApi(req, res, url) {
 
   // تطبيق الموارد البشرية له مساراته ومحركه المستقل.
   if (await hr.handle(req, res, url, { route, user, isManager })) return;
+
+  // لوحة المواقع — تطبيق مستقل، ورسالة الزائر مسار عام بلا تسجيل دخول.
+  if (await sites.handle(req, res, url, { route, user, isManager })) return;
 
   /* ---- الجلسة ---- */
   if (route === 'POST /api/login') {

@@ -820,13 +820,9 @@ module.exports = function createExtensions(ctx) {
       ];
       return sendJSON(res, 200, { systems }), true;
     }
-    if (route === 'GET /api/sites') {
-      const sites = ['مطعم', 'عيادة', 'عقارات', 'جيم', 'موبايلات', 'ملابس', 'ملاعب'].map((n, i) => ({
-        key: `site-${i + 1}`, name: n, status: 'planned', template: n,
-      }));
-      return sendJSON(res, 200, { sites }), true;
-    }
-
+    // ملاحظة: قائمة المواقع لم تعد هنا. كانت قائمة مكتوبة بخط اليد بحالة
+    // «planned» ثابتة — أي رقم لا يقابله شيء. صارت في lib/sites.js وتقرأ
+    // حالة كل موقع من صفحته وسجل المواصفات (docs/product/systems).
     return false;
   }
 

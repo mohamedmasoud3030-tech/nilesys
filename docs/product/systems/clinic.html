@@ -49,7 +49,7 @@ hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
 </header>
 <div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-clinic</div></div><div class="fact"><div class="k">النظام</div><div class="v">clinic</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/clinic.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">manager, reception, doctor</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">8/8</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/clinic.test.js</div></div></div>
 <main class="body">
-<blockquote>الحالة: <strong>مبني ويعمل</strong>. المحرك <code>lib/clinic.js</code> (11/11 اختبار API) والشاشة <code>public/systems/clinic.html</code> (16/16 اختبار متصفح).</blockquote>
+<blockquote>الحالة: <strong>مبني ويعمل</strong>. المحرك <code>lib/clinic.js</code> (11/11 اختبار API) والشاشة <code>public/systems/clinic.html</code> (17/17 اختبار متصفح).</blockquote>
 <h2>1) الغرض في سطر</h2>
 <p>الاستقبال يحجز، الطبيب يكتب الروشتة، والحساب يُحصَّل — وملف المريض واحد لا يتكرر.</p>
 <h2>2) المستخدمون</h2>
@@ -92,9 +92,9 @@ GET  /api/clinic/summary?range=today</pre>
 <ul class="criteria"><li class="crit done"><span class="box">✓</span>موعدان متعارضان لنفس الطبيب → 409</li><li class="crit done"><span class="box">✓</span>بدء كشف قبل وصول المريض → 400</li><li class="crit done"><span class="box">✓</span>تسجيل موبايل مكرر → 409 يحمل معرّف المريض الموجود</li><li class="crit done"><span class="box">✓</span>روشتة بحبتين تُحفظ وتُقرأ كاملة في ملف المريض</li><li class="crit done"><span class="box">✓</span>تحصيل كاش 300 يظهر في درج وردية العيادة</li><li class="crit done"><span class="box">✓</span>طبيب يحاول التحصيل → 403</li><li class="crit done"><span class="box">✓</span>عدم الحضور لا يزيد الإيراد</li><li class="crit done"><span class="box">✓</span>إعادة جدولة موعد لا تفقد ملف المريض</li></ul>
 <h2>8) كيف يُثبت ذلك</h2>
 <pre>BASE=http://localhost:4000 node --test tests/clinic.test.js                   # 11/11
-BASE=http://localhost:4000 sh tools/setup-browser.sh tools/ui-clinic.js      # 16/16</pre>
-<p>نتيجة آخر تشغيل: <strong>11/11</strong> للـ API و<strong>16/16</strong> للمتصفح، وصفر أخطاء JavaScript.</p>
+BASE=http://localhost:4000 sh tools/setup-browser.sh tools/ui-clinic.js      # 17/17</pre>
+<p>نتيجة آخر تشغيل: <strong>11/11</strong> للـ API و<strong>17/17</strong> للمتصفح، وصفر أخطاء JavaScript.</p>
 <h2>9) خارج النطاق الآن</h2>
 <ul><li>التأمين الطبي والمطالبات.</li><li>ربط بالمعمل والأشعة.</li><li>تطبيق حجز للمرضى.</li></ul></main>
-<footer class="foot">مُولَّد من <code>docs/product/systems/clinic.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@6aced0a</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
+<footer class="foot">مُولَّد من <code>docs/product/systems/clinic.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@2ecec2e</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
 </div></body></html>
