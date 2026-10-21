@@ -18,6 +18,17 @@ const check = (name, ok, extra = '') => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  // سجل الشبكة: عند الفشل نريد سبباً (500؟ مهلة؟) لا تخميناً.
+  const netLog = [];
+  page.on('response', (r) => {
+    if (r.url().includes('/api/') && r.status() >= 400) netLog.push(`${r.status()} ${r.request().method()} ${r.url().replace(BASE, '')}`);
+  });
+  page.on('request', (r) => {
+    if (r.url().includes('/api/stock/adjust')) netLog.push(`→ POST body ${String(r.postData()).slice(0, 120)}`);
+  });
+  page.on('requestfailed', (r) => {
+    if (r.url().includes('/api/')) netLog.push(`FAILED ${r.method()} ${r.url().replace(BASE, '')} — ${r.failure()?.errorText}`);
+  });
   const money = async (sel) => {
     const t = (await page.textContent(sel).catch(() => '0')) || '0';
     return Number(t.replace(/[^\d.-]/g, '')) || 0;
@@ -26,11 +37,17 @@ const check = (name, ok, extra = '') => {
   // تسدّ الشاشة، وكل نقرة بعدها تفشل برسالة مضلِّلة عن «اعتراض المؤشر».
   const modalOk = async (sel, expectClose = true) => {
     await page.click(sel);
-    await page.waitForTimeout(600);
+    // انتظار حقيقي بدل رقم ثابت: على Vercel الطلب البارد بياخد أكتر من ثانية،
+    // والانتظار الثابت كان يخلي الاختبار يفشل بسبب السرعة لا بسبب عيب.
+    if (expectClose) {
+      await page.waitForFunction(() => !document.querySelector('.modal-back'), { timeout: 25000 }).catch(() => {});
+    }
+    await page.waitForTimeout(250);
     if (expectClose && await page.locator('.modal-back').count()) {
       const msg = (await page.textContent('.modal-back').catch(() => '')) || '';
       await page.locator('.modal-back .x-btn').first().click().catch(() => {});
       await page.waitForTimeout(200);
+      console.log('شبكة:', netLog.slice(-6).join(' | ') || 'لا خطأ شبكة مسجّل');
       throw new Error(`النافذة لم تُغلق بعد ${sel}: ${msg.slice(0, 160)}`);
     }
   };
@@ -39,10 +56,12 @@ const check = (name, ok, extra = '') => {
   await page.click('.demo-user[data-u="manager"]');
   await page.waitForSelector('#appView:not(.hidden)');
   await page.waitForTimeout(400);
-  // نبدأ من قاعدة نظيفة: تشغيل ثانٍ على نفس البيانات كان يعطي 409 على الكوبون
-  // ويبدو كأن الشاشة مكسورة.
-  await page.request.post(BASE + '/api/reset');
-  await page.waitForTimeout(500);
+  // نبدأ من قاعدة نظيفة محلياً فقط: على الديمو المنشور المسح بيمسح بيانات
+  // حقيقية، وكل الاختبارات هناك بتستخدم أسماء فريدة بدل ما تمسح.
+  if (/localhost|127\.0\.0\.1/.test(BASE)) {
+    await page.request.post(BASE + '/api/reset');
+    await page.waitForTimeout(500);
+  }
 
   /* ---------- F-13: شارة التنبيهات موجودة في الشريط ---------- */
   const bell = await page.locator('#alertsBtn').count();
@@ -82,12 +101,13 @@ const check = (name, ok, extra = '') => {
   check('F-02 · الأكواد المزروعة ظاهرة (NILE10 و SAVE50)', seeded.includes('NILE10') && seeded.includes('SAVE50'));
   await page.click('#addK');
   await page.waitForTimeout(300);
-  await page.fill('#kCode', 'EID25');
+  const code = `EID${String(Date.now()).slice(-5)}`;
+  await page.fill('#kCode', code);
   await page.fill('#kVal', '25');
   await page.fill('#kMin', '200');
   await modalOk('#kOk');
   const couponTxt = (await page.textContent('#rows')) || '';
-  check('F-02 · كود جديد EID25 يُضاف كساري', couponTxt.includes('EID25') && couponTxt.includes('ساري'));
+  check('F-02 · كود جديد يُضاف كساري', couponTxt.includes(code) && couponTxt.includes('ساري'), code);
 
   /* ---------- F-05: تسوية مخزون ---------- */
   await page.goto(BASE + '/systems/pos.html#/stock', { waitUntil: 'networkidle' });

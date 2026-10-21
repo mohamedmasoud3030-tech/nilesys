@@ -248,6 +248,30 @@ function initialize() {
   return initPromise;
 }
 
+/* ================= تحديث الحالة من المصدر المشترك =================
+ *
+ * على Vercel كل طلب قد يصل لنسخة (lambda) مختلفة، وكل نسخة تحتفظ بنسخة `db`
+ * في الذاكرة. بدون هذا التحديث، نسخة قديمة تكتب مستندها القديم فوق تعديلات
+ * غيرها — وهو ما جعل فاتورة تشير لصنف «غير موجود» على الديمو المنشور.
+ *
+ * نقرأ المستند من Supabase قبل كل طلب API. التكلفة طلب شبكة واحد، والبديل
+ * أسوأ: حالة تُخمَّن. القفل المحلي يمنع تداخل الحفظ داخل النسخة نفسها، لكنه
+ * لا يحل التعارض بين نسختين — لذلك يبقى التخزين صفاً واحداً بلا معاملات،
+ * وهذا مذكور كقيد معماري في السجل، لا مخفي.
+ */
+let writeLock = Promise.resolve();
+function withWriteLock(fn) {
+  const next = writeLock.then(fn, fn);
+  writeLock = next.catch(() => {});
+  return next;
+}
+
+async function refreshFromRemote() {
+  if (!REMOTE_STORE) return;
+  const doc = await remoteRead();
+  if (doc && doc !== db) db = doc;
+}
+
 /* ================= سجل العمليات (append-only) ================= */
 
 function audit(user, action, detail, meta) {
@@ -280,6 +304,9 @@ function flush() {
 }
 function save() {
   clearTimeout(saveTimer);
+  // على Vercel النسخة تتجمد بعد إرسال الرد، فأي حفظ مؤجَّل قد لا يحدث أبداً.
+  // نكتب فوراً في وضع التخزين المشترك، ونؤجل الملف المحلي فقط حيث لا ضرر.
+  if (REMOTE_STORE) { flush(); return; }
   saveTimer = setTimeout(flush, 80);
 }
 function resetDemo() {
@@ -890,7 +917,16 @@ async function requestListener(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   try {
     await initialize();
-    if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
+    // كل طلب يرى آخر حالة مُخزَّنة، لا حالة النسخة التي صدفت أن استقبلته.
+    if (url.pathname.startsWith('/api/')) {
+      await refreshFromRemote();
+      if (REMOTE_STORE) {
+        // لا نُنهي الرد قبل أن تُكتب الحالة: الرد يعني «حُفظت»، وإلا كذبنا.
+        const end = res.end.bind(res);
+        res.end = (...args) => { pendingWrite.finally(() => end(...args)); return res; };
+      }
+      return await handleApi(req, res, url);
+    }
     serveStatic(req, res, url);
   } catch (e) {
     sendError(res, e.status || 500, e.message || 'خطأ في السيرفر');
