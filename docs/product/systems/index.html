@@ -47,12 +47,12 @@ hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
   <h1>مواصفات التطبيقات السبعة</h1>
   <span class="badge st-live">يعمل ومُختبَر</span>
 </header>
-<div class="facts"><div class="fact"><div class="k">التطبيقات</div><div class="v">7</div></div><div class="fact"><div class="k">تعمل</div><div class="v">2</div></div><div class="fact"><div class="k">لم تُبنَ</div><div class="v">5</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">16/56</div></div></div>
+<div class="facts"><div class="fact"><div class="k">التطبيقات</div><div class="v">7</div></div><div class="fact"><div class="k">تعمل</div><div class="v">3</div></div><div class="fact"><div class="k">لم تُبنَ</div><div class="v">4</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">26/56</div></div></div>
 <main class="body"><p>كل تطبيق له ملف مستقل: الغرض، المستخدمون، الشاشات، نموذج البيانات، الواجهات، القواعد، ومعايير قبول قابلة للتشغيل. الملفات مولَّدة من <code>docs/product/systems/*.md</code>.</p>
 <table><thead><tr><th>#</th><th>التطبيق</th><th>الحالة</th><th>معايير القبول</th><th>الصفحة</th></tr></thead><tbody>
 <tr><td>1</td><td><a href="pos.md">نظام الكاشير</a></td><td>يعمل ومُختبَر</td><td>9/9</td><td><code>/systems/pos.html</code></td></tr>
 <tr><td>2</td><td><a href="inventory.md">نظام المخازن</a></td><td>يعمل ومُختبَر</td><td>7/7</td><td><code>/systems/inventory.html</code></td></tr>
-<tr><td>3</td><td><a href="restaurant.md">نظام المطعم</a></td><td>لم يُبنَ بعد</td><td>0/10</td><td><code>/systems/restaurant.html</code></td></tr>
+<tr><td>3</td><td><a href="restaurant.md">نظام المطعم</a></td><td>يعمل ومُختبَر</td><td>10/10</td><td><code>/systems/restaurant.html</code></td></tr>
 <tr><td>4</td><td><a href="clinic.md">نظام العيادة</a></td><td>لم يُبنَ بعد</td><td>0/8</td><td><code>/systems/clinic.html</code></td></tr>
 <tr><td>5</td><td><a href="courts.md">نظام حجز الملاعب</a></td><td>لم يُبنَ بعد</td><td>0/7</td><td><code>/systems/courts.html</code></td></tr>
 <tr><td>6</td><td><a href="hr.md">نظام الموارد البشرية</a></td><td>لم يُبنَ بعد</td><td>0/8</td><td><code>/systems/hr.html</code></td></tr>
@@ -60,5 +60,5 @@ hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
 </tbody></table>
 <h2>الترتيب ولماذا</h2>
 <ol><li><strong>الكاشير</strong> ثم <strong>المخازن</strong> — الأساس المالي والمخزني الذي يخدم كل ما بعده.</li><li><strong>المطعم</strong> — أعلى قيمة مباشرة، ويعيد استخدام محرك الدفع والورديات نفسه.</li><li><strong>العيادة</strong> — ملف مريض ومواعيد؛ يعيد استخدام التحصيل والصلاحيات.</li><li><strong>حجز الملاعب</strong> — جدول زمني ودفع عربون؛ أبسط من العيادة بعد وجود نمط المواعيد.</li><li><strong>الموارد البشرية</strong> — يحتاج الموظفين الموجودين في الأنظمة السابقة.</li><li><strong>لوحة المواقع</strong> — تحتاج كل الأنظمة والمواقع قائمة لتقيسها.</li></ol></main>
-<footer class="foot">مُولَّد بواسطة <code>tools/build-app-specs.py</code> · <code>nilesys@09e88de</code></footer>
+<footer class="foot">مُولَّد بواسطة <code>tools/build-app-specs.py</code> · <code>nilesys@5a71b2d</code></footer>
 </div></body></html>

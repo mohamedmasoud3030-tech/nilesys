@@ -211,7 +211,10 @@ async function remoteWrite(doc) {
 // ترحيل لطيف: أي مستند قديم ياخد الحقول الجديدة (ضريبة، موردون، عملاء، حركات…)
 // ويُشفَّر أي مستخدم ما زال بنص صريح — مرة واحدة عند أول تحميل.
 function migrate() {
-  if (extensions && extensions.seedDefaults(db)) {
+  let changed = false;
+  if (extensions && extensions.seedDefaults(db)) changed = true;
+  if (typeof restaurant !== 'undefined' && restaurant.seedDefaults(db)) changed = true;
+  if (changed) {
     try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); } catch { /* /tmp */ }
   }
 }
@@ -432,6 +435,16 @@ const extensions = require('./lib/extensions.js')({
 });
 
 
+// نظام المطعم — تطبيق مستقل، مساراته تحت /api/restaurant وبياناته في مجموعاته.
+const restaurant = require('./lib/restaurant.js')({
+  getDb: () => db,
+  save: () => save(),
+  audit: (u, a, d, m) => audit(u, a, d, m),
+  sendJSON: (res, code, body, headers) => sendJSON(res, code, body, headers),
+  sendError: (res, code, msg) => sendError(res, code, msg),
+  readBody: (req) => readBody(req),
+});
+
 /* ================= منطق الـ API ================= */
 
 function publicUser(u) {
@@ -482,6 +495,9 @@ async function handleApi(req, res, url) {
 
   // كل مسارات الباك أوفيس (F-01 … F-15) تعيش في lib/extensions.js.
   if (await extensions.handle(req, res, url, { route, user, isManager })) return;
+
+  // تطبيق المطعم له مساراته ومحركه المستقل.
+  if (await restaurant.handle(req, res, url, { route, user, isManager })) return;
 
   /* ---- الجلسة ---- */
   if (route === 'POST /api/login') {

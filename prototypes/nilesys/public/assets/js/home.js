@@ -21,7 +21,7 @@
       en: { n: 'Inventory & Purchases', d: 'Items per warehouse, suppliers and their accounts, purchase invoices, stock counts.', f: ['Items & warehouses', 'Suppliers & accounts', 'Purchases & stocktake'] },
     },
     {
-      id: 'restaurant', icon: '🍽️', ready: false,
+      id: 'restaurant', icon: '🍽️', ready: true, href: '/systems/restaurant.html',
       ar: { n: 'إدارة المطعم', d: 'الصالة والترابيزات، شاشة المطبخ، الدليفري والتيك أواي، الحجوزات، وأوردرات الموقع.', f: ['خريطة الترابيزات', 'شاشة مطبخ لحظية', 'دليفري وحجوزات'] },
       en: { n: 'Restaurant Management', d: 'Floor and tables, kitchen screen, delivery and takeaway, reservations and website orders.', f: ['Floor & tables', 'Live kitchen screen', 'Delivery & reservations'] },
     },

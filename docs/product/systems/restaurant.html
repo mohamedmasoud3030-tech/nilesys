@@ -45,11 +45,11 @@ hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
 <header class="head">
   <div class="kicker">نيل سيستمز · مواصفة تطبيق رقم 3</div>
   <h1>نظام المطعم</h1>
-  <span class="badge st-planned">لم يُبنَ بعد</span>
+  <span class="badge st-live">يعمل ومُختبَر</span>
 </header>
-<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-restaurant</div></div><div class="fact"><div class="k">النظام</div><div class="v">restaurant</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/restaurant.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">manager, waiter, kitchen</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">0/10</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/restaurant.test.js</div></div></div>
+<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-restaurant</div></div><div class="fact"><div class="k">النظام</div><div class="v">restaurant</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/restaurant.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">manager, waiter, kitchen</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">10/10</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/restaurant.test.js</div></div></div>
 <main class="body">
-<blockquote>الحالة: <strong>لم يُبنَ بعد</strong>. هذه المواصفة هي ما سيُبنى بالضبط، ومعايير القبول هي ما سيُختبر.</blockquote>
+<blockquote>الحالة: <strong>مبني ويعمل</strong>. المحرك <code>lib/restaurant.js</code> (14/14 اختبار API) والشاشة <code>public/systems/restaurant.html</code> (19/19 اختبار متصفح) — وكل معيار قبول تحته دليل يُعاد تشغيله بأمر واحد.</blockquote>
 <h2>1) الغرض في سطر</h2>
 <p>الطلب يتكتب على الترابيزة، يوصل للمطبخ في نفس اللحظة، ويُحاسب مرة واحدة — بلا ورق يضيع ولا أوردر يتكرر.</p>
 <h2>2) المستخدمون</h2>
@@ -89,6 +89,7 @@ POST /api/restaurant/orders              { tableId, type, items[] }
 POST /api/restaurant/orders/:id/items    { items[] }
 POST /api/restaurant/orders/:id/send     ← يثبت الأصناف ويولّد تذاكر المطبخ
 PATCH /api/restaurant/orders/:id/items/:lineId { state }              (kitchen)
+PATCH /api/restaurant/orders/:id/items/:lineId { qty }                (قبل الإرسال فقط)
 POST /api/restaurant/orders/:id/pay      { method, paid, discount, split }
 POST /api/restaurant/orders/:id/void     { reason }                   (manager)
 GET  /api/restaurant/kitchen             ← تذاكر مفتوحة مرتّبة بالوقت
@@ -97,11 +98,12 @@ GET  /api/restaurant/summary?range=today</pre>
 <h2>6) القواعد</h2>
 <ol><li>ترابيزة واحدة لا تحمل طلبين مفتوحين. فتح طلب على مشغولة → 409.</li><li>الصنف يُرسل للمطبخ مرة واحدة؛ إرساله مرتين لا يضاعف الكمية ولا يولّد تذكرة ثانية.</li><li>لا يمكن الدفع قبل إرسال كل الأصناف (<code>new</code> → مرفوض حتى تُرسل)، ولا يُدفع طلب مسدَّد مرتين.</li><li>إلغاء صنف بعد بدء تحضيره يحتاج مدير، ويُسجَّل باسمه وسببه.</li><li>الدفع يحرّر الترابيزة إلى <code>dirty</code>، والتنضيف يرجّعها <code>free</code>.</li><li>الدفع النقدي يدخل الدرج بضبط النفس؛ غير النقدي يُسجَّل ولا يمسّ الدرج.</li><li>الحجز المتعارض على نفس الترابيزة في نفس الوقت → 409.</li></ol>
 <h2>7) معايير القبول</h2>
-<ul class="criteria"><li class="crit open"><span class="box"></span>فتح طلب على ترابيزة مشغولة → 409</li><li class="crit open"><span class="box"></span>إرسال طلب للمطبخ مرتين → تذكرة واحدة وبنفس الكميات</li><li class="crit open"><span class="box"></span>دفع طلب فيه صنف لم يُرسل → 400</li><li class="crit open"><span class="box"></span>دفع مرتين → 400 والرصيد لا يتضاعف</li><li class="crit open"><span class="box"></span>إلغاء صنف بعد التحضير بالويتر → 403، وبالمدير → يمر ويُسجَّل</li><li class="crit open"><span class="box"></span>الدفع النقدي يظهر في درج وردية المطعم بالضبط</li><li class="crit open"><span class="box"></span>حساب مقسوم على 3 → مجموع الأجزاء = الإجمالي بالقرش</li><li class="crit open"><span class="box"></span>حجز متعارض → 409</li><li class="crit open"><span class="box"></span>شاشة المطبخ لا تعرض إلا ما يستحق التحضير ومرتّباً بالأقدم</li><li class="crit open"><span class="box"></span>منيو غير متوفّر لا يُباع → 400</li></ul>
+<ul class="criteria"><li class="crit done"><span class="box">✓</span>فتح طلب على ترابيزة مشغولة → 409</li><li class="crit done"><span class="box">✓</span>إرسال طلب للمطبخ مرتين → تذكرة واحدة وبنفس الكميات</li><li class="crit done"><span class="box">✓</span>دفع طلب فيه صنف لم يُرسل → 400</li><li class="crit done"><span class="box">✓</span>دفع مرتين → 400 والرصيد لا يتضاعف</li><li class="crit done"><span class="box">✓</span>إلغاء صنف بعد التحضير بالويتر → 403، وبالمدير → يمر ويُسجَّل</li><li class="crit done"><span class="box">✓</span>الدفع النقدي يظهر في درج وردية المطعم بالضبط</li><li class="crit done"><span class="box">✓</span>حساب مقسوم على 3 → مجموع الأجزاء = الإجمالي بالقرش</li><li class="crit done"><span class="box">✓</span>حجز متعارض → 409</li><li class="crit done"><span class="box">✓</span>شاشة المطبخ لا تعرض إلا ما يستحق التحضير ومرتّباً بالأقدم</li><li class="crit done"><span class="box">✓</span>منيو غير متوفّر لا يُباع → 400</li></ul>
 <h2>8) كيف يُثبت ذلك</h2>
-<pre>npm test -- restaurant
-node tools/ui-restaurant.js</pre>
+<pre>BASE=http://localhost:4000 node --test tests/restaurant.test.js   # 14/14
+BASE=http://localhost:4000 sh tools/setup-browser.sh tools/ui-restaurant.js   # 19/19</pre>
+<p>نتيجة آخر تشغيل: <strong>14/14</strong> للـ API و<strong>19/19</strong> للمتصفح، وصفر أخطاء JavaScript.</p>
 <h2>9) خارج النطاق الآن</h2>
 <ul><li>التطبيق الخارجي للتوصيل (ت Aggregator).</li><li>شاشة مطبخ على طابعة حرارية.</li><li>حساب البقشيش وتوزيعه.</li></ul></main>
-<footer class="foot">مُولَّد من <code>docs/product/systems/restaurant.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@09e88de</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
+<footer class="foot">مُولَّد من <code>docs/product/systems/restaurant.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@5a71b2d</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
 </div></body></html>

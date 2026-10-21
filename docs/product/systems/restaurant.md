@@ -3,7 +3,7 @@ id: app-restaurant
 slug: restaurant
 order: 3
 name: نظام المطعم
-status: planned
+status: live
 system: restaurant
 entry: /systems/restaurant.html
 users: manager, waiter, kitchen
@@ -12,7 +12,7 @@ api: /api/restaurant/*
 ---
 # نظام المطعم — مواصفة مستقلة
 
-> الحالة: **لم يُبنَ بعد**. هذه المواصفة هي ما سيُبنى بالضبط، ومعايير القبول هي ما سيُختبر.
+> الحالة: **مبني ويعمل**. المحرك `lib/restaurant.js` (14/14 اختبار API) والشاشة `public/systems/restaurant.html` (19/19 اختبار متصفح) — وكل معيار قبول تحته دليل يُعاد تشغيله بأمر واحد.
 
 ## 1) الغرض في سطر
 
@@ -64,6 +64,7 @@ POST /api/restaurant/orders              { tableId, type, items[] }
 POST /api/restaurant/orders/:id/items    { items[] }
 POST /api/restaurant/orders/:id/send     ← يثبت الأصناف ويولّد تذاكر المطبخ
 PATCH /api/restaurant/orders/:id/items/:lineId { state }              (kitchen)
+PATCH /api/restaurant/orders/:id/items/:lineId { qty }                (قبل الإرسال فقط)
 POST /api/restaurant/orders/:id/pay      { method, paid, discount, split }
 POST /api/restaurant/orders/:id/void     { reason }                   (manager)
 GET  /api/restaurant/kitchen             ← تذاكر مفتوحة مرتّبة بالوقت
@@ -83,23 +84,25 @@ GET  /api/restaurant/summary?range=today
 
 ## 7) معايير القبول
 
-- [ ] فتح طلب على ترابيزة مشغولة → 409
-- [ ] إرسال طلب للمطبخ مرتين → تذكرة واحدة وبنفس الكميات
-- [ ] دفع طلب فيه صنف لم يُرسل → 400
-- [ ] دفع مرتين → 400 والرصيد لا يتضاعف
-- [ ] إلغاء صنف بعد التحضير بالويتر → 403، وبالمدير → يمر ويُسجَّل
-- [ ] الدفع النقدي يظهر في درج وردية المطعم بالضبط
-- [ ] حساب مقسوم على 3 → مجموع الأجزاء = الإجمالي بالقرش
-- [ ] حجز متعارض → 409
-- [ ] شاشة المطبخ لا تعرض إلا ما يستحق التحضير ومرتّباً بالأقدم
-- [ ] منيو غير متوفّر لا يُباع → 400
+- [x] فتح طلب على ترابيزة مشغولة → 409
+- [x] إرسال طلب للمطبخ مرتين → تذكرة واحدة وبنفس الكميات
+- [x] دفع طلب فيه صنف لم يُرسل → 400
+- [x] دفع مرتين → 400 والرصيد لا يتضاعف
+- [x] إلغاء صنف بعد التحضير بالويتر → 403، وبالمدير → يمر ويُسجَّل
+- [x] الدفع النقدي يظهر في درج وردية المطعم بالضبط
+- [x] حساب مقسوم على 3 → مجموع الأجزاء = الإجمالي بالقرش
+- [x] حجز متعارض → 409
+- [x] شاشة المطبخ لا تعرض إلا ما يستحق التحضير ومرتّباً بالأقدم
+- [x] منيو غير متوفّر لا يُباع → 400
 
 ## 8) كيف يُثبت ذلك
 
 ```sh
-npm test -- restaurant
-node tools/ui-restaurant.js
+BASE=http://localhost:4000 node --test tests/restaurant.test.js   # 14/14
+BASE=http://localhost:4000 sh tools/setup-browser.sh tools/ui-restaurant.js   # 19/19
 ```
+
+نتيجة آخر تشغيل: **14/14** للـ API و**19/19** للمتصفح، وصفر أخطاء JavaScript.
 
 ## 9) خارج النطاق الآن
 

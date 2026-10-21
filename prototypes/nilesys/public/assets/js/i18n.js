@@ -2,6 +2,13 @@
 window.I18N = {
   ar: {
     'common.appName': 'نيل سيستمز',
+    'pos.kicker': 'نظام الكاشير',
+    'inv.kicker': 'نظام المخازن',
+    'rest.kicker': 'نظام المطاعم',
+    'clinic.kicker': 'نظام العيادات',
+    'courts.kicker': 'نظام حجز الملاعب',
+    'hr.kicker': 'نظام الموارد البشرية',
+    'sites.kicker': 'مواقع العملاء',
     'common.appTag': 'أنظمة ومواقع جاهزة',
     'common.login': 'تسجيل الدخول',
     'common.logout': 'خروج',
@@ -208,6 +215,13 @@ window.I18N = {
   },
   en: {
     'common.appName': 'Nile Systems',
+    'pos.kicker': 'POS',
+    'inv.kicker': 'Inventory',
+    'rest.kicker': 'Restaurant',
+    'clinic.kicker': 'Clinic',
+    'courts.kicker': 'Courts booking',
+    'hr.kicker': 'HR',
+    'sites.kicker': 'Client sites',
     'common.appTag': 'Ready systems & websites',
     'common.login': 'Log in',
     'common.logout': 'Log out',
