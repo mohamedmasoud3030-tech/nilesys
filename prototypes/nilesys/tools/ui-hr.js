@@ -8,8 +8,10 @@ const OUT = process.env.OUT || '/tmp/shots';
 
 const results = [];
 const check = (n, ok, extra = '') => { results.push({ n, ok }); console.log(`${ok ? '✓' : '✗'} ${n}${extra ? ' — ' + extra : ''}`); };
-const MONTH = '2025-01';
-const DAY = '2025-01-13';
+// شهر ويوم قابلان للتغيير: تشغيل الاختبار مرتين على نفس قاعدة البيانات لا يصطدم
+// بحضور مسجّل أو مرتب مصروف من التشغيل السابق.
+const MONTH = process.env.HR_MONTH || '2025-01';
+const DAY = `${MONTH}-13`;
 
 (async () => {
   const browser = await chromium.launch();

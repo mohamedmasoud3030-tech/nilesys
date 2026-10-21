@@ -212,8 +212,24 @@ async function remoteWrite(doc) {
 
 // ترحيل لطيف: أي مستند قديم ياخد الحقول الجديدة (ضريبة، موردون، عملاء، حركات…)
 // ويُشفَّر أي مستخدم ما زال بنص صريح — مرة واحدة عند أول تحميل.
-function migrate() {
+// حسابات الديمو تُضاف إن نقصت: مستند محفوظ من قبل إضافة نظام جديد لا يعرف
+// حسابات ذاك النظام، فيفشل دخولها على الديمو المنشور رغم أن الكود يضمّها.
+// لا نلمس حساباً موجوداً (كلمة مروره أو دوره قد يكونان تغيّرا).
+function ensureDemoUsers(d) {
+  const seed = seedUsers();
+  d.users = d.users || [];
   let changed = false;
+  for (const u of seed) {
+    if (!d.users.some((x) => x.system === u.system && x.username === u.username)) {
+      d.users.push(u);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function migrate() {
+  let changed = ensureDemoUsers(db);
   if (extensions && extensions.seedDefaults(db)) changed = true;
   if (typeof restaurant !== 'undefined' && restaurant.seedDefaults(db)) changed = true;
   if (typeof clinic !== 'undefined' && clinic.seedDefaults(db)) changed = true;
@@ -222,6 +238,7 @@ function migrate() {
   if (changed) {
     try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); } catch { /* /tmp */ }
   }
+  return changed;
 }
 
 function loadLocal() {
@@ -251,7 +268,9 @@ function initialize() {
       db = buildSeed();
       await remoteWrite(db);
     }
-    migrate();
+    // الترحيل يُحفظ فوراً في المصدر المشترك: بدونه يضيع كل ما أضافه
+    // (حسابات نظام جديد مثلاً) لأن النسخة تتجمد بعد الرد.
+    if (migrate()) await remoteWrite(db);
   })();
   return initPromise;
 }
