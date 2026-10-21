@@ -266,10 +266,26 @@ function withWriteLock(fn) {
   return next;
 }
 
-async function refreshFromRemote() {
+// قراءة قبل كل طلب كانت صحيحة لكنها تُثقل الديمو (طلبان لـ Supabase لكل ضغطة).
+// نحتفظ بالنسخة لثانية ونصف، ونتخطاها للطلبات المغيّرة: الحالة التي نكتب فوقها
+// لا يجوز أن تكون قديمة.
+let lastSyncAt = 0;
+let inflightSync = null;
+async function refreshFromRemote({ force = false } = {}) {
   if (!REMOTE_STORE) return;
-  const doc = await remoteRead();
-  if (doc && doc !== db) db = doc;
+  const fresh = Date.now() - lastSyncAt < 1500;
+  if (!force && fresh) return;
+  if (inflightSync) return inflightSync;
+  inflightSync = (async () => {
+    try {
+      const doc = await remoteRead();
+      if (doc && doc !== db) db = doc;
+      lastSyncAt = Date.now();
+    } finally {
+      inflightSync = null;
+    }
+  })();
+  return inflightSync;
 }
 
 /* ================= سجل العمليات (append-only) ================= */
@@ -919,7 +935,7 @@ async function requestListener(req, res) {
     await initialize();
     // كل طلب يرى آخر حالة مُخزَّنة، لا حالة النسخة التي صدفت أن استقبلته.
     if (url.pathname.startsWith('/api/')) {
-      await refreshFromRemote();
+      await refreshFromRemote({ force: req.method !== 'GET' });
       if (REMOTE_STORE) {
         // لا نُنهي الرد قبل أن تُكتب الحالة: الرد يعني «حُفظت»، وإلا كذبنا.
         const end = res.end.bind(res);
