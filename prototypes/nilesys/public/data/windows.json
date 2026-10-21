@@ -1,0 +1,46 @@
+{
+  "generatedAt": "2026-10-21",
+  "rev": "81a7d30",
+  "programs": [
+    {
+      "slug": "attendance",
+      "name": "نيل حضور (ويندوز)",
+      "status": "live",
+      "order": 4,
+      "entry": "/windows/attendance/",
+      "criteria": "7/7"
+    },
+    {
+      "slug": "cashier",
+      "name": "نيل كاشير (ويندوز)",
+      "status": "live",
+      "order": 1,
+      "entry": "/windows/cashier/",
+      "criteria": "7/7"
+    },
+    {
+      "slug": "kitchen",
+      "name": "نيل مطعم (ويندوز)",
+      "status": "live",
+      "order": 3,
+      "entry": "/windows/kitchen/",
+      "criteria": "7/7"
+    },
+    {
+      "slug": "reports",
+      "name": "نيل تقارير (ويندوز)",
+      "status": "live",
+      "order": 5,
+      "entry": "/windows/reports/",
+      "criteria": "7/7"
+    },
+    {
+      "slug": "stock",
+      "name": "نيل مخازن (ويندوز)",
+      "status": "live",
+      "order": 2,
+      "entry": "/windows/stock/",
+      "criteria": "7/7"
+    }
+  ]
+}

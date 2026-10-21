@@ -25,7 +25,12 @@ Update it in the same change as anything that alters what is below. Do not creat
 | Production database | Not chosen. The target candidate is Supabase PostgreSQL 17 (conditionally viable, **not chosen**) | `docs/reviews/2026-10-14-supabase-feasibility.md` (branch `handoff/2026-10-14-evidence`) |
 | Toolchain | npm with `package-lock.json` v3, Node `>=20`. **npm only ([ADR-0011](adr/0011-repository-tooling-npm.md), 2026-10-19).** `pnpm-lock.yaml` is git-ignored and is never committed or used. Copies on disk are not deleted | `package.json`; ADR-0011 |
 
-### Verification evidence for the integration branch (local sandboxes only, never CI)
+### Verification evidence (local sandboxes only, never CI)
+
+**2026-10-19: a local PostgreSQL makes the skipped files run.** `tools/local-pg.sh` installs, starts and
+points a disposable PostgreSQL at the suite. Before it, `ADMIN_URL` was unset in every sandbox and the
+22 concurrency assertions never executed — an agent could not honestly claim concurrency was correct.
+Now `./tools/local-pg.sh test` runs all 29 files with nothing skipped.
 
 | Commit | Command and result |
 | --- | --- |
@@ -33,7 +38,38 @@ Update it in the same change as anything that alters what is below. Do not creat
 | `d90b7c9` | full suite on real PostgreSQL 17: 236/236 · refund concurrency tests A–F: 6/6, three runs each |
 | `0207c13` | `npm run typecheck` exit 0 · `refund-concurrency.pg.test.ts` 7/7 · refund-related tests 57/57 · mutation check: only test G fails · **2026-10-19 re-run: full suite on real PostgreSQL 17.11 (fresh cluster, `--maxWorkers=1`): 25 files, 237/237, 0 skipped, 4 real-PG files / 22 real-PG tests, 0 leftover test databases** |
 
+| `4dd74f1` (branch `feat/plt-0005-payment-db-constraints`, base `364b51f`) | migration `0005_money_constraints`: `npm run typecheck` exit 0 · `npx vitest run` 23 files passed / 4 skipped, **247 passed / 22 skipped** (23 new assertions in `payment-constraints.test.ts`) · `drizzle-kit check` no drift · `generate` no changes. **No real PostgreSQL available in that sandbox**, so the 4 real-PG files were skipped, as they were before the change |
+
+| `7959fb9` + `tools/local-pg.sh` (2026-10-19) | **First full run with a real PostgreSQL.** `./tools/local-pg.sh test` on PostgreSQL 17.11 (fresh cluster, `--maxWorkers=1`): **29 files passed, 0 skipped · 296/296 tests, 0 skipped.** This is the first time the two `.pg.test.ts` race files ran in a sandbox: 9 concurrency assertions (refund races A–G, double shift open) now pass instead of skipping. 0 leftover test databases. Reproduce with `./tools/local-pg.sh test` |
+
 None of these results comes from GitHub Actions, staging or production.
+
+### 2026-10-21 — demo site (`prototypes/nilesys`): the 5 Windows programs are live
+
+The public demo project (`prototypes/nilesys`, deployed to Vercel project `nilesys-demo`) now ships
+the **seven systems + seven marketing sites + five Windows programs** the landing page promises.
+The Windows programs work in the browser today: local-first storage, real offline selling, 80mm/50mm
+receipt and label printing, Code39 barcode, and a sync endpoint that cannot double-count.
+
+| Command | Result |
+| --- | --- |
+| `sh tools/run-tests.sh` (in `prototypes/nilesys`) | **156/156** — includes new `tests/windows.test.js` 6/6 |
+| `sh tools/setup-browser.sh tools/ui-windows.js` | **69/69** — five programs in a real browser, incl. a full sale with `context.setOffline(true)` then sync on reconnect, plus 390px-no-overflow and SVG-icon checks |
+| `sh tools/setup-browser.sh tools/ui-sites.js` | **37/37** — landing and the seven site pages, incl. the five Windows cards opening the real programs |
+| `sh tools/setup-browser.sh tools/ui-sites.js` | **37/37** — landing/site pages, incl. the five Windows cards now link to working programs |
+| `python3 tools/build-app-specs.py` | 7 systems **7/7 live** + 5 Windows specs **7/7 each**, generated into `public/docs/` |
+| live Vercel run (`BASE=https://nilesys-demo-git-feat-demo-on-vercel-lenabeauty.vercel.app sh tools/setup-browser.sh tools/ui-windows.js`) | **69/69** against the deployed build, including a real sale with the network cut and a sync that lands in Supabase |
+
+**Which URL has this build (2026-10-21):** the branch alias
+`https://nilesys-demo-git-feat-demo-on-vercel-lenabeauty.vercel.app` serves commit `8c4f342` and is proven
+green. The production alias `nilesys-demo.vercel.app` is **one build behind**: Vercel only builds production
+from `main`, and the Vercel connector in this session rejects `git_source` (its tool schema wants a string,
+the app wants an object), so promotion could not be executed from the sandbox. To close it: click *Promote to
+Production* on deployment `dpl_6nyhrvSEAqsiCLZZLCkA5y2dALTS`, or approve a Vercel device login so the CLI can
+run `vercel deploy --prod`.
+
+**Not claimed:** the `.exe` installer (Electron packaging) is **not built**; USB thermal-printer and
+USB scanner support, and ETA e-invoicing, remain out of scope. Nothing on any page offers a download.
 
 ## 2. Branches and pull requests
 
@@ -84,12 +120,14 @@ None of these results comes from GitHub Actions, staging or production.
   ([ADR-0013](adr/0013-marketing-site-in-lena-platform.md), which supersedes ADR-0012). This repository
   serves it over HTTP: a public readiness endpoint, lead intake and demo links. **Where the seven system
   sites (phase 4) live is still OPEN (owner).**
-- **OPEN (owner, business):** D-A…D-E, D-G, D5 and the location of the seven system sites, listed with options in [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) §10:
+- **DECIDED 2026-10-19: D-E → money collected is the sales total**, refunds as their own line
+  ([ADR-0014](adr/0014-collected-is-the-sales-total.md)). The owner delegated the choice; `getDailyReport`
+  now returns `collectedMinor`, `netCollectedMinor` and `outstandingMinor` alongside the billed figure.
+- **OPEN (owner, business):** D-A, D-B, D-C, D-D, D-G, D5 and the location of the seven system sites, listed with options in [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) §10:
   - D-A: payment model and the list of payment methods.
   - D-B: cash correction policy.
   - D-C: who may close a shift.
   - D-D: who may read the daily report.
-  - D-E: definition of gross sales.
   - D-G: product order.
   - D5: hosting.
   - Where the seven system sites (phase 4) live ([ADR-0013](adr/0013-marketing-site-in-lena-platform.md) §4).
@@ -112,6 +150,8 @@ None of these results comes from GitHub Actions, staging or production.
   - Cash shifts with a locked close.
   - Daily report (Africa/Cairo).
   - Lead capture service and people service.
+  - **Migration `0005_money_constraints`** (branch `feat/plt-0005-payment-db-constraints`, not merged): moves
+    I2/I3/I7/I8/I11 for the payment tables from TypeScript into the database.
   - API endpoints:
     - `POST /api/v1/checkout`
     - `POST /api/v1/sales`
@@ -144,12 +184,12 @@ recorded in its PR description. Nothing is merged without the owner.
 
 | # | Task | Status | Gate |
 | --- | --- | --- | --- |
-| 1 | **Owner decisions D-A…D-E** (payments, cash correction, shift close, report access, gross) | WAITING ON OWNER | — |
-| 2 | F0-2: implement D-A…D-E on a branch from `integration/nile-2026-10-18` (for example migration `0005`, the method list and permissions), failing-test-first; full suite on real PostgreSQL | BLOCKED BY #1 | — |
+| 1 | **Owner decisions D-A…D-D** (payment methods, cash correction, shift close, who reads the report). **D-E is decided** — [ADR-0014](adr/0014-collected-is-the-sales-total.md) | PARTLY DONE: D-E decided and implemented; D-A…D-D WAITING ON OWNER | — |
+| 2 | F0-2: implement the money decisions on a branch from `integration/nile-2026-10-18` (migration `0005`, the method list, permissions), failing-test-first; full suite on real PostgreSQL | **PARTLY DONE** on `feat/plt-0005-payment-db-constraints`: D-E done (`reports.ts`), migration `0005` done. The rest waits on D-A…D-D | **Full suite now runs on real PostgreSQL: 296/296, 0 skipped** |
 | 3 | F0-3: add the CI workflow from the draft; first green run on GitHub Actions | PROPOSED, unblocked | The owner approves pushing a workflow file |
-| 4 | F0-9: update `tools/nile-offerings/offerings.ts`, whose POS `mustNotClaim` still says payments live on an unmerged branch | PROPOSED, unblocked | — |
+| 4 | F0-9: update `tools/nile-offerings/offerings.ts`, whose POS `mustNotClaim` still says payments live on an unmerged branch | **DONE** on `feat/plt-0005-payment-db-constraints` — POS entry lists nine engine files and no longer claims payments are unbuilt; `offerings.test.ts` 17/17 | — |
 | 5 | F0-4: open a PR from the integration branch (after #2 and #3) and request review | BLOCKED BY #2, #3 | The owner alone merges |
-| 6 | F0-5: N-1 pool `error` listener (rebase `29390fa` onto the then-current base), with a real-PostgreSQL test | PROPOSED, unblocked | — |
+| 6 | F0-5: N-1 pool `error` listener | **DONE** on `feat/plt-0005-payment-db-constraints` (`attachPoolErrorHandler`, 4 tests). Still open: the live kill-a-backend test on a real server | — |
 | 7 | F0-6: G-7a redesign (closed-world allow-list) and its adversarial real-PostgreSQL matrix | WAITING ON OWNER (approve the redesign) | — |
 | 8 | F0-10 / D-H: Nx + pnpm or npm | **DONE 2026-10-19: npm ([ADR-0011](adr/0011-repository-tooling-npm.md))** | — |
 | 9 | F0-7 / D5: disposable Supabase PG 17 project; read-only hosted checks; then staging | WAITING ON OWNER | Creating cloud resources needs approval |
@@ -173,7 +213,8 @@ IDs:
 | G-1 (= H4) | High | Runtime role could rewrite or delete ledger and audit rows | MERGED IN `52af469` (PR #4) |
 | G-2 | High | One visitor could lock out or deface shared demo logins | MERGED IN `52af469` (PR #4) |
 | G-3 | Medium | A sale stores no payment | FIXED ON `integration/nile-2026-10-18` `0207c13`; OPEN on `main`. **Cashier-UI blocker until merged** |
-| G-4 (= H7) | Medium | Missing CHECK constraints on money, quantity and enum columns | OPEN, not re-verified since 2026-10-14. Option (1) of D-A adds the payment constraints (`0005`). Required before public exposure |
+| G-3b | — | `resolvePendingCash`, `getDrawer`, `recordPayment` and `getPaymentStatus` existed only as a design in proposal 0007 §5 | IMPLEMENTED on `feat/plt-0005-payment-db-constraints` (`payments.ts`, `drawer.ts`), with 21 assertions. Not merged. **Still no HTTP layer**: the engine is reachable only from tests until D-C and D-D fix the permissions |
+| G-4 (= H7) | Medium | Missing CHECK constraints on money, quantity and enum columns | **PARTLY CLOSED** on `feat/plt-0005-payment-db-constraints` (`4dd74f1`, migration `0005`): every table added in `0003` is now constrained. Still OPEN for `sales_transactions`, `transaction_lines`, `cash_movements` — that is the owner's option (1) of D-A. Required before public exposure |
 | G-5 | Medium | Dev mode trusts any origin; per-boot secret; insecure cookies; no rate limit | OPEN (F0-8). **UI/public blocker** |
 | G-6 | Low | Origin/CSRF checks skipped under `NODE_ENV=test` | OPEN |
 | G-7 / G-7a | Low / **High** | Runtime-role assertion; the candidate `60342be` accepts 17 of 18 escalation vectors on PG 17.10/18.4 | OPEN. Redesign PROPOSED (task 7). **Public blocker** |
@@ -183,14 +224,14 @@ IDs:
 | C-res | Low | 32-bit advisory-lock key collisions can serialise unrelated work (no correctness loss); not verified on PG 18 | OPEN (accepted risk, document) |
 | P4-1 | — | Locked demo paths change-email and delete-user have no committed test (revoke-sessions is covered in `e2e-sale.test.ts`) | OPEN (task 14) |
 | P4-4 | — | Each new append-only table's migration must REVOKE UPDATE/DELETE from `nile_app` | Rule in `AGENTS.md` |
-| N-1 | Low | The runtime pool has no `error` listener, so an idle-connection kill crashes the API | OPEN. Candidate `29390fa` (task 6) |
+| N-1 | Low | The runtime pool has no `error` listener, so an idle-connection kill crashes the API | **FIXED** on `feat/plt-0005-payment-db-constraints` (`attachPoolErrorHandler` in `engines/db/open.ts`, 4 wiring tests). The live kill-a-backend test still needs a real PostgreSQL server |
 | DOC-1 | Low | Extracted files cited source-repository documents that were missing here | Mostly FIXED on `docs/unified-plan-2026-10-19` (`8523eae`): `FINANCIAL_RULES.md` and `adr/kayyal-core/*` are present, with no dead `kayyal-core` link. Remaining: `money-by-currency.ts` mentions Terranex's `docs/OPEN_BUSINESS_DECISIONS.md` as a source-repo note (documented in `REUSE.md`) |
 | E-receipt | — | Egyptian B2C e-receipts never measured | OPEN (evaluation) |
 
 ## 7. Approvals required from the owner
 
 1. Approve or amend `PRODUCT_PLAN.md`. Once approved, mark it ACCEPTED and move it to tier 4 in `docs/README.md`.
-2. Decide D-A…D-E (task 1), then D-G, D5, and where the seven system sites live. (D-H was decided technically and D-F by the owner on 2026-10-19.)
+2. Decide D-A…D-D (task 1), then D-G, D5, and where the seven system sites live. (D-H decided technically, D-F and D-E by the owner on 2026-10-19.)
 3. Approve pushing the CI workflow (task 3).
 4. Approve the G-7a redesign (task 7).
 5. Later: review and merge the integration PR (task 5); delete merged branches if wanted.

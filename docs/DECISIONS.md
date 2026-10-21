@@ -19,6 +19,7 @@ Known gaps between accepted ADRs and the code are listed in [ARCHITECTURE.md](AR
 | [0011](adr/0011-repository-tooling-npm.md) | Repository tooling stays on npm; Nx + pnpm not adopted now (supersedes ADR-0001's workspace bullet only) | Accepted | 2026-10-19 |
 | [0012](adr/0012-nile-sites-live-in-nilesys.md) | Nile's marketing site and system sites live in this repository; Platform (LENA) links to them | **Superseded by 0013** | 2026-10-19 |
 | [0013](adr/0013-marketing-site-in-lena-platform.md) | The Nile marketing site is part of the LENA Digital site in `platform` (owner decision; system sites still open) | Accepted | 2026-10-19 |
+| [0014](adr/0014-collected-is-the-sales-total.md) | "Total sales" means money collected, not money rung up; a refund is its own line (resolves D-E) | Accepted | 2026-10-19 |
 
 ## Numbering notes
 

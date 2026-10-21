@@ -27,7 +27,7 @@ document is not listed here, it is not authoritative. Add it here in the same PR
 | [`architecture/README.md`](architecture/README.md) | Ledger evidence index: facts, hypotheses, limitations, provenance, review-0001 disposition | CANONICAL index of the evidence |
 | [`architecture/proposals/0002`](architecture/proposals/0002-open-source-reuse-audit.md)…[`0005`](architecture/proposals/0005-option-c-evidence.md) | Open-source audit; Odoo spike plan, results and measurements | PROPOSED / evidence (imported from `e61cd06`, provenance recorded) |
 | [`architecture/proposals/0006-ledger-decision-memo.md`](architecture/proposals/0006-ledger-decision-memo.md) | Ledger decision memo and owner decisions D1–D4 | PROPOSED (D1 decided → ADR-0010) |
-| [`architecture/proposals/0007-payment-engine.md`](architecture/proposals/0007-payment-engine.md) | Payment engine design | PROPOSED; implementation gated on the PR #4 merge |
+| [`architecture/proposals/0007-payment-engine.md`](architecture/proposals/0007-payment-engine.md) | Payment engine design, plus §8: invariant-by-invariant conformance against the integration branch (2026-10-19) | PROPOSED; the PR #4 gate is open, the engine is partly built |
 | [`reviews/2026-10-14-pr4-review.md`](reviews/2026-10-14-pr4-review.md) | PR #4 review with real-PostgreSQL evidence | Verdict APPROVE (by the PR's author; independent review not available) |
 | [`reviews/2026-10-14-post-merge-security-gate.md`](reviews/2026-10-14-post-merge-security-gate.md) | Security gate on `ebcfe72`; source of G-1…G-15 | HISTORICAL evidence; live status in `STATUS.md` |
 | [`reviews/2026-10-14-engines-db-auth-review.md`](reviews/2026-10-14-engines-db-auth-review.md) | Review before PR #3 (F-n) | HISTORICAL |
@@ -41,6 +41,7 @@ document is not listed here, it is not authoritative. Add it here in the same PR
 | --- | --- |
 | [`archive/`](archive/README.md), including the 2026-09-04 architecture assessment | HISTORICAL |
 | [`../prototypes/`](../prototypes/README.md) (plain-Node Nile demo, its README and review; Arabic) | HISTORICAL / UX reference |
+| [`plan/002-phase-0-execution-board.md`](plan/002-phase-0-execution-board.md) | Phase 0 made executable: owner, order, and the evidence that closes each `F0-n` task | PROPOSED instrument; it authorises nothing (`STATUS.md` §5 wins) |
 | [`plan/001`](plan/001-pos-implementation-ready.md), [`prd/001`](prd/001-marketing-site-as-platform.md), [`todo/001`](todo/001-marketing-phased-todo.md), [`vision/001`](vision/001-lena-as-umbrella-nile-integration.md) (Arabic, 2026-10-18) | SUPERSEDED by `PRODUCT_PLAN.md` |
 | `prototypes/nilesys/public/assets/js/home.js` | HISTORICAL code, but **the source of the product catalogue** (`PRODUCT_PLAN.md` §2) |
 

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>نيل مخازن · برنامج ويندوز</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230d9488'/><text x='50' y='68' font-size='46' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>N</text></svg>" />
+  <link rel="stylesheet" href="../desk.css" />
+</head>
+<body>
+  <div class="desk">
+    <aside class="desk-side">
+      <div class="brand"><span class="mark">N</span><span>نيل مخازن</span></div>
+      <button class="desk-nav" data-view="items" data-icon="items">الأصناف</button>
+      <button class="desk-nav" data-view="count" data-icon="count">الجرد</button>
+      <button class="desk-nav" data-view="receive" data-icon="receive">استلام</button>
+      <button class="desk-nav" data-view="moves" data-icon="moves">الحركات</button>
+      <button class="desk-nav" data-view="sync" data-icon="sync">المزامنة</button>
+      <div class="spacer"></div>
+      <div class="ver">إصدار 1.0 · ملصقات باركود Code39</div>
+      <a class="desk-nav" href="/windows/" data-icon="back">باقي البرامج</a>
+    </aside>
+    <div class="desk-main">
+      <header class="desk-top">
+        <div><h1 id="title">الأصناف</h1><div class="sub" id="sub">الرصيد محلي ودقيق — والجرد لا يعدّل بلا سبب</div></div>
+        <div class="push row" id="topActions"></div>
+      </header>
+      <div class="desk-status" id="statusBar"></div>
+      <main class="desk-body" id="content"></main>
+    </div>
+  </div>
+  <script src="../desk.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

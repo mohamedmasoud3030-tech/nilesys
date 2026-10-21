@@ -1,0 +1,211 @@
+/* شاشة المطعم في المتصفح.
+ * نظام مستقل: دخوله، شاشته، وحركته الحقيقية (ترابيزة → مطبخ → حساب).
+ * لا يكفي أن تنجح الـ API — لازم الشاشة نفسها تعمل.
+ */
+const { chromium } = require('/tmp/node_modules/playwright');
+const BASE = process.env.BASE || 'http://localhost:4000';
+const OUT = process.env.OUT || '/tmp/shots';
+
+const results = [];
+const check = (n, ok, extra = '') => { results.push({ n, ok }); console.log(`${ok ? '✓' : '✗'} ${n}${extra ? ' — ' + extra : ''}`); };
+
+(async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 1440, height: 980 } });
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  // 401 المتعمّد (محاولة دخول كاشير نقاط البيع) يسجّله المتصفح كخطأ شبكة — ليس عطلاً.
+  page.on('console', (m) => {
+    const txt = m.text();
+    if (m.type() !== 'error') return;
+    if (/Failed to load resource/.test(txt) && /(401|429)/.test(txt)) return; // رفض متعمّد (429 = حد محاولات الدخول)
+    errors.push(txt);
+  });
+
+  await page.goto(BASE + '/systems/restaurant.html', { waitUntil: 'networkidle' });
+  const users = await page.locator('.demo-user').count();
+  check('R-UI · شاشة المطعم لها حساباتها الثلاثة', users === 3, `${users} حسابات`);
+
+  await page.fill('#lu', 'cashier');
+  await page.fill('#lp', 'demo1234');
+  await page.click('#loginForm button[type="submit"]');
+  await page.waitForTimeout(900);
+  check('R-UI · كاشير نقاط البيع مرفوض في المطعم', (await page.locator('#loginView:not(.hidden)').count()) === 1);
+
+  await page.click('.demo-user[data-u="manager"]');
+  await page.waitForSelector('#appView:not(.hidden)', { timeout: 25000 });
+  await page.waitForSelector('#floor .tcard', { timeout: 25000 });
+
+  const tables = await page.locator('#floor .tcard').count();
+  check('R-UI · الصالة ترسم ترابيزاتها', tables >= 6, `${tables} ترابيزة`);
+  await page.screenshot({ path: `${OUT}/restaurant-floor.png` });
+
+  // وردية مفتوحة قبل أي تحصيل نقدي
+  await page.goto(`${BASE}/systems/restaurant.html#/shift`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(700);
+  if (await page.locator('#openShift').count()) {
+    await page.fill('#opening', '300');
+    await page.click('#openShift');
+    // الخادم المنشور أبطأ من المحلي (Serverless) — ننتظر العنصر نفسه لا زمناً ثابتاً.
+    await page.waitForSelector('#closeShift', { timeout: 25000 }).catch(() => {});
+  }
+  check('R-UI · شاشة الوردية تعرض درجاً مفتوحاً', (await page.locator('#closeShift').count()) === 1);
+
+  // ترابيزة فاضية → طلب
+  await page.goto(`${BASE}/systems/restaurant.html#/floor`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('#floor .tcard', { timeout: 25000 });
+  let free = page.locator('#floor .tcard[data-status="free"]').first();
+  if (!(await free.count())) {
+    const dirty = page.locator('#floor .tcard[data-status="dirty"]').first();
+    if (await dirty.count()) { await dirty.click(); await page.waitForTimeout(900); }
+    await page.goto(`${BASE}/systems/restaurant.html#/floor`, { waitUntil: 'networkidle' });
+    await page.waitForSelector('#floor .tcard', { timeout: 25000 });
+    free = page.locator('#floor .tcard[data-status="free"]').first();
+  }
+  const tableId = await free.getAttribute('data-table');
+  await free.click();
+  await page.waitForSelector('#menuGrid .menu-item', { timeout: 25000 });
+
+  await page.locator('#menuGrid .menu-item:not([disabled])').first().click();
+  await page.waitForSelector('#lines .line', { timeout: 25000 });
+  const lines1 = await page.locator('#lines .line').count();
+  check('R-UI · إضافة صنف تفتح طلباً وتظهر سطراً', lines1 === 1);
+
+  const payDisabled = await page.locator('#payBtn').isDisabled();
+  check('R-UI · زر التحصيل مقفول قبل إرسال المطبخ', payDisabled);
+  await page.screenshot({ path: `${OUT}/restaurant-order.png` });
+
+  await page.click('#sendBtn');
+  await page.waitForFunction(() => ((document.querySelector('#lines') || {}).textContent || '').includes('اتبعت'),
+    null, { timeout: 25000 }).catch(() => {});
+  const sentTxt = (await page.textContent('#lines')).includes('اتبعت');
+  check('R-UI · الإرسال يعلّم السطر «اتبعت»', sentTxt);
+  await page.waitForFunction(() => {
+    const b = document.querySelector('#payBtn');
+    return b && !b.disabled;
+  }, null, { timeout: 25000 }).catch(() => {});
+  check('R-UI · زر التحصيل يفتح بعد الإرسال', !(await page.locator('#payBtn').isDisabled()));
+
+  // المطبخ يستلم التذكرة ويحرّكها
+  await page.goto(`${BASE}/systems/restaurant.html#/kitchen`, { waitUntil: 'networkidle' });
+  await page.waitForFunction(() => document.querySelectorAll('#board [data-ticket]').length > 0,
+    null, { timeout: 25000 }).catch(() => {});
+  const tickets = await page.locator('#board [data-ticket]').count();
+  check('R-UI · المطبخ يستقبل تذكرة', tickets >= 1, `${tickets} تذكرة`);
+  await page.screenshot({ path: `${OUT}/restaurant-kitchen.png` });
+
+  // تذكرة واحدة بعينها: الديمو المشترك قد يحمل تذاكر من تشغيل سابق،
+  // فانتظار «لوحة فاضية» كان يفشل بسببها لا بسبب الشاشة.
+  const ticket = await page.locator('#board [data-ticket]').first().getAttribute('data-ticket');
+  const T = `#board [data-ticket="${ticket}"]`;
+  await page.locator(`${T} [data-cook]`).first().click();
+  await page.waitForSelector(`${T} [data-ready]`, { timeout: 25000 }).catch(() => {});
+  check('R-UI · الصنف يبدأ التحضير من الشاشة', (await page.locator(`${T} [data-ready]`).count()) === 1);
+  await page.locator(`${T} [data-ready]`).first().click();
+  await page.waitForSelector(`${T} [data-served]`, { timeout: 25000 }).catch(() => {});
+  check('R-UI · الصنف يتحوّل «جاهز» ثم «قدّمني»', (await page.locator(`${T} [data-served]`).count()) === 1);
+  await page.locator(`${T} [data-served]`).first().click();
+  // ننتظر اختفاء تذكرتنا بدل مهلة ثابتة: على الديمو المنشور الطلب أبطأ من 1.2ث
+  await page.waitForFunction((id) => !document.querySelector(`#board [data-ticket="${id}"]`),
+    ticket, { timeout: 25000 }).catch(() => {});
+  check('R-UI · التقديم يخرج التذكرة من شاشة المطبخ', (await page.locator(T).count()) === 0);
+  await page.screenshot({ path: `${OUT}/restaurant-kitchen-empty.png` });
+
+  // تحصيل
+  await page.goto(`${BASE}/systems/restaurant.html#/floor`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('#floor .tcard', { timeout: 25000 });
+  await page.locator(`#floor .tcard[data-table="${tableId}"]`).click();
+  await page.waitForSelector('#payBtn', { timeout: 25000 });
+  await page.click('#payBtn');
+  await page.waitForSelector('#payGo', { timeout: 10000 });
+  await page.click('#payGo');
+  await page.waitForTimeout(1400);
+  const paidBadge = await page.locator('.cart .badge').first().textContent().catch(() => '');
+  check('R-UI · الحساب يتقفل بعد التحصيل', /مدفوع/.test(paidBadge || ''), paidBadge);
+
+  await page.goto(`${BASE}/systems/restaurant.html#/floor`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('#floor .tcard', { timeout: 25000 });
+  const st = await page.locator(`#floor .tcard[data-table="${tableId}"]`).getAttribute('data-status');
+  check('R-UI · الترابيزة تتحول «للتنضيف» بعد الدفع', st === 'dirty', st);
+  await page.locator(`#floor .tcard[data-table="${tableId}"]`).click();
+  // ننتظر تغيّر الحالة نفسها لا مدة ثابتة — الشاشة المنشورة أبطأ.
+  await page.waitForFunction((id) => {
+    const el = document.querySelector(`#floor .tcard[data-table="${id}"]`);
+    return el && el.dataset.status === 'free';
+  }, tableId, { timeout: 25000 }).catch(() => {});
+  const st2 = await page.locator(`#floor .tcard[data-table="${tableId}"]`).getAttribute('data-status');
+  check('R-UI · ضغطة التنضيف ترجّعها «فاضية»', st2 === 'free', st2);
+  await page.screenshot({ path: `${OUT}/restaurant-floor-after.png` });
+
+  // حجوزات
+  await page.goto(`${BASE}/systems/restaurant.html#/reservations`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(700);
+  await page.click('#newRes');
+  await page.waitForSelector('#rName', { timeout: 15000 });
+
+  // الحجوزات في الديمو المنشور تتراكم من تشغيل لآخر، والتعارض مرفوض بحق (409).
+  // فنبحث عن فتحة حقيقية: ترابيزة + وقت لا يزاحمه حجز قائم.
+  const [{ reservations: existing }, { tables: tlist }] = await Promise.all([
+    (await page.request.get(BASE + '/api/restaurant/reservations')).json(),
+    (await page.request.get(BASE + '/api/restaurant/tables')).json(),
+  ]);
+  const now = Date.now();
+  const dayEnd = new Date(); dayEnd.setHours(23, 30, 0, 0);
+  const isoLocal = (ms) => new Date(ms - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  let slot = null;
+  for (const tb of tlist) {
+    for (let m = 120; m <= 600 && !slot; m += 30) {
+      const at = now + m * 60000;
+      if (at > dayEnd.getTime()) break;
+      const busy = existing.some((r) => r.tableId === tb.id && r.status !== 'cancelled'
+        && Math.abs(new Date(r.at).getTime() - at) < 100 * 60000);
+      if (!busy) slot = { tableId: tb.id, at };
+    }
+    if (slot) break;
+  }
+  check('R-UI · فيه فتحة حجز متاحة للاختبار', Boolean(slot), slot ? new Date(slot.at).toISOString().slice(11, 16) : 'لا فتحة');
+
+  const guest = 'مها ' + String(now).slice(-5);
+  await page.fill('#rName', guest);
+  await page.fill('#rPhone', '01001234567');
+  await page.selectOption('#rTable', slot.tableId);
+  await page.fill('#rAt', isoLocal(slot.at));
+  await page.click('#rSave');
+  await page.waitForFunction((n) => (document.querySelector('#rows') || {}).textContent?.includes(n), guest, { timeout: 25000 }).catch(() => {});
+  const resTxt = (await page.textContent('#rows').catch(() => '')) || '';
+  check('R-UI · الحجز الجديد يظهر في الجدول', resTxt.includes(guest), guest);
+
+  // إلغاء الحجز من نفس الشاشة
+  const row = page.locator('#rows tr', { hasText: guest }).first();
+  if (await row.locator('[data-cancel]').count()) {
+    await row.locator('[data-cancel]').click();
+    await page.waitForFunction((n) => {
+      const tr = [...document.querySelectorAll('#rows tr')].find((x) => x.textContent.includes(n));
+      return !tr || tr.textContent.includes('ملغي');
+    }, guest, { timeout: 25000 }).catch(() => {});
+    const after = (await page.textContent('#rows').catch(() => '')) || '';
+    check('R-UI · إلغاء الحجز يعمل من الشاشة', after.includes('ملغي'));
+  } else {
+    check('R-UI · إلغاء الحجز يعمل من الشاشة', false, 'زر الإلغاء غير موجود');
+  }
+
+  // ملخص
+  await page.goto(`${BASE}/systems/restaurant.html#/summary`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(900);
+  const sumBody = (await page.textContent('#content').catch(() => '')) || '';
+  check('R-UI · ملخص اليوم يرسم بلا بيانات مشوّهة', !/undefined|NaN|\[object/.test(sumBody), sumBody.slice(0, 40).replace(/\s+/g, ' '));
+  await page.screenshot({ path: `${OUT}/restaurant-summary.png` });
+
+  // فصل الأنظمة: مدير المطعم لا يفتح نقاط البيع
+  const posStatus = await (await page.request.post(BASE + '/api/login', { data: { system: 'pos', username: 'waiter', password: 'demo1234' } })).status();
+  check('R-UI · حساب المطعم لا يعمل على نظام آخر', posStatus === 401 || posStatus === 403, String(posStatus));
+
+  console.log('\nأخطاء الصفحة:', errors.length);
+  errors.slice(0, 5).forEach((e) => console.log('  ' + e));
+  check('R-UI · صفر أخطاء JavaScript', errors.length === 0);
+
+  const failed = results.filter((r) => !r.ok);
+  console.log(`\nالنتيجة: ${results.length - failed.length}/${results.length}`);
+  await browser.close();
+  process.exit(failed.length ? 1 : 0);
+})();

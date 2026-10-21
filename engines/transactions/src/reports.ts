@@ -9,13 +9,43 @@ import { payments, refunds, salesTransactions } from './db/schema.js';
 export interface ReportActor { tenantId: string; }
 export interface ReportRange { from: string; to: string; } // YYYY-MM-DD inclusive, Africa/Cairo
 
+/**
+ * Decision D-E (owner-delegated, decided 2026-10-19): the sales total means **money collected**,
+ * with refunds as their own line. `billedMinor` stays visible so nothing is hidden, but the number
+ * the owner reads at night is `netCollectedMinor`.
+ *
+ * Why this way and not the other: the engine already refuses to treat unresolved cash as revenue
+ * (I11, and `pendingCash` lives in the drawer only). A report that counted rung-up sales would then
+ * contradict the drawer in the same screen. Also, "I sold 5,000" and "I collected 4,200 and 800 is
+ * owed" are different facts, and only the second one is a cash fact.
+ */
 export interface DailyReport {
   period: { from: string; to: string };
-  grossMinor: number;
-  grossCount: number;
+
+  /** What was rung up: Σ sale totals. NOT the collected figure — see `netCollectedMinor`. */
+  billedMinor: number;
+  billedCount: number;
+
+  /** Money actually received in the period: Σ payments. */
+  collectedMinor: number;
+  collectedCount: number;
+
   refundsMinor: number;
   refundsCount: number;
+
+  /** D-E headline: collected − refunds. This is "إجمالي المبيعات". */
+  netCollectedMinor: number;
+
+  /** Billed minus what has been settled, over the sales of this period only. */
+  outstandingMinor: number;
+
+  /** @deprecated alias of `billedMinor`, kept so older callers keep reading the same number. */
+  grossMinor: number;
+  /** @deprecated alias of `billedCount`. */
+  grossCount: number;
+  /** @deprecated alias of `billedMinor - refundsMinor`; it is NOT the D-E headline. */
   netMinor: number;
+
   byMethod: Array<{ method: string; totalMinor: number; count: number }>;
 }
 
@@ -89,12 +119,47 @@ export async function getDailyReport(db: AnyPgDatabase, tenantId: string, range:
     const refundsMinor = Number(refRow?.sum ?? 0);
     const refundsCount = Number(refRow?.cnt ?? 0);
     const netMinor = grossMinor - refundsMinor;
+    const [collectedRow] = await tx
+      .select({ sum: sql<number>`COALESCE(SUM(${payments.amountMinor}),0)`, cnt: sql<number>`COUNT(*)::int` })
+      .from(payments)
+      .where(and(eq(payments.tenantId, tenantId), gte(payments.createdAt, from), lt(payments.createdAt, to)));
+    const collectedMinor = Number(collectedRow?.sum ?? 0);
+    const collectedCount = Number(collectedRow?.cnt ?? 0);
+
+    // Outstanding is a balance, not a period flow: it is measured over the sales rung up in the
+    // period, wherever the money for them arrived. Per sale, floored at zero.
+    const outstandingRes = (await tx.execute(sql`
+      SELECT COALESCE(SUM(GREATEST(
+        t.total_minor
+        - COALESCE((SELECT SUM(p.amount_minor) FROM payments p WHERE p.tenant_id = t.tenant_id AND p.transaction_id = t.id), 0)
+        + COALESCE((SELECT SUM(r.amount_minor) FROM refunds r WHERE r.tenant_id = t.tenant_id AND r.transaction_id = t.id), 0)
+      , 0)), 0) AS outstanding
+      FROM sales_transactions t
+      WHERE t.tenant_id = ${tenantId} AND t.kind = 'sale'
+        AND t.created_at >= ${from} AND t.created_at < ${to}
+    `)) as unknown as { rows: Array<{ outstanding: string | number }> };
+    const outstandingMinor = Number(outstandingRes.rows[0]?.outstanding ?? 0);
+
     const byMethodRows = await tx
       .select({ method: payments.method, total: sql<number>`COALESCE(SUM(${payments.amountMinor}),0)`, cnt: sql<number>`COUNT(*)::int` })
       .from(payments)
       .where(and(eq(payments.tenantId, tenantId), gte(payments.createdAt, from), lt(payments.createdAt, to)))
       .groupBy(payments.method);
     const byMethod = (byMethodRows as Array<{ method: string; total: number; cnt: number }>).map((r) => ({ method: r.method, totalMinor: Number(r.total), count: Number(r.cnt) }));
-    return { period: range, grossMinor, grossCount, refundsMinor, refundsCount, netMinor, byMethod };
+    return {
+      period: range,
+      billedMinor: grossMinor,
+      billedCount: grossCount,
+      collectedMinor,
+      collectedCount,
+      refundsMinor,
+      refundsCount,
+      netCollectedMinor: collectedMinor - refundsMinor,
+      outstandingMinor,
+      grossMinor,
+      grossCount,
+      netMinor,
+      byMethod,
+    };
   });
 }

@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>سجل مزايا نيل سيستمز — الحالي والمتبقي والبصري</title>
+<style>
+  :root {
+    --paper: #f2f5f3;
+    --sheet: #fbfcfb;
+    --ink: #14211f;
+    --muted: #5a6b66;
+    --rule: #c9d4cf;
+    --rule-soft: #e2e9e6;
+    --brand: #0b7a6b;
+    --brand-ink: #064c42;
+    --warn: #a8641a;
+    --bad: #a3382c;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: "Segoe UI", "Noto Sans Arabic", "Dubai", Tahoma, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.65 var(--sans);
+    font-feature-settings: "tnum" 1;
+  }
+  .sheet {
+    max-width: 1080px;
+    margin: 0 auto;
+    background: var(--sheet);
+    padding: 0 0 64px;
+    box-shadow: 0 0 0 1px var(--rule);
+  }
+
+  /* ---- الرأس: خانة العمل، ثم شريط الإيصال ---- */
+  .head { padding: 40px 44px 0; }
+  .kicker {
+    font: 600 13px/1 var(--sans);
+    color: var(--muted);
+    letter-spacing: 0;
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-size: 34px;
+    line-height: 1.25;
+    font-weight: 700;
+    margin: 0 0 14px;
+    letter-spacing: -0.4px;
+  }
+  .lede { margin: 0; color: var(--muted); max-width: 62ch; }
+  .provenance {
+    margin-top: 18px; padding: 12px 14px;
+    border-inline-start: 3px solid var(--brand);
+    background: #eef4f2;
+    font-size: 14px; color: var(--brand-ink);
+  }
+  .provenance b { font-weight: 700; }
+
+  /* شريط الإيصال: حافة مثقّبة، أرقام كعداد —— عنصر واحد مميز في الصفحة */
+  .receipt {
+    margin: 30px 44px 0;
+    background: #10231f;
+    color: #eaf3f0;
+    padding: 22px 26px 26px;
+    position: relative;
+  }
+  .receipt::before, .receipt::after {
+    content: "";
+    position: absolute; left: 0; right: 0; height: 8px;
+    background-image: radial-gradient(circle at 4px 4px, var(--paper) 4px, transparent 4px);
+    background-size: 12px 8px;
+  }
+  .receipt::before { top: -1px; }
+  .receipt::after { bottom: -1px; }
+  .counts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .count .n {
+    font: 700 40px/1 var(--mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -1px;
+    display: block;
+  }
+  .count .l { font-size: 13px; color: #9fc0b8; margin-top: 8px; display: block; }
+  .count.a .n { color: #7fd7c4; }
+  .count.b .n { color: #f0c37a; }
+  .count.c .n { color: #e9a79c; }
+  .count.d .n { color: #cfe0da; }
+
+  /* ---- الأقسام ---- */
+  section { padding: 44px 44px 0; }
+  h2 {
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    margin: 0 0 4px;
+  }
+  h2 + .h2sub { font-size: 24px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.3px; }
+  .intro { color: var(--muted); margin: 0 0 22px; max-width: 70ch; font-size: 15px; }
+  hr.sep { border: 0; border-top: 1px solid var(--rule); margin: 0; }
+
+  /* جدول السجل: خطوط رأسية فقط بين الأعمدة — هو دفتر، فيُعرض كدفتر */
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: start; font-size: 12.5px; font-weight: 700; color: var(--muted);
+    padding: 0 12px 10px 0; border-bottom: 2px solid var(--ink);
+  }
+  tbody td { padding: 16px 12px 16px 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 1px solid var(--rule); }
+  td.id {
+    font: 600 12.5px/1.5 var(--mono); color: var(--brand);
+    width: 62px; white-space: nowrap;
+  }
+  td.feat { width: 220px; font-weight: 700; }
+  .fname { display: block; margin-bottom: 6px; }
+  ul.props { margin: 0; padding-inline-start: 18px; }
+  ul.props li { margin-bottom: 5px; font-size: 14.5px; }
+  code {
+    font: 12.5px/1.4 var(--mono); background: #e9efec; color: var(--brand-ink);
+    padding: 1px 5px; border-radius: 3px; direction: ltr; display: inline-block;
+    unicode-bidi: isolate;
+  }
+  td.proof { width: 210px; font-size: 12.5px; color: var(--muted); }
+
+  /* الختم: العنصر المميز الثاني — القرار يُختم لا يُلوَّن */
+  .stamp {
+    display: inline-block; font: 700 11.5px/1 var(--sans);
+    padding: 5px 9px 4px; border: 1.5px solid currentColor;
+    transform: rotate(-1.2deg); white-space: nowrap;
+  }
+  .st-ok { color: var(--brand); }
+  .st-partial { color: var(--warn); }
+  .st-open { color: var(--bad); }
+
+  /* ---- المزايا المتبقية ---- */
+  .spec { border-top: 1px solid var(--rule); padding: 24px 0 20px; }
+  .spec header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+  .sid { font: 600 12.5px/1 var(--mono); color: var(--brand); }
+  .spec h3 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -0.2px; flex: 1; }
+  .size { font-size: 12px; color: var(--muted); border: 1px solid var(--rule); padding: 3px 8px; }
+  .why { margin: 0 0 14px; color: #2c3f3a; font-size: 15px; max-width: 78ch; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+  .two h4 { font-size: 12.5px; color: var(--muted); margin: 0 0 6px; font-weight: 700; }
+  .two ul { margin: 0; padding-inline-start: 18px; }
+  .two li { font-size: 14px; margin-bottom: 5px; }
+  ul.accept { list-style: none; padding-inline-start: 0; }
+  ul.accept li { position: relative; padding-inline-start: 22px; }
+  ul.accept li::before {
+    content: ""; position: absolute; inset-inline-start: 0; top: 7px;
+    width: 11px; height: 11px; border: 1.5px solid var(--brand);
+  }
+  .spec footer {
+    display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 14px;
+    font-size: 13px; color: var(--muted);
+  }
+  .decide { color: var(--bad); }
+
+  /* ---- البصري ---- */
+  td.now { width: 235px; color: var(--muted); font-size: 14px; }
+  td.target { font-size: 14px; }
+  td.target::before { content: "→ "; color: var(--brand); font-weight: 700; }
+
+  /* ---- التذييل ---- */
+  .foot {
+    margin: 44px 44px 0; padding-top: 18px; border-top: 2px solid var(--ink);
+    font-size: 13px; color: var(--muted);
+  }
+  .foot code { background: transparent; padding: 0; color: var(--brand-ink); }
+  .foot p { margin: 0 0 8px; }
+
+  @media (max-width: 820px) {
+    .head, section, .receipt, .foot { padding-inline: 20px; }
+    .receipt { margin-inline: 20px; }
+    .counts { grid-template-columns: repeat(2, 1fr); }
+    .two { grid-template-columns: 1fr; gap: 14px; }
+    table, thead, tbody, tr, td { display: block; width: auto !important; }
+    thead { display: none; }
+    tbody td { padding: 8px 0; border: 0; }
+    tbody tr { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+    td.feat { font-size: 17px; }
+  }
+
+  @media print {
+    body { background: #fff; font-size: 11pt; }
+    .sheet { box-shadow: none; max-width: none; }
+    .receipt { background: #10231f !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .spec { break-inside: avoid; }
+    section { padding-top: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header class="head">
+    <div class="kicker">نيل سيستمز · سجل المزايا</div>
+    <h1>كل ما يعمله النظام الآن،<br>وكل ما لم يعمله بعد — ومواصفاته</h1>
+    <p class="lede">مستند واحد يُقرأ من أوله لآخره: مزايا تعمل ومعها الدليل، مزايا متبقية ومعها
+      معايير القبول، وقائمة ترقية بصرية بمعيار قابل للقياس. لا بند هنا بلا رقم يمكن التحقق منه.</p>
+    <div class="provenance">
+      <b>من أين جاء هذا المستند:</b> <code>docs/plan/001-pos-implementation-ready.md</code> ·
+      <code>docs/architecture/proposals/0007-payment-engine.md</code> ·
+      <code>docs/STATUS.md</code> · الكود على <code>nilesys@85b5816</code> ·
+      قرارات المالك في <code>platform/docs/wiki/owner-decisions.md</code>.
+      تاريخ التحرير: <b>2026-10-21</b>.
+    </div>
+  </header>
+
+  <div class="receipt">
+    <div class="counts">
+      <div class="count a"><span class="n">14</span><span class="l">ميزة تعمل اليوم ومعها اختبار</span></div>
+      <div class="count b"><span class="n">1</span><span class="l">ميزة تعمل جزئياً</span></div>
+      <div class="count c"><span class="n">15</span><span class="l">ميزة منفَّذة باختباراتها</span></div>
+      <div class="count d"><span class="n">16</span><span class="l">بند ترقية بصرية</span></div>
+    </div>
+  </div>
+
+  <section>
+    <h2>القسم الأول</h2>
+    <p class="h2sub">المزايا الحالية وخصائصها</p>
+    <p class="intro">«الخصائص» هنا ليست وصفاً أدبياً: حدود، أرقام، وقيود، ثم الدليل الذي يثبتها.
+      كل سطر يمكن تتبعه إلى ملف أو اختبار.</p>
+    <table>
+      <thead><tr><th>المُعرِّف</th><th>الميزة</th><th>الخصائص الكاملة</th><th>الدليل</th></tr></thead>
+      <tbody>
+      <tr>
+        <td class="id">C-01</td>
+        <td class="feat"><span class="fname">تسجيل الدخول والجلسات</span>
+          <span class="stamp st-ok">يعمل</span></td>
+        <td><ul class="props"><li>14 حساب تجريبي بكلمة مرور واحدة <code>demo1234</code> موزّعة على الأنظمة</li><li>الجلسة موقَّعة بـ HMAC-SHA256 وتحمل <code>userId</code> و<code>system</code> و<code>expires</code> — لا تعتمد على ذاكرة العملية</li><li>الكوكي <code>nile_sid</code> · HttpOnly · صلاحية 12 ساعة</li><li>تسجيل الخروج يُبطل التوكن في نفس النسخة التي خدمت الطلب</li></ul></td>
+        <td class="proof">tests/review.test.js · AUTH-1…AUTH-4</td>
+      </tr>
+      <tr>
+        <td class="id">C-02</td>
+        <td class="feat"><span class="fname">الأدوار والصلاحيات</span>
+          <span class="stamp st-ok">يعمل</span></td>
+        <td><ul class="props"><li><code>manager</code>: كل شيء. <code>cashier</code>: بيع وتعليق سلة فقط</li><li>المرتجعات للمدير فقط (403 للكاشير)</li><li>سجل العمليات للمدير فقط (403 للكاشير)</li><li>الخصم: الكاشير حتى 10% — المدير بلا حد</li></ul></td>
+        <td class="proof">tests/review.test.js · PERM-1…PERM-4</td>
+      </tr>
+      <tr>
+        <td class="id">C-03</td>
+        <td class="feat"><span class="fname">الأصناف</span>
+          <span class="stamp st-ok">يعمل</span></td>
+        <td><ul class="props"><li>إضافة/تعديل/تعطيل صنف · الباركود فريد بين الأصناف النشطة</li><li>كل صنف: اسم · باركود · تصنيف · تكلفة · سعر بيع · هامش محسوب · مخزون · إيموجي</li><li>الحذف للمدير فقط · يظهر تحذير عند مخزون ≤ 5</li><li>السعر يُقرأ من السيرفر عند البيع — لا يُقبل سعر من المتصفح</li></ul></td>
+        <td class="proof">server.js · GET/POST/PUT/DELETE /api/products</td>
+      </tr>
+      <tr>
+        <td class="id">C-04</td>
+        <td class="feat"><span class="fname">البيع (نقطة البيع)</span>
+          <span class="stamp st-ok">يعمل</span></td>
+        <td><ul class="props"><li>سلة + بحث بالاسم أو الباركود (الباركود المطابق يُضاف فوراً)</li><li>4 طرق دفع: كاش · فيزا/محفظة بنكية · محفظة إلكترونية · تحويل بنكي</li><li>الباقي يُحسب ويُخزَّن ويُطبع — ومن الكاش فقط؛ الطرق الأخرى تُسجَّل بالضبط</li><li>فحص المخزون قبل الخصم مع تجميع تكرار نفس الصنف</li><li>مفتاح تكرار: نفس المفتاح بنفس الطلب → نفس الفاتورة (بدون خصم مخزون ثانٍ) · بطلب مختلف → 409</li><li>خصم على الفاتورة بحد 10% للكاشير</li></ul></td>
+        <td class="proof">tests/pos-upgrade.test.js · TENDER-1 · IDEM-1 · PERM-4</td>
+      </tr>
+      <tr>
+        <td class="id">C-05</td>
+        <td class="feat"><span class="fname">تعليق السلة واسترجاعها</span>
+          <span class="stamp st-ok">يعمل</span></td>
+        <td><ul class="props"><li>تعليق أي سلة باسم وخصمها محفوظ</li><li>استرجاع بضغطة أو إلغاء نهائي</li><li>السلة المعلّقة تُشطب تلقائياً في نفس عملية البيع الذي أنهاها</li><li>اختصار F9 للتعليق</li></ul></td>
+        <td class="proof">tests/pos-upgrade.test.js · HELD-1</td>
+      </tr>
+      <tr>
+        <td class="id">C-06</td>
+        <td class="feat"><span class="fname">المرتجعات</span>
+          <span class="stamp st-ok">يعمل</span></td>
+        <td><ul class="props"><li>مرتجع جزئي أو كامل من داخل الفاتورة، للمدير فقط</li><li>الكمية المرتجعة لا تتجاوز المتبقي من السطر · والمبلغ يوزَّع نسبياً على إجمالي الفاتورة</li><li>المخزون يرجع تلقائياً · المرتجع يُسجَّل بوقته وطريقته ليُخصم من درج الوردية</li><li>منع إرجاع نفس الكمية مرتين (400)</li></ul></td>
+        <td class="proof">tests/review.test.js · RET-1…RET-4 · tests/pos-upgrade.test.js · MONEY-1</td>
+      </tr>
+      <tr>
+        <td class="id">C-07</td>
+        <td class="feat"><span class="fname">الورديات والدرج</span>
+          <span class="stamp st-ok">يعمل</span></td>
+        <td><ul class="props"><li>فتح وردية برصيد افتتاحي · إغلاق بعدّ فعلي</li><li>المتوقع = رصيد افتتاحي + مبيعات نقدية − مرتجعات نقدية</li><li>الفرق = المعدود − المتوقع، يُخزَّن ويظهر للمدير</li><li>وردية واحدة مفتوحة لكل نظام في المرة</li></ul></td>
+        <td class="proof">server.js · shiftExpectedCash · tests/review.test.js · SHIFT-1</td>
+      </tr>
+      <tr>
+        <td class="id">C-08</td>
+        <td class="feat"><span class="fname">التقارير</span>
+          <span class="stamp st-ok">يعمل</span></td>
+        <td><ul class="props"><li>مدى: اليوم أو آخر 7 أيام</li><li>الإجمالي <code>grossTotal</code> · المرتجعات <code>refundsTotal</code> سطر مستقل · **الصافي <code>net</code>** هو الرقم الرئيسي (قرار D-E)</li><li>توزيع لكل طريقة دفع (الأربعة تظهر دائماً) · أفضل الأصناف بالصافي بعد المرتجعات · مبيعات بالساعة</li><li>لا يُعرض «ربح» حتى تصبح تكلفة الوحدة موثوقة</li></ul></td>
+        <td class="proof">tests/pos-upgrade.test.js · MONEY-1 · tests/review.test.js · RET-4</td>
+      </tr>
+      <tr>
+        <td class="id">C-09</td>
+        <td class="feat"><span class="fname">سجل العمليات</span>
+          <span class="stamp st-ok">يعمل</span></td>
+        <td><ul class="props"><li>كل بيع/مرتجع/فتح وإغلاق وردية/تعليق سلة يُكتب بسطر لا يُعدَّل</li><li>يحتفظ بآخر 2000 حدث · يُقرأ للمدير فقط · شاشة مستقلة للسجل</li></ul></td>
+        <td class="proof">tests/pos-upgrade.test.js · AUDIT-1</td>
+      </tr>
+      <tr>
+        <td class="id">C-10</td>
+        <td class="feat"><span class="fname">الإيصال والطباعة</span>
+          <span class="stamp st-partial">جزئي</span></td>
+        <td><ul class="props"><li>إيصال يعرض: المتجر · رقم الفاتورة · الوقت · السطور · الخصم · الضريبة · الطريقة · المدفوع · الباقي</li><li>ورقة @media print بعرض 80 مم وارتفاع تلقائي · لا يُطبع أي زر أو قائمة أو شريط جانبي</li></ul></td>
+        <td class="proof">public/assets/js/pos.js · showReceipt</td>
+      </tr>
+      <tr>
+        <td class="id">C-11</td>
+        <td class="feat"><span class="fname">الهوية البصرية للمتجر</span>
+          <span class="stamp st-ok">يعمل</span></td>
+        <td><ul class="props"><li>اسم المتجر · شعار نصي · اللون الأساسي · العملة (ج.م / EGP)</li><li>تُطبَّق فوراً على الواجهة والإيصال · للمدير فقط</li></ul></td>
+        <td class="proof">server.js · PUT /api/branding · tests/review.test.js</td>
+      </tr>
+      <tr>
+        <td class="id">C-12</td>
+        <td class="feat"><span class="fname">العربية والإنجليزية (RTL)</span>
+          <span class="stamp st-ok">يعمل</span></td>
+        <td><ul class="props"><li>تبديل فوري بين عربي RTL وإنجليزي LTR · الاختيار محفوظ في المتصفح</li><li>كل النصوص من قاموس واحد <code>i18n.js</code> — لا نص مكتوب داخل الكود</li><li>الأرقام لاتينية في اللغتين (كما في الموقع المرجعي)</li></ul></td>
+        <td class="proof">public/assets/js/i18n.js</td>
+      </tr>
+      <tr>
+        <td class="id">C-13</td>
+        <td class="feat"><span class="fname">اختصارات لوحة المفاتيح</span>
+          <span class="stamp st-ok">يعمل</span></td>
+        <td><ul class="props"><li>F2 بحث · F4 إتمام البيع · F9 تعليق السلة · Esc إغلاق النافذة</li></ul></td>
+        <td class="proof">public/assets/js/pos.js · bindShortcuts</td>
+      </tr>
+      <tr>
+        <td class="id">C-14</td>
+        <td class="feat"><span class="fname">التشغيل والنشر</span>
+          <span class="stamp st-ok">يعمل</span></td>
+        <td><ul class="props"><li>محلي: <code>node server.js</code> بدون أي مكتبة خارجية</li><li>منشور على Vercel ومربوط بـ Supabase: الجلسات موقَّعة، والبيانات في صف واحد <code>jsonb</code></li><li>حماية الدعوات مقفولة عشان الرابط يبقى عام</li><li>صار ريدبلوي كامل و47 فاتورة باقية — دليل إن التخزين مشترك فعلاً</li></ul></td>
+        <td class="proof">nilesys-demo.vercel.app · docs/wiki/demo-and-vercel.md</td>
+      </tr>
+      <tr>
+        <td class="id">C-15</td>
+        <td class="feat"><span class="fname">غطاء الاختبارات</span>
+          <span class="stamp st-ok">يعمل</span></td>
+        <td><ul class="props"><li>93 اختبار API على سيرفر حي: 27 سجل المزايا + 16 انحدار + 31 مراجعة + 10 ترقية الكاشير + 9 مخازن</li><li>76 فحصاً في المتصفح: 21 يوم كامل · 13 أوفلاين/طباعة · 9 مخازن · 33 مواقع</li></ul></td>
+        <td class="proof">tests/*.test.js</td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>القسم الثاني</h2>
+    <p class="h2sub">كل ميزة كانت متبقية — وحالتها الآن بدليلها</p>
+    <p class="intro">مرتبة بقيمة صاحب المحل لا بسهولة البرمجة. «معايير القبول» هي ما سيُختبر فعلاً:
+      لو لم يكن البند قابلاً للفحص بأمر، فهو ليس بنداً.</p>
+
+    <article class="spec" id="F-01">
+      <header>
+        <span class="sid">F-01</span>
+        <h3>الضريبة والفاتورة الضريبية</h3>
+        <span class="size">كبير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">أكبر فرق بين «ديمو يعجب» و«نظام يتحط في محل بجد». أي بيع في مصر بلا ضريبة غير قانوني.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>نسبة ضريبة قابلة للضبط لكل صنف (افتراضي 14%) مع احتمال إعفاء</li><li>الضريبة تُحسب من السيرفر وتظهر سطراً مستقلاً في الإيصال والتقرير</li><li>رقم تسلسلي ضريبي لا يتكرر ولا يُحذف · بادئة قابلة للضبط</li><li>بيانات المنشأة: الاسم القانوني · الرقم الضريبي · السجل التجاري · العنوان</li><li>تصدير الفاتورة JSON/PDF بالصيغة المطلوبة لمنظومة الفاتورة الإلكترونية</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>بيع 100 + ضريبة 14% → الإيصال يعرض 100 + 14 = 114 والصافي المتوقع في الدرج 114</li><li>مرتجع جزئي يعكس الضريبة بنفس النسبة لا بمبلغ ثابت</li><li>تقرير اليوم يفصل: صافي البيع · الضريبة المحصَّلة · إجمالي المحصَّل</li><li>فاتورة بلا ضريبة (صنف معفى) تُسجَّل 0 ولا تكسر التقرير</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: C-04 · C-06 · C-08</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-01 (٤ حالات) + tools/ui-flow.js</span>
+        <span class="decide">ملاحظة: الفاتورة الإلكترونية بصيغة ETA لم تُنفَّذ؛ المطبوع PDF/حرارة 80 مم.</span>
+      </footer>
+    </article>
+    <article class="spec" id="F-02">
+      <header>
+        <span class="sid">F-02</span>
+        <h3>الخصومات المنظمة</h3>
+        <span class="size">متوسط</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">الخصم الحالي مبلغ حر على الفاتورة. المحلات بتخصم بالعرض أو بكود أو على صنف معيّن.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>خصم على سطر صنف · خصم على الفاتورة · كود خصم (نسبة أو مبلغ)</li><li>حدود لكل دور: كاشير 10% · مدير بلا حد · كل خصم فوق الحد يحتاج موافقة مسجّلة</li><li>منع تراكم خصمين على نفس السطر فوق سقف محدد</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>خصمان على نفس الصنف لا يتجاوزان 30% إجمالاً</li><li>كود منتهي الصلاحية → 400 برسالة مفهومة</li><li>كل خصم يظهر في سجل العمليات بمن منحه وبكم</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: C-04 · C-09</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-02 (سقف 30% وسقف 10% للكاشير وكود منتهٍ)</span>
+        
+      </footer>
+    </article>
+    <article class="spec" id="F-03">
+      <header>
+        <span class="sid">F-03</span>
+        <h3>طباعة حرارية 80mm</h3>
+        <span class="size">صغير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">الإيصال الحالي للشاشة. أي كاشير حقيقي بيطبع على رول 80 مم.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>ورقة طباعة <code>@media print</code> بعرض 80 مم وارتفاع تلقائي</li><li>شعار المتجر كنص/SVG · باركود الفاتورة · رقم ضريبي عند إضافة F-01</li><li>اختيار: إيصال مختصر أو مفصّل</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>الطباعة على A4 لا تقصّ أي سطر، وعلى 80mm تخرج في عمود واحد</li><li>لا يُطبع أي عنصر واجهة (أزرار/قوائم)</li><li>الخط أسود خالص على أبيض — لا ألوان ولا خلفيات</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: C-10</span>
+        <span class="proof">الدليل: tools/ui-offline-print.js · F-03 (لا قوائم ولا أشرطة على الورق)</span>
+        
+      </footer>
+    </article>
+    <article class="spec" id="F-04">
+      <header>
+        <span class="sid">F-04</span>
+        <h3>قارئ باركود بالكاميرا</h3>
+        <span class="size">متوسط</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">الكاشير على تابلت أو موبايل محتاج يقرأ الباركود بكاميرا الجهاز بدل جهاز منفصل.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>قراءة الكاميرا عبر BarcodeDetector مع بديل يدوي</li><li>اهتزاز/صوت تأكيد عند القراءة · منع القراءة المكررة في أقل من 500ms</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>قراءة باركود موجود → يُضاف للسلة مرة واحدة</li><li>باركود غير موجود → رسالة واضحة بلا تعطيل الشاشة</li><li>رفض الإذن لا يعطّل الكاشير — يبقى الإدخال اليدوي شغالاً</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: C-04</span>
+        <span class="proof">الدليل: tools/ui-offline-print.js · F-04 (نافذة، بديل يدوي، منع تكرار 500ms)</span>
+        <span class="decide">ملاحظة: قراءة الباركود بالكاميرا تعمل عبر BarcodeDetector؛ في متصفح لا يدعمه يبقى الإدخال اليدوي.</span>
+      </footer>
+    </article>
+    <article class="spec" id="F-05">
+      <header>
+        <span class="sid">F-05</span>
+        <h3>مخزون حقيقي بحركات</h3>
+        <span class="size">كبير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">المخزون الآن رقم في الصنف. لازم يبقى سجل حركات: ليه قلّ وكام وإمتى.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>حركة مخزون لكل تغيير: بيع · مرتجع · توريد · جرد · تالف · تحويل</li><li>جرد فعلي يقارن بالمحسوب ويولّد حركة تسوية</li><li>حد إعادة الطلب لكل صنف + تنبيه</li><li>المخزون ممنوع يبقى سالب — يبقى مستحيل من التصميم</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>بيع 3 ثم مرتجع 1 → حركتان بالمبلغ الصحيح ورقم الصنف</li><li>جرد: متاح 10 · فعلي 8 → حركة تسوية −2 بسبب مسجّل</li><li>تقرير مخزون: رصيد أول المدة + داخل − خارج = رصيد آخر المدة</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: C-03 · C-04</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-05 + tests/inventory.test.js</span>
+        
+      </footer>
+    </article>
+    <article class="spec" id="F-06">
+      <header>
+        <span class="sid">F-06</span>
+        <h3>المشتريات والموردون</h3>
+        <span class="size">كبير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">بدون توريد مسجّل، المخزون رقم بلا مصدر والتكلفة بلا سند.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>موردون · أمر شراء · استلام بضاعة يزيد المخزون ويكتب التكلفة</li><li>حساب المورد: مستحق ومدفوع</li><li>متوسط التكلفة المرجح يتحدّث مع كل استلام</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>استلام 10 × 50 ثم 10 × 70 → متوسط التكلفة 60</li><li>بيع بعدها يحسب هامشاً على 60 لا على 50</li><li>حذف استلام غير مسموح بعد استخدامه في بيع</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: F-05</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-06 + شاشة الموردين</span>
+        
+      </footer>
+    </article>
+    <article class="spec" id="F-07">
+      <header>
+        <span class="sid">F-07</span>
+        <h3>العملاء والولاء والآجل</h3>
+        <span class="size">متوسط</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">الفاتورة الآن مربوطة بالكاشير فقط. البقالة بتشتغل بالحساب الشهري.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>عميل برقم موبايل فريد · رصيد آجل بحد أقصى · نقاط ولاء</li><li>بيع آجل يخصم من الرصيد لا من الدرج</li><li>سداد من العميل يدخل الدرج كحركة منفصلة عن البيع</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>عميل حده 500 ورصيده 480 → فاتورة 30 تُرفض برسالة واضحة</li><li>الآجل لا يزيد المتوقع في درج الوردية</li><li>كشف حساب عميل يجمع: مبيعات · مرتجعات · سداد · الرصيد</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: C-04 · C-07</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-07 (حد الآجل · الولاء · كشف الحساب)</span>
+        
+      </footer>
+    </article>
+    <article class="spec" id="F-08">
+      <header>
+        <span class="sid">F-08</span>
+        <h3>حركة الدرج اليدوية</h3>
+        <span class="size">متوسط</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">سحب نقدي للبنك أو إيداع فكّة — بيحصل كل يوم ومش موجود في الحساب.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>سحب (خارج) وإيداع (داخل) بمبلغ وسبب ومستخدم</li><li>حركات معلّقة تحتاج اعتماد مدير</li><li>المتوقع في الدرج يحتسب الحركات المعتمدة فقط</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>فتح 100 + بيع كاش 60 + سحب 40 → المتوقع 120</li><li>سحب مرفوض لا يغيّر المتوقع</li><li>كل حركة في سجل العمليات باسم منشئها</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: C-07 · C-09</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-08 (كاشير يطلب ومدير يعتمد)</span>
+        
+      </footer>
+    </article>
+    <article class="spec" id="F-09">
+      <header>
+        <span class="sid">F-09</span>
+        <h3>تقارير قابلة للتصدير</h3>
+        <span class="size">صغير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">المالك محتاج ياخد الأرقام على Excel للمحاسب.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>CSV وExcel للفواتير والمرتجعات والورديات والمخزون</li><li>تقرير وردية مطبوع A4: افتتاحي · مبيعات بالطريقة · مرتجعات · سحب/إيداع · الفرق</li><li>فلترة بالتاريخ والمستخدم وطريقة الدفع</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>تصدير 100 فاتورة يفتح في Excel بترميز عربي سليم</li><li>تقرير وردية واحد يطابق أرقام الشاشة بالهللة/القرش</li><li>لا تصدير بلا صلاحية</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: C-08</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-09 (أربعة ملفات · BOM · أعمدة)</span>
+        
+      </footer>
+    </article>
+    <article class="spec" id="F-10">
+      <header>
+        <span class="sid">F-10</span>
+        <h3>إدارة المستخدمين</h3>
+        <span class="size">متوسط</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">الحسابات الآن مزروعة في الكود. محل حقيقي بيضيف كاشير ويوقف واحد.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>CRUD مستخدمين · إعادة تعيين كلمة المرور · تعطيل بلا حذف</li><li>كلمات المرور مُشفَّرة (scrypt/bcrypt) لا نص صريح</li><li>سجل من عدّل من ومتى</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>كلمة مرور لا تُقرأ من قاعدة البيانات بأي شكل</li><li>مستخدم معطّل لا يستطيع الدخول حتى بتوكن قديم</li><li>لا يمكن تعطيل آخر مدير في النظام</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: C-01 · C-02</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-10 (تجزئة scrypt · حماية آخر مدير)</span>
+        
+      </footer>
+    </article>
+    <article class="spec" id="F-11">
+      <header>
+        <span class="sid">F-11</span>
+        <h3>وضع عدم الاتصال</h3>
+        <span class="size">كبير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">النت بيقطع في المحلات. الكاشير مايقفش.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>البيع يُسجَّل محلياً ويُرسل عند رجوع الشبكة بطابور</li><li>مفاتيح تكرار تمنع التكرار عند الإرسال المتأخر</li><li>شريط حالة واضح: متصل / طابور 3 فواتير / تمت المزامنة</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>قطع الشبكة ثم بيع 3 فواتير → الطابور يظهر 3 ثم يفرغ</li><li>لا تتكرر أي فاتورة بعد المزامنة</li><li>المخزون لا يُسمح ببيعه سالباً أثناء الانقطاع</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: C-04 (المفاتيح) · F-05</span>
+        <span class="proof">الدليل: tools/ui-offline-print.js · F-11 (٣ فواتير بلا شبكة → ٣ بالضبط على الخادم)</span>
+        <span class="decide">ملاحظة: البيع أثناء الانقطاع يتحقق من آخر مخزون محلي؛ التحقق النهائي على الخادم عند الإرسال.</span>
+      </footer>
+    </article>
+    <article class="spec" id="F-12">
+      <header>
+        <span class="sid">F-12</span>
+        <h3>الدفع الجزئي والتقسيط</h3>
+        <span class="size">متوسط</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">عميل يدفع 50 من 120 والباقي عند الاستلام.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>دفعات على نفس الفاتورة · حالة: مسددة/جزئية/غير مسددة</li><li>كل دفعة بحركة درج إن كانت نقدية</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>120 على دفعتين 50+70 → الحالة «مسددة» والمتوقع في الدرج 120</li><li>الفاتورة الجزئية لا تُعدّ مبيعات محصَّلة كاملة في التقرير</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: F-07 · C-07</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-12 + tools/ui-flow.js (تحصيل آجل)</span>
+        
+      </footer>
+    </article>
+    <article class="spec" id="F-13">
+      <header>
+        <span class="sid">F-13</span>
+        <h3>التنبيهات</h3>
+        <span class="size">صغير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">المدير يعرف بنفسه إن المخزون خلص أو إن درج الوردية فيه فرق 200.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>تنبيهات داخلية: نقص مخزون · فرق درج · وردية مفتوحة أكثر من 12 ساعة · مرتجعات غير معتادة</li><li>مركز تنبيهات بعدّاد · تعليم كمقروء</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>صنف ينزل تحت حد الطلب → تنبيه واحد لا يتكرر كل ثانية</li><li>إغلاق وردية بفرق أكبر من حد → تنبيه للمدير</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: F-05 · C-07</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-13 + شارة التنبيهات</span>
+        
+      </footer>
+    </article>
+    <article class="spec" id="F-14">
+      <header>
+        <span class="sid">F-14</span>
+        <h3>النسخ الاحتياطي والاستعادة</h3>
+        <span class="size">صغير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">البيانات الآن في صف واحد. صف واحد = نقطة فشل واحدة.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>نسخة يومية تلقائية · تصدير كامل بضغطة · استعادة بموافقة مزدوجة</li><li>سجل بمن استعاد ومتى</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>تصدير ثم استعادة يعيد نفس الأرقام بالضبط</li><li>الاستعادة لا تتم بلا تأكيد نصي صريح</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: C-14</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-14 (نسخة/استعادة بتأكيد RESTORE)</span>
+        
+      </footer>
+    </article>
+    <article class="spec" id="F-15">
+      <header>
+        <span class="sid">F-15</span>
+        <h3>الأمان والتشديد</h3>
+        <span class="size">متوسط</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
+      </header>
+      <p class="why">الديمو مقبول فيه كلام كثير؛ النظام الحقيقي لا.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>تحديد محاولات الدخول · رؤوس أمان · CSRF للطلبات المتغيّرة</li><li>سجل عمليات لا يُعدَّل في قاعدة البيانات لا في التطبيق</li><li>مراجعة صلاحيات كل مسار آلياً</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>5 محاولات خاطئة → قفل مؤقت مع رسالة واضحة</li><li>طلب POST من أصل مختلف لا ينجح</li><li>تعديل سطر في سجل العمليات يفشل على مستوى قاعدة البيانات</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: F-10</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-15 (خمس محاولات → 429 · حساب موقوف → 403)</span>
+        
+      </footer>
+    </article>
+    <article class="spec" id="F-16">
+      <header>
+        <span class="sid">F-16</span>
+        <h3>بقية الأنظمة (6 أنظمة)</h3>
+        <span class="size">كبير جداً</span>
+        <span class="stamp st-partial">منفَّذ جزئياً</span>
+      </header>
+      <p class="why">المشروع في الأصل 7 أنظمة، والكاشير واحد منها.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>المخازن · المطعم (ترابيزات + شاشة مطبخ) · العيادة (مواعيد + روشتات) · الموارد البشرية (حضور ومرتبات) · حجز الملاعب · لوحة تحكم المواقع</li><li>كل نظام بقاعدة الصلاحيات والهوية والتقارير نفسها — بلا نسخ كود</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>نظام جديد يظهر في القائمة ويضيف مستخدميه ولا يكسر الكاشير</li><li>كل نظام له اختباراته المستقلة</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: F-05 · F-10</span>
+        <span class="proof">الدليل: tests/inventory.test.js (٩ حالات) + tools/ui-inventory.js (٩ فحوص)</span>
+        <span class="decide">ملاحظة: نُفِّذ نظامان: الكاشير والمخازن. المطعم والعيادة والموارد البشرية والحجوزات ولوحة المواقع ما زالت مخططات.</span>
+      </footer>
+    </article>
+    <article class="spec" id="F-17">
+      <header>
+        <span class="sid">F-17</span>
+        <h3>المواقع السبعة وبرامج ويندوز</h3>
+        <span class="size">كبير جداً</span>
+        <span class="stamp st-partial">منفَّذ جزئياً</span>
+      </header>
+      <p class="why">الوعد في صفحة الهبوط: 7 أنظمة + 7 مواقع + 5 برامج.</p>
+      <div class="two">
+        <div>
+          <h4>المواصفات</h4>
+          <ul><li>7 مواقع جاهزة (مطعم · عيادة · عقارات · جيم · موبايلات · ملابس · ملاعب) مربوطة بأنظمتها</li><li>صفحات البرامج الخمسة بحالة «قريباً» صادقة</li></ul>
+        </div>
+        <div>
+          <h4>معايير القبول</h4>
+          <ul class="accept"><li>كل موقع يفتح ويبدو مكتملاً على الموبايل</li><li>أي شيء غير جاهز يظهر «قريباً» بوضوح لا كزر معطّل</li></ul>
+        </div>
+      </div>
+      <footer>
+        <span>يعتمد على: F-16</span>
+        <span class="proof">الدليل: tools/ui-sites.js (37) · tools/ui-windows.js (69) · tests/windows.test.js (6)</span>
+        <span class="decide">ملاحظة: المواقع السبعة تعمل كصفحات نشاط؛ برامج ويندوز الخمسة «قيد التخطيط» ولم تُبنَ.</span>
+      </footer>
+    </article>
+  </section>
+
+  <section>
+    <h2>القسم الثالث</h2>
+    <p class="h2sub">التطوير والترقية البصرية</p>
+    <p class="intro">لكل بند: ما هو الآن، وما يصبح عليه بمعيار يمكن قياسه — لا كلمة «أجمل».</p>
+    <table>
+      <thead><tr><th>المُعرِّف</th><th>البند</th><th>الآن</th><th>المستهدف</th></tr></thead>
+      <tbody>
+      <tr><td class="id">V-01</td><td class="feat">مقياس طباعة موحّد</td>
+        <td class="now">أحجام عشوائية بحسب الشاشة</td><td class="target">6 أحجام فقط 12/14/16/20/28/40 وأرقام جدولية في كل مبلغ</td></tr>
+      <tr><td class="id">V-02</td><td class="feat">شبكة مسافات 8px</td>
+        <td class="now">هوامش 6 و8 و10 و26 معاً</td><td class="target">كل المسافات من مضاعفات 4 — والرأسي من 8</td></tr>
+      <tr><td class="id">V-03</td><td class="feat">هدف لمس 44px</td>
+        <td class="now">أزرار الأسهم في السلة 32px</td><td class="target">كل هدف لمس ≥ 44×44 على الشاشات اللمسية</td></tr>
+      <tr><td class="id">V-04</td><td class="feat">شريط سفلي للموبايل</td>
+        <td class="now">قائمة جانبية تُفتح بزر ☰</td><td class="target">شريط سفلي ثابت بأربعة أقسام أساسية على الموبايل</td></tr>
+      <tr><td class="id">V-05</td><td class="feat">حالات الفراغ</td>
+        <td class="now">جدول فاضي يظهر كصفحة بيضاء</td><td class="target">لكل قائمة: أيقونة + سبب + إجراء واحد واضح</td></tr>
+      <tr><td class="id">V-06</td><td class="feat">هياكل تحميل</td>
+        <td class="now">الشاشة تقفز عند وصول البيانات</td><td class="target">هيكل عظمي بنفس أبعاد المحتوى — لا قفز</td></tr>
+      <tr><td class="id">V-07</td><td class="feat">الوصولية</td>
+        <td class="now">لا حلقة تركيز ظاهرة</td><td class="target">حلقة تركيز 2px · تباين AA 4.5:1 · احترام prefers-reduced-motion</td></tr>
+      <tr><td class="id">V-08</td><td class="feat">إيصال 80mm للطباعة</td>
+        <td class="now">إيصال للشاشة فقط</td><td class="target">ورقة طباعة بعرض 80mm وأسود خالص وباركود</td></tr>
+      <tr><td class="id">V-09</td><td class="feat">صور الأصناف</td>
+        <td class="now">إيموجي فقط</td><td class="target">صورة أو حرف أول بلون ثابت + بديل عند غياب الصورة</td></tr>
+      <tr><td class="id">V-10</td><td class="feat">الوضع الليلي</td>
+        <td class="now">فاتح فقط</td><td class="target">ضوء منخفض للورديات الليلية — تباين مفحوص لا معكوس آلياً</td></tr>
+      <tr><td class="id">V-11</td><td class="feat">لوحة ألوان دلالية</td>
+        <td class="now">ألوان موزّعة داخل الملفات</td><td class="target">متغيّرات دلالية: --ok --bad --warn --brand --ink --rule</td></tr>
+      <tr><td class="id">V-12</td><td class="feat">حركة واحدة مقصودة</td>
+        <td class="now">كل شيء يظهر بلا انتقال</td><td class="target">انتقال واحد عند إضافة صنف للسلة يوضّح ما تغيّر — وبلا مؤثرات موزّعة</td></tr>
+      <tr><td class="id">V-13</td><td class="feat">اتجاه الأرقام</td>
+        <td class="now">أرقام مدفوعة للجانب في RTL</td><td class="target">كل مبلغ باتجاه ثابت مع عزل bidi صحيح</td></tr>
+      <tr><td class="id">V-14</td><td class="feat">تقرير A4 مطبوع</td>
+        <td class="now">لا يوجد</td><td class="target">تقرير وردية على صفحة واحدة قابلة للتوقيع</td></tr>
+      <tr><td class="id">V-15</td><td class="feat">مجموعة أيقونات SVG</td>
+        <td class="now">إيموجي مختلفة العائلات</td><td class="target">مجموعة واحدة بخط 1.5px ونفس الأبعاد</td></tr>
+      <tr><td class="id">V-16</td><td class="feat">صفحة الهبوط</td>
+        <td class="now">صفحة تعريفية بسيطة</td><td class="target">هوية بصرية + عرض حقيقي للأنظمة السبعة + لقطات حقيقية لا رسوماً توضيحية</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>القسم الرابع</h2>
+    <p class="h2sub">القرارات الموقوفة عليك</p>
+    <p class="intro">كل قرار هنا يحجب ميزة بعينها. القرارات المغلقة مذكورة لأنها تشرح لماذا
+      صار السلوك كما هو.</p>
+    <table>
+      <thead><tr><th>الرمز</th><th>القرار</th><th>يحجب</th><th>الحالة</th></tr></thead>
+      <tbody>
+      <tr><td class="id">D-A</td><td><b>طرق الدفع المعتمدة</b></td>
+        <td>تم الحسم: 4 طرق</td><td><span class="stamp st-ok">مغلق</span></td></tr>
+      <tr><td class="id">D-B</td><td><b>تصحيح النقد يدوياً</b></td>
+        <td>متى يُسمح بتعديل الدرج ومن يعتمده (يعتمد F-08)</td><td><span class="stamp st-open">مفتوح</span></td></tr>
+      <tr><td class="id">D-C</td><td><b>من يغلق الوردية</b></td>
+        <td>الكاشير أم المدير فقط — يحكم شاشة الإغلاق</td><td><span class="stamp st-open">مفتوح</span></td></tr>
+      <tr><td class="id">D-D</td><td><b>من يقرأ التقرير</b></td>
+        <td>المدير أم المالك أيضاً — يحكم صلاحية التقارير</td><td><span class="stamp st-open">مفتوح</span></td></tr>
+      <tr><td class="id">D-E</td><td><b>دلالة المبيعات</b></td>
+        <td>تم الحسم: الصافي = الإجمالي − المرتجعات</td><td><span class="stamp st-ok">مغلق</span></td></tr>
+      <tr><td class="id">D-G</td><td><b>ترتيب الأنظمة</b></td>
+        <td>أي نظام بعد الكاشير (يعتمد F-16)</td><td><span class="stamp st-open">مفتوح</span></td></tr>
+      <tr><td class="id">—</td><td><b>أين تُستضاف المواقع السبعة</b></td>
+        <td>نفس مشروع فيرسال أم مشاريع منفصلة (يعتمد F-17)</td><td><span class="stamp st-open">مفتوح</span></td></tr>
+      <tr><td class="id">—</td><td><b>الضريبة</b></td>
+        <td>نسبتها وهل تصدير ETA أم PDF (يعتمد F-01)</td><td><span class="stamp st-open">مفتوح</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer class="foot">
+    <p><b>الأرقام في هذا المستند أُنتجت لا اختُرعت.</b> الحالي: 93 اختبار API ناجحاً على سيرفر حي
+      (<code>27 + 16 + 31 + 10 + 9</code>) و76 فحص واجهة في متصفح حقيقي. المنشور: <code>https://nilesys-demo.vercel.app</code> على
+      <code>nilesys@85b5816</code>.</p>
+    <p>الملف مُولَّد من <code>tools/build-feature-register.py</code>. تعديله بيد ليس أسرع من تعديل
+      المصدر، وسيصير كاذباً عند أول تغيير في الكود.</p>
+    <p>ما لا يدّعيه هذا المستند: لا فاتورة إلكترونية بصيغة ETA (المطبوع 80 مم وPDF)، ولا خمسة
+      أنظمة لم تُبنَ (المطعم · العيادة · الموارد البشرية · الحجوزات · لوحة المواقع)، ولا برامج
+      ويندوز، ولا تعدد فروع. هذه ليست تفاصيل صغيرة — هي الفرق بين ديمو ونظام.</p>
+  </footer>
+
+</div>
+</body>
+</html>
