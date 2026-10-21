@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>نيل كاشير — الإنتاجي R1</title>
+<link rel="stylesheet" href="/pos/styles.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">نيل <span>كاشير</span> <em>R1 إنتاجي — فوق المحركات</em></div>
+  <div id="sessionBox" class="session hidden">
+    <span id="whoami"></span>
+    <button id="logoutBtn" class="ghost">خروج</button>
+  </div>
+</header>
+
+<main>
+  <!-- الدخول -->
+  <section id="loginView" class="card narrow">
+    <h1>تسجيل الدخول</h1>
+    <p class="muted">حسابات المستأجر التجريبي (كلمة المرور: demo1234)</p>
+    <label>الحساب
+      <select id="email">
+        <option value="pos-manager@nile.demo">مدير — pos-manager@nile.demo</option>
+        <option value="cashier@nile.demo">كاشير — cashier@nile.demo</option>
+      </select>
+    </label>
+    <label>كلمة المرور <input id="password" type="password" value="demo1234" /></label>
+    <button id="loginBtn" class="primary">دخول</button>
+    <p id="loginErr" class="err"></p>
+  </section>
+
+  <!-- نقطة البيع -->
+  <section id="posView" class="hidden">
+    <div class="shiftbar card">
+      <div id="shiftState">لا توجد وردية مفتوحة</div>
+      <div class="row">
+        <input id="opening" type="number" min="0" step="0.01" placeholder="رصيد الافتتاح (ج.م)" />
+        <button id="openShiftBtn" class="primary">فتح وردية</button>
+        <input id="counted" type="number" min="0" step="0.01" placeholder="المعدود عند الإغلاق (ج.م)" />
+        <button id="closeShiftBtn">إغلاق الوردية</button>
+        <button id="reportBtn">تقرير اليوم</button>
+      </div>
+      <p id="shiftMsg" class="muted"></p>
+    </div>
+
+    <div class="layout">
+      <div class="card">
+        <h2>الأصناف</h2>
+        <div id="catalog" class="grid"></div>
+      </div>
+      <div class="card cart">
+        <h2>السلة</h2>
+        <div id="cartLines"></div>
+        <div class="total">الإجمالي: <b id="total">0.00</b> ج.م</div>
+        <label>طريقة الدفع
+          <select id="method">
+            <option value="cash">نقدي</option><option value="card">بطاقة</option>
+            <option value="wallet">محفظة</option><option value="transfer">تحويل</option>
+          </select>
+        </label>
+        <label>المستلم (للنقدي) <input id="tendered" type="number" min="0" step="0.01" placeholder="اتركه فارغًا = بالضبط" /></label>
+        <button id="checkoutBtn" class="primary big">إتمام البيع</button>
+        <p id="saleMsg" class="muted"></p>
+        <div id="receipt"></div>
+      </div>
+    </div>
+
+    <div id="report" class="card hidden"></div>
+  </section>
+</main>
+
+<footer>نيل سيستمز — واجهة R1 فوق محركات المعاملات والكتالوج والمنصة · كل رقم من الـAPI مباشرة</footer>
+<script src="/pos/app.js"></script>
+</body>
+</html>

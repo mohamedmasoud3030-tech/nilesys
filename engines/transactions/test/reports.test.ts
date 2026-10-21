@@ -17,11 +17,8 @@ let variantA: string;
 let variantB: string;
 
 function todayStr() {
-  const d = new Date();
-  const y = d.getUTCFullYear().toString().padStart(4, '0');
-  const m = (d.getUTCMonth() + 1).toString().padStart(2, '0');
-  const day = d.getUTCDate().toString().padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  // يوم القاهرة — المحرك يحدّ التقارير بحدود يوم Africa/Cairo، فلا يصح حساب «اليوم» بـUTC
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Cairo' });
 }
 
 beforeAll(async () => {

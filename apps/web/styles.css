@@ -1,0 +1,31 @@
+:root{--bg:#0d1420;--card:#16202f;--line:#24314a;--txt:#eef3fb;--mut:#93a5c4;--acc:#f5b301;--ok:#2fbf71;--bad:#ff6b6b}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,"Segoe UI",Tahoma,sans-serif;background:var(--bg);color:var(--txt)}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line)}
+.brand{font-size:22px;font-weight:800}.brand span{color:var(--acc)}.brand em{font-size:12px;color:var(--mut);font-style:normal;margin-inline-start:8px}
+main{max-width:1280px;margin:0 auto;padding:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.narrow{max-width:420px;margin:40px auto}
+label{display:block;margin:10px 0;color:var(--mut);font-size:14px}
+input,select{width:100%;padding:10px;border-radius:9px;border:1px solid var(--line);background:#0f1929;color:var(--txt);margin-top:5px}
+button{padding:10px 16px;border-radius:9px;border:1px solid var(--line);background:#1d2c44;color:var(--txt);cursor:pointer;font-weight:700}
+button.primary{background:var(--acc);color:#171106;border:none}
+button.big{width:100%;padding:14px;font-size:17px;margin-top:10px}
+button.ghost{background:transparent}
+button:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row input{width:210px}
+.layout{display:grid;grid-template-columns:1.6fr 1fr;gap:16px}
+@media(max-width:900px){.layout{grid-template-columns:1fr}}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.item{border:1px solid var(--line);border-radius:11px;padding:11px;background:#101a2a}
+.item b{display:block;margin-bottom:4px}.item .price{color:var(--acc);font-weight:800}
+.item .stock{font-size:12px;color:var(--mut)}.item button{width:100%;margin-top:8px;padding:8px}
+.cartline{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line)}
+.cartline .qty button{padding:2px 9px}
+.total{font-size:19px;margin:12px 0}
+.muted{color:var(--mut)}.err{color:var(--bad);min-height:20px}
+.hidden{display:none!important}
+#receipt{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;font-size:14px}
+#receipt table{width:100%;border-collapse:collapse}#receipt td{padding:4px 0;border-bottom:1px dashed var(--line)}
+.session span{margin-inline-end:10px;color:var(--mut)}
+footer{text-align:center;color:var(--mut);padding:22px;font-size:13px}
+.ok{color:var(--ok)}

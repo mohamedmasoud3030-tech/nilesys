@@ -16,7 +16,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { withTenant, type AnyPgDatabase } from '../../platform/src/db/with-tenant.js';
 import { auditLog } from '../../platform/src/db/schema.js';
 import { catalogItems, catalogVariants } from '../../catalog/src/db/schema.js';
-import { salesTransactions, stockMovements, transactionLines } from './db/schema.js';
+import { payments, salesTransactions, stockMovements, transactionLines } from './db/schema.js';
 import { DomainError } from './line.js';
 import { mergeSaleLines, priceSale, type PricedLineInput } from './sale.js';
 import type { CreateSaleInput } from './contracts.js';
@@ -34,6 +34,8 @@ export interface SaleView {
   createdAt: string;
   createdBy: string;
   lines: Array<{ variantId: string; nameAr: string; nameEn: string; quantity: string; unitPriceMinor: number; lineTotalMinor: number }>;
+  /** مدفوعات الفاتورة — لازمة لبدء مرتجع من أي عميل HTTP (R1). المبالغ بالقروش. */
+  payments: Array<{ id: string; method: string; amountMinor: number; tenderedMinor: number | null; changeMinor: number | null }>;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -57,6 +59,7 @@ async function loadSale(tx: any, id: string): Promise<SaleView | null> {
     .from(transactionLines)
     .where(eq(transactionLines.transactionId, id))
     .orderBy(transactionLines.nameEn);
+  const pays = await tx.select().from(payments).where(eq(payments.transactionId, id)).orderBy(payments.createdAt);
   return {
     id: h.id,
     status: h.status,
@@ -71,6 +74,13 @@ async function loadSale(tx: any, id: string): Promise<SaleView | null> {
       quantity: l.quantity,
       unitPriceMinor: l.unitPriceMinor,
       lineTotalMinor: l.lineTotalMinor,
+    })),
+    payments: pays.map((pay: any) => ({
+      id: pay.id,
+      method: pay.method,
+      amountMinor: pay.amountMinor,
+      tenderedMinor: pay.tenderedMinor ?? null,
+      changeMinor: pay.changeMinor ?? null,
     })),
   };
 }

@@ -59,8 +59,8 @@ let saleId: string;
 let paymentId: string;
 
 function todayStr() {
-  const d = new Date();
-  return `${d.getUTCFullYear().toString().padStart(4,'0')}-${(d.getUTCMonth()+1).toString().padStart(2,'0')}-${d.getUTCDate().toString().padStart(2,'0')}`;
+  // يوم القاهرة — المحرك يحدّ التقارير بحدود يوم Africa/Cairo، فلا يصح حساب «اليوم» بـUTC
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Cairo' });
 }
 
 beforeAll(async () => { run = await boot(); });

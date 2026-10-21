@@ -9,8 +9,8 @@ import { closeShift, getShift, openShift } from '../src/shifts.js';
 import { getDailyReport } from '../src/reports.js';
 
 function todayStr() {
-  const d = new Date();
-  return `${d.getUTCFullYear().toString().padStart(4, '0')}-${(d.getUTCMonth() + 1).toString().padStart(2, '0')}-${d.getUTCDate().toString().padStart(2, '0')}`;
+  // يوم القاهرة — المحرك يحدّ التقارير بحدود يوم Africa/Cairo، فلا يصح حساب «اليوم» بـUTC
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Cairo' });
 }
 
 let opened: OpenedDatabase;

@@ -28,6 +28,7 @@ const auth = createAuth(opened.db, {
     : async (req?: Request) => [baseURL, req?.headers.get('origin') ?? ''].filter(Boolean),
 });
 const seeded = await provisionTenant(auth, opened.db, demoTenantSpec());
-const { app } = await createApp({ db: opened.db, auth });
+const { app } = await createApp({ db: opened.db, auth }, { serveWeb: true });
+
 await app.listen({ port, host: '0.0.0.0' });
 console.log(`Nile API on :${port} (db=${opened.driver}, demo tenant ${seeded.created ? 'created' : 'present'})`);
