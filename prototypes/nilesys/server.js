@@ -70,6 +70,7 @@ function seedUsers() {
     mk('hr', 'manager', 'مها رشدي', 'manager'),
     mk('hr', 'employee', 'نادين حسام', 'employee'),
     mk('courts', 'manager', 'مدير ملعبنا', 'manager'),
+    mk('courts', 'reception', 'هدى عبد الله', 'reception'),
     mk('admin', 'admin', 'مدير الموقع', 'admin'),
   ];
 }
@@ -215,6 +216,7 @@ function migrate() {
   if (extensions && extensions.seedDefaults(db)) changed = true;
   if (typeof restaurant !== 'undefined' && restaurant.seedDefaults(db)) changed = true;
   if (typeof clinic !== 'undefined' && clinic.seedDefaults(db)) changed = true;
+  if (typeof courts !== 'undefined' && courts.seedDefaults(db)) changed = true;
   if (changed) {
     try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); } catch { /* /tmp */ }
   }
@@ -456,6 +458,16 @@ const clinic = require('./lib/clinic.js')({
   readBody: (req) => readBody(req),
 });
 
+// نظام حجز الملاعب — تطبيق مستقل، مساراته تحت /api/courts.
+const courts = require('./lib/courts.js')({
+  getDb: () => db,
+  save: () => save(),
+  audit: (u, a, d, m) => audit(u, a, d, m),
+  sendJSON: (res, code, body, headers) => sendJSON(res, code, body, headers),
+  sendError: (res, code, msg) => sendError(res, code, msg),
+  readBody: (req) => readBody(req),
+});
+
 /* ================= منطق الـ API ================= */
 
 function publicUser(u) {
@@ -512,6 +524,9 @@ async function handleApi(req, res, url) {
 
   // تطبيق العيادة له مساراته ومحركه المستقل.
   if (await clinic.handle(req, res, url, { route, user, isManager })) return;
+
+  // تطبيق الملاعب له مساراته ومحركه المستقل.
+  if (await courts.handle(req, res, url, { route, user, isManager })) return;
 
   /* ---- الجلسة ---- */
   if (route === 'POST /api/login') {

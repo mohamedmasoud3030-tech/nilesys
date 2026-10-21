@@ -3,7 +3,7 @@ id: app-courts
 slug: courts
 order: 5
 name: نظام حجز الملاعب
-status: planned
+status: live
 system: courts
 entry: /systems/courts.html
 users: manager, reception
@@ -12,7 +12,7 @@ api: /api/courts/*
 ---
 # نظام حجز الملاعب — مواصفة مستقلة
 
-> الحالة: **لم يُبنَ بعد**. هذه المواصفة هي ما سيُبنى بالضبط.
+> الحالة: **مبني ويعمل**. المحرك `lib/courts.js` (10/10 اختبار API) والشاشة `public/systems/courts.html` (14/14 اختبار متصفح).
 
 ## 1) الغرض في سطر
 
@@ -48,6 +48,7 @@ api: /api/courts/*
 GET|POST /api/courts                     { name, kind, pricePerHour, openFrom, openTo }
 GET  /api/courts/grid?date=YYYY-MM-DD    ← الملاعب × الساعات
 GET|POST /api/courts/bookings            { courtId, date, from, to, customerName, phone, deposit, method }
+GET  /api/courts/bookings?q=              ← بحث بالاسم أو الموبايل
 POST /api/courts/bookings/:id/confirm
 POST /api/courts/bookings/:id/cancel     { reason }
 POST /api/courts/bookings/:id/play       ← تسجيل أن الحجز لُعب
@@ -65,20 +66,22 @@ GET  /api/courts/summary?range=today
 
 ## 7) معايير القبول
 
-- [ ] حجز متقاطع → 409
-- [ ] حجز خارج مواعيد العمل → 400
-- [ ] مدة 25 دقيقة → 400
-- [ ] الإلغاء داخل 12 ساعة لا يعيد العربون، وخارجها يعيده بحركة درج
-- [ ] السعر يتغير بتغيير سعر الملعب، ولا يُقبل من المتصفح
-- [ ] حجز `held` لم يُؤكَّد يظهر منتهياً في الجدول
-- [ ] الإشغال في التقرير = دقائق محجوزة ÷ دقائق متاحة
+- [x] حجز متقاطع → 409
+- [x] حجز خارج مواعيد العمل → 400
+- [x] مدة 25 دقيقة → 400
+- [x] الإلغاء داخل 12 ساعة لا يعيد العربون، وخارجها يعيده بحركة درج
+- [x] السعر يتغير بتغيير سعر الملعب، ولا يُقبل من المتصفح
+- [x] حجز `held` لم يُؤكَّد يظهر منتهياً في الجدول
+- [x] الإشغال في التقرير = دقائق محجوزة ÷ دقائق متاحة
 
 ## 8) كيف يُثبت ذلك
 
 ```sh
-npm test -- courts
-node tools/ui-courts.js
+BASE=http://localhost:4000 node --test tests/courts.test.js                 # 10/10
+BASE=http://localhost:4000 sh tools/setup-browser.sh tools/ui-courts.js     # 14/14
 ```
+
+نتيجة آخر تشغيل: **10/10** للـ API و**14/14** للمتصفح، وصفر أخطاء JavaScript.
 
 ## 9) خارج النطاق الآن
 

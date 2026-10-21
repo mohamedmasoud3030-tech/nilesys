@@ -6,7 +6,7 @@
   /* ---------- بيانات المنتجات ---------- */
   const SYSTEMS = [
     {
-      id: 'courts', icon: '🎾', ready: false,
+      id: 'courts', icon: '⚽', ready: true, href: '/systems/courts.html',
       ar: { n: 'حجز الملاعب والبادل', d: 'مواعيد متاحة، منع الحجز المزدوج، عربون ولوحة مستقلة للنادي.', f: ['موقع حجز متجاوب', 'لوحة مستقلة للملاعب', 'إدارة الأسعار والعربون'] },
       en: { n: 'Courts & Padel Booking', d: 'Available slots, double-booking prevention, deposits and a standalone club panel.', f: ['Responsive booking site', 'Standalone courts panel', 'Pricing & deposits'] },
     },

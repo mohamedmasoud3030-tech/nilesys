@@ -45,11 +45,11 @@ hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
 <header class="head">
   <div class="kicker">نيل سيستمز · مواصفة تطبيق رقم 5</div>
   <h1>نظام حجز الملاعب</h1>
-  <span class="badge st-planned">لم يُبنَ بعد</span>
+  <span class="badge st-live">يعمل ومُختبَر</span>
 </header>
-<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-courts</div></div><div class="fact"><div class="k">النظام</div><div class="v">courts</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/courts.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">manager, reception</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">0/7</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/courts.test.js</div></div></div>
+<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-courts</div></div><div class="fact"><div class="k">النظام</div><div class="v">courts</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/courts.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">manager, reception</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">7/7</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/courts.test.js</div></div></div>
 <main class="body">
-<blockquote>الحالة: <strong>لم يُبنَ بعد</strong>. هذه المواصفة هي ما سيُبنى بالضبط.</blockquote>
+<blockquote>الحالة: <strong>مبني ويعمل</strong>. المحرك <code>lib/courts.js</code> (10/10 اختبار API) والشاشة <code>public/systems/courts.html</code> (14/14 اختبار متصفح).</blockquote>
 <h2>1) الغرض في سطر</h2>
 <p>تعرف الملعب فاضي ولا محجوز في الساعة دي قبل ما ترد على التليفون — والعربون محسوب.</p>
 <h2>2) المستخدمون</h2>
@@ -74,6 +74,7 @@ hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
 <pre>GET|POST /api/courts                     { name, kind, pricePerHour, openFrom, openTo }
 GET  /api/courts/grid?date=YYYY-MM-DD    ← الملاعب × الساعات
 GET|POST /api/courts/bookings            { courtId, date, from, to, customerName, phone, deposit, method }
+GET  /api/courts/bookings?q=              ← بحث بالاسم أو الموبايل
 POST /api/courts/bookings/:id/confirm
 POST /api/courts/bookings/:id/cancel     { reason }
 POST /api/courts/bookings/:id/play       ← تسجيل أن الحجز لُعب
@@ -81,11 +82,12 @@ GET  /api/courts/summary?range=today</pre>
 <h2>6) القواعد</h2>
 <ol><li>لا تعارض: أي تقاطع زمني على نفس الملعب ونفس اليوم → 409.</li><li>الحجز داخل مواعيد عمل الملعب فقط، ومدة لا تقل عن ساعة وبمضاعفات النصف ساعة.</li><li>العربون لا يتجاوز قيمة الحجز، والحجز بلا عربون يبقى <code>held</code> وينتهي تلقائياً بعد ساعة إن لم يُؤكَّد.</li><li>الإلغاء قبل 12 ساعة يعيد العربون (حركة درج سالبة معتمدة)، وبعدها لا.</li><li>السعر يُحسب من سعر الملعب في الساعة × المدة، ولا يُقبل سعر من المتصفح.</li><li>العربون النقدي يدخل درج وردية الملاعب.</li></ol>
 <h2>7) معايير القبول</h2>
-<ul class="criteria"><li class="crit open"><span class="box"></span>حجز متقاطع → 409</li><li class="crit open"><span class="box"></span>حجز خارج مواعيد العمل → 400</li><li class="crit open"><span class="box"></span>مدة 25 دقيقة → 400</li><li class="crit open"><span class="box"></span>الإلغاء داخل 12 ساعة لا يعيد العربون، وخارجها يعيده بحركة درج</li><li class="crit open"><span class="box"></span>السعر يتغير بتغيير سعر الملعب، ولا يُقبل من المتصفح</li><li class="crit open"><span class="box"></span>حجز <code>held</code> لم يُؤكَّد يظهر منتهياً في الجدول</li><li class="crit open"><span class="box"></span>الإشغال في التقرير = دقائق محجوزة ÷ دقائق متاحة</li></ul>
+<ul class="criteria"><li class="crit done"><span class="box">✓</span>حجز متقاطع → 409</li><li class="crit done"><span class="box">✓</span>حجز خارج مواعيد العمل → 400</li><li class="crit done"><span class="box">✓</span>مدة 25 دقيقة → 400</li><li class="crit done"><span class="box">✓</span>الإلغاء داخل 12 ساعة لا يعيد العربون، وخارجها يعيده بحركة درج</li><li class="crit done"><span class="box">✓</span>السعر يتغير بتغيير سعر الملعب، ولا يُقبل من المتصفح</li><li class="crit done"><span class="box">✓</span>حجز <code>held</code> لم يُؤكَّد يظهر منتهياً في الجدول</li><li class="crit done"><span class="box">✓</span>الإشغال في التقرير = دقائق محجوزة ÷ دقائق متاحة</li></ul>
 <h2>8) كيف يُثبت ذلك</h2>
-<pre>npm test -- courts
-node tools/ui-courts.js</pre>
+<pre>BASE=http://localhost:4000 node --test tests/courts.test.js                 # 10/10
+BASE=http://localhost:4000 sh tools/setup-browser.sh tools/ui-courts.js     # 14/14</pre>
+<p>نتيجة آخر تشغيل: <strong>10/10</strong> للـ API و<strong>14/14</strong> للمتصفح، وصفر أخطاء JavaScript.</p>
 <h2>9) خارج النطاق الآن</h2>
 <ul><li>الحجز الذاتي من الموقع للعملاء.</li><li>الاشتراكات الشهرية للفرق.</li><li>ربط بإضاءة الملعب أو بوابته.</li></ul></main>
-<footer class="foot">مُولَّد من <code>docs/product/systems/courts.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@d626c9b</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
+<footer class="foot">مُولَّد من <code>docs/product/systems/courts.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@b0198eb</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
 </div></body></html>
