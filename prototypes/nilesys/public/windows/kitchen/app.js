@@ -72,7 +72,7 @@
     $('#title').textContent = 'الترابيزات';
     const busy = doc.orders.filter((o) => o.status === 'open').length;
     $('#sub').innerHTML = `${num(busy)} ترابيزة مشغولة من ${num(doc.tables.length)}`;
-    $('#content').innerHTML = `<div class="tiles" id="tiles"></div>`;
+    $('#content').innerHTML = `<div class="tiles fill" id="tiles" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr));align-content:start"></div>`;
     $('#tiles').innerHTML = doc.tables.map((t) => {
       const st = tableState(t);
       const o = openOrder(t.id);
@@ -97,7 +97,7 @@
     $('#sub').textContent = o ? `طلب #${o.no} — ${o.sentAt ? 'اتبعت للمطبخ' : 'لم يُبعت بعد'}` : 'طلب جديد';
     $('#topActions').innerHTML = '<button class="btn btn-ghost" id="backFloor">↩ الصالة</button>';
     $('#content').innerHTML = `
-      <div class="grid" style="grid-template-columns:minmax(260px,1.4fr) minmax(300px,1fr);align-items:start">
+      <div class="split split-main fill">
         <div class="card pad">
           <h2 class="sec mb">القائمة</h2>
           <div class="tiles" id="menu"></div>
@@ -212,7 +212,7 @@
     $('#title').textContent = 'شاشة المطبخ';
     const open = doc.orders.filter((o) => o.status === 'open' && o.items.some((i) => i.state !== 'served'));
     $('#sub').innerHTML = `${num(open.length)} تذكرة مفتوحة — الأقدم أولاً`;
-    $('#content').innerHTML = open.length ? `<div class="grid g2" id="board"></div>`
+    $('#content').innerHTML = open.length ? `<div class="grid g2 fill" id="board" style="align-content:start"></div>`
       : '<div class="card empty">المطبخ فاضي — مفيش تذاكر مفتوحة</div>';
     if (!open.length) return;
     const now = Date.now();

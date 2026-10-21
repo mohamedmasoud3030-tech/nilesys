@@ -324,6 +324,37 @@ const waitPrint = async (page, needle, ms = 15000) => {
   check('W-REP · التقرير بلا NaN أو undefined', !/NaN|undefined/.test(rep));
   await page.screenshot({ path: `${OUT}/win-reports.png` });
 
+  /* ================= الشكل والموبايل (مراجعة تصميم ثانية) ================= */
+  // 1) الأيقونات: كانت إيموجي تظهر كمربع فارغ على ويندوز — الآن SVG من مجموعة واحدة
+  for (const slug of ['cashier', 'stock', 'kitchen', 'attendance', 'reports']) {
+    await page.goto(`${BASE}/windows/${slug}/`, { waitUntil: 'networkidle' });
+    const navIcons = await page.locator('.desk-side svg.ico').count();
+    const navItems = await page.locator('.desk-side .desk-nav').count();
+    check(`WIN · أيقونات ${slug} SVG للكل (لا إيموجي صندوقي)`, navIcons === navItems && navIcons >= 4, `${navIcons}/${navItems}`);
+  }
+
+  // 2) المبالغ: الرقم قبل العملة في نص الصفحة (كانت تنقلب «ج.م 55» في RTL)
+  await page.goto(`${BASE}/windows/cashier/`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('#tiles [data-add]', { timeout: 20000 });
+  // نزيل علامات العزل (U+2066/U+2069) قبل المقارنة — وجودها هو ما يجعل الترتيب سليماً
+  const priceRaw = (await page.textContent('#tiles .tile-btn .price')) || '';
+  const priceTxt = priceRaw.replace(/[\u2066\u2067\u2068\u2069]/g, '').trim();
+  check('WIN · المبلغ يظهر «رقم ثم ج.م» لا معكوساً',
+    /^[\d.,]+\s*ج\.م/.test(priceTxt) && /[\u2066]/.test(priceRaw), priceTxt);
+
+  // 3) الموبايل: لا فيض أفقي على 390px في الستة (البرامج + الفهرس)
+  const mob = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const mp = await mob.newPage();
+  watch(mp);
+  for (const slug of ['', 'cashier', 'stock', 'kitchen', 'attendance', 'reports']) {
+    await mp.goto(`${BASE}/windows/${slug ? slug + '/' : ''}`, { waitUntil: 'networkidle' });
+    await mp.waitForTimeout(400);
+    const w = await mp.evaluate(() => document.documentElement.scrollWidth);
+    const bar = await mp.locator('.desk-side').count();
+    check(`WIN · ${slug || 'الفهرس'} بلا فيض أفقي على الموبايل`, w <= 391, `${w}px`);
+    if (slug) check(`WIN · ${slug} شريط تنقّل سفلي على الموبايل`, bar === 1);
+  }
+
   /* ================= الحصيلة ================= */
   console.log('\nأخطاء الصفحة:', errors.length);
   errors.slice(0, 8).forEach((e) => console.log('  ' + e));

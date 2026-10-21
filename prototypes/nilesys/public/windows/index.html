@@ -13,7 +13,8 @@
     .prog { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
     .prog-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px; }
     .prog-card .hd { display: flex; align-items: center; gap: 10px; }
-    .prog-card .ico { font-size: 26px; }
+    .prog-card .ico { width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center;
+      background: #ccfbf1; color: var(--brand-600); margin-bottom: 10px; }
     .prog-card .nm { font-weight: 800; font-size: 17px; }
     .prog-card ul { margin: 0; padding-inline-start: 18px; color: var(--muted); font-size: 13.5px; }
     .prog-card .foot { margin-top: auto; display: flex; gap: 8px; flex-wrap: wrap; }
@@ -48,15 +49,15 @@
   <script src="./desk.js"></script>
   <script>
     const PROGRAMS = [
-      { slug: 'cashier', icon: '🧾', name: 'نيل كاشير', desc: 'بيع وتحصيل وإيصال 80mm ووردية ودرج.', points: ['فاتورة بلا إنترنت', 'إيصال 80mm', 'وردية وفرق الدرج'] },
-      { slug: 'stock', icon: '📦', name: 'نيل مخازن', desc: 'أصناف وجرد واستلام وملصقات باركود Code39.', points: ['جرد بسبب إلزامي', 'ملصق باركود حقيقي', 'حركات رصيد مسجّلة'] },
-      { slug: 'kitchen', icon: '🍽️', name: 'نيل مطعم', desc: 'ترابيزات وطلب وشاشة مطبخ وتذكرة مطبوعة.', points: ['تذكرة للمطبخ', 'لا تحصيل قبل التقديم', 'إعادة طباعة مسجّلة'] },
-      { slug: 'attendance', icon: '🖐️', name: 'نيل حضور', desc: 'بصمة دخول وخروج، تأخير، وملخص شهري للمرتبات.', points: ['دخول مزدوج مرفوض', 'تأخير بعد 09:15', 'تصدير CSV للمرتبات'] },
-      { slug: 'reports', icon: '📈', name: 'نيل تقارير', desc: 'مؤشرات وتقرير A4 مقروء من البرامج على نفس الجهاز.', points: ['مصدر لكل رقم', 'تقرير A4 قابل للتوقيع', 'CSV بترميز عربي'] },
+      { slug: 'cashier', svg: '<path d="M3 9h18M6 9V5.5A2.5 2.5 0 0 1 8.5 3h7A2.5 2.5 0 0 1 18 5.5V9M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/>', icon: '🧾', name: 'نيل كاشير', desc: 'بيع وتحصيل وإيصال 80mm ووردية ودرج.', points: ['فاتورة بلا إنترنت', 'إيصال 80mm', 'وردية وفرق الدرج'] },
+      { slug: 'stock', svg: '<path d="M3 8 12 3l9 5v8l-9 5-9-5V8zm0 0 9 5 9-5M12 13v8"/>', icon: '📦', name: 'نيل مخازن', desc: 'أصناف وجرد واستلام وملصقات باركود Code39.', points: ['جرد بسبب إلزامي', 'ملصق باركود حقيقي', 'حركات رصيد مسجّلة'] },
+      { slug: 'kitchen', svg: '<path d="M5 21V8a4 4 0 0 1 8 0v13M5 12h8M17 3v18M14 3v6a3 3 0 0 0 6 0V3"/>', icon: '🍽️', name: 'نيل مطعم', desc: 'ترابيزات وطلب وشاشة مطبخ وتذكرة مطبوعة.', points: ['تذكرة للمطبخ', 'لا تحصيل قبل التقديم', 'إعادة طباعة مسجّلة'] },
+      { slug: 'attendance', svg: '<path d="M12 3v9m0 0a3 3 0 0 0 3-3V5M9 9a3 3 0 0 1 3-3M5 13a7 7 0 1 0 14 0M3 21h18"/>', icon: '🖐️', name: 'نيل حضور', desc: 'بصمة دخول وخروج، تأخير، وملخص شهري للمرتبات.', points: ['دخول مزدوج مرفوض', 'تأخير بعد 09:15', 'تصدير CSV للمرتبات'] },
+      { slug: 'reports', svg: '<path d="M4 19V5M4 19h16M8 15l4-5 3 3 4-6"/>', icon: '📈', name: 'نيل تقارير', desc: 'مؤشرات وتقرير A4 مقروء من البرامج على نفس الجهاز.', points: ['مصدر لكل رقم', 'تقرير A4 قابل للتوقيع', 'CSV بترميز عربي'] },
     ];
     document.getElementById('progGrid').innerHTML = PROGRAMS.map((p) => `
       <article class="prog-card">
-        <div class="hd"><span class="ico">${p.icon}</span><span class="nm">${p.name}</span>
+        <div class="hd"><span class="ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${p.svg}</svg></span><span class="nm">${p.name}</span>
           <span class="badge b-ok" style="margin-inline-start:auto">يعمل</span></div>
         <div class="small muted">${p.desc}</div>
         <ul>${p.points.map((x) => `<li>${x}</li>`).join('')}</ul>

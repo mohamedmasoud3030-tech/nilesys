@@ -25,7 +25,9 @@
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   const num = (n) => new Intl.NumberFormat('en-US').format(Number(n) || 0);
-  const money = (n) => num(Math.round((Number(n) || 0) * 100) / 100) + ' ج.م';
+  // عزل ثنائي الاتجاه: الرقم أولاً ثم العملة، فيظهر «55 ج.م» في سطر عربي RTL
+  // بدل أن ينقلب إلى «ج.م 55» — وهذا كان يظهر في كل شاشة.
+  const money = (n) => `\u2066${num(Math.round((Number(n) || 0) * 100) / 100)} ج.م\u2069`;
   const dmy = (iso) => {
     if (!iso) return '—';
     const d = new Date(iso);
@@ -97,6 +99,47 @@
     save(slug, doc);
     listeners.forEach((fn) => { try { fn({ acked: acked.size, doc }); } catch { /* */ } });
     return { acked: acked.size, duplicates: (data.duplicates || []).length };
+  }
+
+
+  /* ---------------- أيقونات: مجموعة واحدة SVG بخط 1.5 ----------------
+   * الإيموجي كان يظهر كمربع فارغ على أجهزة ويندوز بلا خط رموز ملوّن — وهذا
+   * أول ما يراه البائع. هنا مجموعة واحدة (24×24، خط 1.5، بلا تعبئة) تُرسم مع
+   * النص نفسه، فلا تعتمد على أي خط خارجي.
+   */
+  const ICONS = {
+    sell: 'M3 9h18M6 9V5.5A2.5 2.5 0 0 1 8.5 3h7A2.5 2.5 0 0 1 18 5.5V9M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9',
+    invoice: 'M6 3h9l4 4v14l-3-2-3 2-3-2-4 2V3zM14 3v5h5M9 12h6M9 16h6',
+    shift: 'M3 7h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7zm0 0 3-4h12l3 4M16 13h2',
+    sync: 'M20 11a8 8 0 0 0-14-5M4 13a8 8 0 0 0 14 5M20 5v6h-6M4 19v-6h6',
+    back: 'M10 6 4 12l6 6M4 12h16',
+    items: 'M3 8 12 3l9 5v8l-9 5-9-5V8zm0 0 9 5 9-5M12 13v8',
+    count: 'M9 3h6v3H9zM5 6h14v15H5zM8 11h8M8 15h8M8 19h5',
+    receive: 'M12 3v10m0 0 4-4m-4 4L8 9M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4',
+    moves: 'M4 7h11l-3-3m3 3-3 3M20 17H9l3-3m-3 3 3 3',
+    floor: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+    kitchen: 'M5 21V8a4 4 0 0 1 8 0v13M5 12h8M17 3v18M14 3v6a3 3 0 0 0 6 0V3',
+    orders: 'M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-3-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6',
+    punch: 'M12 3v9m0 0a3 3 0 0 0 3-3V5M9 9a3 3 0 0 1 3-3M5 13a7 7 0 1 0 14 0M3 21h18',
+    today: 'M4 6h16v15H4zM8 3v6M16 3v6M4 11h16',
+    month: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+    dash: 'M4 19V5M4 19h16M8 15l4-5 3 3 4-6',
+    sources: 'M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0V8zM12 17v4',
+    report: 'M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6',
+  };
+  function icon(name, { size = 18 } = {}) {
+    const d = ICONS[name];
+    if (!d) return '';
+    return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+      aria-hidden="true" focusable="false"><path d="${d}"/></svg>`;
+  }
+  // كل زر تنقّل يحمل data-icon: نضع الأيقونة أمام النص مع بقاء النص مقروءاً لقارئ الشاشة.
+  function paintIcons(root = document) {
+    $$('[data-icon]', root).forEach((el) => {
+      if (el.querySelector('svg.ico')) return;
+      el.insertAdjacentHTML('afterbegin', icon(el.dataset.icon));
+    });
   }
 
   /* ---------------- الطباعة (80mm و A4) ---------------- */
@@ -230,9 +273,11 @@
     document.removeEventListener('keydown', escClose);
   }
 
+  document.addEventListener('DOMContentLoaded', () => paintIcons());
+
   window.Desk = {
     VERSION, DEVICE_ID, uid, esc, num, money, dmy, hm, today,
     load, save, reset, queue, sync, onNet, status,
-    printHtml, code39, $, $$, toast, modal, closeModal,
+    printHtml, code39, icon, paintIcons, $, $$, toast, modal, closeModal,
   };
 })();

@@ -66,7 +66,7 @@
     $('#title').textContent = 'البصمة';
     $('#sub').innerHTML = `${dmy(todayStr)} · ${num(doc.punches.filter((p) => p.date === todayStr).length)} بصمة النهارده`;
     $('#content').innerHTML = `
-      <div class="grid" style="grid-template-columns:minmax(280px,1fr) minmax(280px,1fr);align-items:start">
+      <div class="split split-even fill">
         <div class="card pad">
           <div class="field"><label class="label">كود الموظف</label>
             <input class="input mono" id="code" inputmode="numeric" autofocus placeholder="مثال 1001" value="${esc(typed)}" style="font-size:22px;letter-spacing:2px" /></div>
@@ -74,8 +74,19 @@
           <button class="btn btn-primary mt" id="punch" style="width:100%">تسجيل</button>
           <div class="small muted mt">الدخول والخروج تلقائيان: أول تسجيل في اليوم دخول، والتاني خروج.</div>
         </div>
-        <div class="card pad" id="result">
-          <div class="empty">اكتب كود الموظف لتظهر حالته هنا</div>
+        <div class="card pad" id="result" style="display:grid;align-content:start;gap:10px">
+          <div id="resultBody"><div class="empty" style="padding:10px 0">اكتب كود الموظف، أو اضغط على اسمك</div></div>
+          <div class="small muted">الموظفون على هذا الجهاز</div>
+          <div class="feed" id="quick">${doc.employees.map((e) => `
+            <button class="feed-row" data-fill="${esc(e.code)}" style="width:100%;font:inherit;text-align:start;background:#fff;cursor:pointer">
+              <span class="who">${esc(e.name)} <span class="small muted">${esc(e.job)}</span></span>
+              <span class="mono">${esc(e.code)}</span>
+            </button>`).join('')}</div>
+        </div>
+        <div class="card pad" style="grid-column:1/-1">
+          <div class="row between mb"><h2 class="sec">آخر البصمات</h2>
+            <span class="small muted">${num(doc.punches.length)} بصمة على الجهاز</span></div>
+          <div class="feed" id="feed"></div>
         </div>
       </div>`;
     $('#keys').innerHTML = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', 'C']
@@ -89,16 +100,35 @@
       preview();
     }));
     $('#code').oninput = (e) => { typed = e.target.value.replace(/\D/g, ''); preview(); };
+    // موظف الجهاز بيضغط على اسمه بدل ما يحفظ الكود — والكود يظهر جنبه.
+    $$('#quick [data-fill]').forEach((b) => (b.onclick = () => {
+      typed = b.dataset.fill; $('#code').value = typed; preview();
+    }));
     $('#punch').onclick = () => submitPunch();
     document.onkeydown = (e) => { if (e.key === 'Enter' && view === 'punch') submitPunch(); };
     preview();
+    paintFeed();
+  }
+
+  function paintFeed() {
+    const host = $('#feed');
+    if (!host) return;
+    const last = doc.punches.slice(-6).reverse();
+    host.innerHTML = last.length ? last.map((p) => `
+      <div class="feed-row">
+        <span class="who">${esc(p.name)} <span class="small muted mono">${esc(p.code)}</span></span>
+        <span class="row" style="gap:8px">
+          <span class="badge ${p.kind === 'in' ? (p.late ? 'b-warn' : 'b-ok') : 'b-info'}">${p.kind === 'in' ? (p.late ? 'دخول متأخر' : 'دخول') : 'خروج'}</span>
+          <span class="when">${esc(p.time)}</span>
+        </span>
+      </div>`).join('') : '<div class="empty">مفيش بصمات النهارده — أول تسجيل هيظهر هنا فوراً</div>';
   }
 
   function preview() {
-    const host = $('#result');
+    const host = $('#resultBody') || $('#result');
     if (!host) return;
     const emp = empByCode(typed);
-    if (!typed) { host.innerHTML = '<div class="empty">اكتب كود الموظف لتظهر حالته هنا</div>'; return; }
+    if (!typed) { host.innerHTML = '<div class="empty" style="padding:10px 0">اكتب كود الموظف، أو اضغط على اسمك</div>'; return; }
     if (!emp) { host.innerHTML = `<div class="card pad" style="border:0"><span class="badge b-bad">كود غير معروف</span>
       <div class="mt small muted">الموظف لازم يكون مسجّل قبل البصمة.</div></div>`; return; }
     const todayStr = today();

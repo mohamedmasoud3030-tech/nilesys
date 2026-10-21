@@ -81,13 +81,13 @@
       ${sh ? '' : `<div class="card pad" style="border-inline-start:4px solid var(--warn)">
         <div class="row between wrapw"><span><b>الدرج مقفول.</b> افتح وردية بالدرج اللي في الصندوق الأول.</span>
         <button class="btn btn-primary" id="openFromSell">افتح وردية</button></div></div>`}
-      <div class="grid" style="grid-template-columns:minmax(280px,1.55fr) minmax(300px,1fr);align-items:start">
+      <div class="split split-main fill">
         <div class="card pad">
           <div class="row between mb">
             <h2 class="sec">الأصناف</h2>
             <input class="input" id="q" placeholder="ابحث بالاسم أو الكود" style="max-width:220px" />
           </div>
-          <div class="tiles" id="tiles"></div>
+          <div class="tiles fill-scroll" id="tiles"></div>
         </div>
         <div class="card pad">
           <div class="row between mb"><h2 class="sec">الفاتورة</h2><span class="badge b-mute" id="cartCount">0 صنف</span></div>
@@ -98,6 +98,13 @@
             <button class="btn btn-ghost btn-sm" id="clearCart">تفريغ</button>
           </div>
         </div>
+      </div>
+      <div class="card pad">
+        <div class="row between mb">
+          <h2 class="sec">آخر الفواتير على الجهاز</h2>
+          <span class="small muted">${doc.sales.length ? `إجمالي ${money(doc.sales.reduce((a, x) => a + x.total, 0))}` : 'مفيش فواتير بعد'}</span>
+        </div>
+        <div class="feed" id="recent"></div>
       </div>`;
     const paint = (filter = '') => {
       const list = doc.products.filter((p) => !filter
@@ -113,6 +120,20 @@
     paint();
     $('#q').oninput = (e) => paint(e.target.value.trim());
     if ($('#openFromSell')) $('#openFromSell').onclick = () => { view = 'shift'; render(); };
+    // آخر أربع فواتير — البائع يرى حاله من الشاشة نفسها بلا فتح قائمة الفواتير.
+    const recent = $('#recent');
+    if (recent) {
+      const last = doc.sales.slice(-4).reverse();
+      recent.innerHTML = last.length ? last.map((s) => `
+        <div class="feed-row">
+          <span class="who">فاتورة #${num(s.no)} · ${num(s.items.reduce((a, i) => a + i.qty, 0))} صنف</span>
+          <span class="row" style="gap:8px">
+            <span class="badge ${s.method === 'cash' ? 'b-ok' : 'b-info'}">${s.method === 'cash' ? 'نقدي' : 'كارت'}</span>
+            <span class="mono">${money(s.total)}</span>
+            <span class="when">${hm(s.at)}</span>
+          </span>
+        </div>`).join('') : '<div class="empty">أول بيعة في الوردية هتظهر هنا</div>';
+    }
     $('#clearCart').onclick = () => { cart = []; cartRender(); };
     $('#pay').onclick = payModal;
     cartRender();

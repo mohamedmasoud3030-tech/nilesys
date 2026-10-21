@@ -55,7 +55,18 @@ a { color: inherit; }
 .desk-top h1 { font-size: 17px; margin: 0; }
 .desk-top .sub { color: var(--muted); font-size: 13px; }
 .desk-top .push { margin-inline-start: auto; }
-.desk-body { padding: 20px; display: grid; gap: 16px; }
+.desk-body { padding: 20px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; }
+.ico { flex: none; vertical-align: -3px; }
+/* أزرار التنقّل: أيقونة واحدة + نص — لا إيموجي يعتمد على خط الجهاز */
+.desk-nav[data-icon] { gap: 10px; }
+.desk-nav .ico { opacity: .85; }
+.desk-nav[aria-current="page"] .ico { opacity: 1; }
+
+/* الشاشات التي تعيش طويلاً (بيع/ترابيزات/مطبخ) تملأ الشاشة بدل أن تترك نصفها فاضياً:
+   اللوحة اليمنى ثابتة واليسرى تُمرَّر داخلها — سلوك كاشير حقيقي. */
+.fill { min-height: calc(100vh - 210px); }
+.fill-scroll { max-height: calc(100vh - 250px); overflow: auto; padding-inline-end: 4px; }
+@media (max-height: 720px) { .fill { min-height: 0; } .fill-scroll { max-height: none; } }
 
 /* شريط الحالة */
 .desk-status {
@@ -95,7 +106,10 @@ h2.sec { font-size: 15px; margin: 0; }
   background: #fff; color: var(--ink); padding: 10px 16px; min-height: 44px; cursor: pointer;
 }
 .btn:hover { border-color: #cbd5e1; }
-.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn:disabled, .btn[disabled] {
+  background: #e2e8f0; border-color: #cbd5e1; color: #64748b;
+  opacity: 1; cursor: not-allowed; box-shadow: none;
+}
 .btn-primary { background: var(--brand); border-color: var(--brand); color: #fff; }
 .btn-primary:hover { background: var(--brand-600); }
 .btn-ghost { background: transparent; }
@@ -175,4 +189,25 @@ table.tbl { width: 100%; border-collapse: collapse; }
   .desk-body { padding: 12px 12px 84px; }
   .desk-top { padding: 10px 12px; }
   .desk-top h1 { font-size: 15px; }
+}
+
+/* قائمة قصيرة داخل بطاقة (آخر العمليات) — تُستخدم حين لا يوجد جدول بعد */
+.feed { display: grid; gap: 6px; }
+.feed-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; }
+.feed-row .who { font-weight: 700; font-size: 13.5px; }
+.feed-row .when { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+
+/* ---------- تخطيطات مسمّاة ----------
+ * كانت الأعمدة مكتوبة inline داخل الشاشات، وفيها minmax(280px) وminmax(300px):
+ * على موبايل 390px كان المجموع 580px فيفيض الصفح أفقياً وينزلق الشكل كله
+ * خارج الشاشة. هنا التخطيط واحد معروف، وينكسر إلى عمود واحد تحت 900px.
+ */
+.split { display: grid; gap: 12px; align-items: start; }
+.split-main { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); }
+.split-even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+@media (max-width: 900px) {
+  .split-main, .split-even { grid-template-columns: minmax(0, 1fr); }
+  .fill-scroll { max-height: none; overflow: visible; }
+  .kpis { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  .kpi .val { font-size: 20px; }
 }

@@ -54,7 +54,8 @@ receipt and label printing, Code39 barcode, and a sync endpoint that cannot doub
 | Command | Result |
 | --- | --- |
 | `sh tools/run-tests.sh` (in `prototypes/nilesys`) | **156/156** — includes new `tests/windows.test.js` 6/6 |
-| `sh tools/setup-browser.sh tools/ui-windows.js` | **52/52** — five programs in a real browser, incl. a full sale with `context.setOffline(true)` then sync on reconnect |
+| `sh tools/setup-browser.sh tools/ui-windows.js` | **69/69** — five programs in a real browser, incl. a full sale with `context.setOffline(true)` then sync on reconnect, plus 390px-no-overflow and SVG-icon checks |
+| `sh tools/setup-browser.sh tools/ui-sites.js` | **37/37** — landing and the seven site pages, incl. the five Windows cards opening the real programs |
 | `sh tools/setup-browser.sh tools/ui-sites.js` | **37/37** — landing/site pages, incl. the five Windows cards now link to working programs |
 | `python3 tools/build-app-specs.py` | 7 systems **7/7 live** + 5 Windows specs **7/7 each**, generated into `public/docs/` |
 
