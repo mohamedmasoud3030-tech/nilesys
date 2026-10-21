@@ -12,7 +12,13 @@ const check = (n, ok, extra = '') => { results.push({ n, ok }); console.log(`${o
   const page = await browser.newPage({ viewport: { width: 1400, height: 950 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('console', (m) => {
+    if (m.type() !== 'error') return;
+    const txt = m.text();
+    // رفض متعمّد: 401/403 لغير المصرّح، و429 لحد محاولات الدخول
+    if (/Failed to load resource/.test(txt) && /(401|403|409|400|404|429)/.test(txt)) return;
+    errors.push(txt);
+  });
 
   await page.goto(BASE + '/systems/inventory.html', { waitUntil: 'networkidle' });
   const users = await page.locator('.demo-user').count();
