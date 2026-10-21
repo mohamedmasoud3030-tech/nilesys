@@ -122,8 +122,16 @@
     day: renderDay, patients: renderPatients, book: renderBook,
     doctors: renderDoctors, summary: renderSummary, shift: renderShift,
   };
+  // رسم متسلسل: تغيير الشاشة أثناء رسم شاشة أخرى كان يترك الشاشة القديمة
+  // ترسم فوق الجديدة بعد انتهاء جلبها (أمسكه اختبار المتصفح على الديمو المنشور،
+  // حيث الشبكة أبطأ: العنوان يقول «المرضى» والمحتوى يبقى «يوم العيادة»).
+  let renderChain = Promise.resolve();
   function render() {
-    Promise.resolve((views[state.view] || renderDay)()).catch((err) => toast(err.message, 'bad'));
+    const view = views[state.view] || renderDay;
+    renderChain = renderChain
+      .then(() => view())
+      .catch((err) => toast(err.message, 'bad'));
+    return renderChain;
   }
 
   const head = (title, sub, actions = '') => `
