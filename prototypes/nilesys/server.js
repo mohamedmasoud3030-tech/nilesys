@@ -15,9 +15,25 @@ const crypto = require('crypto');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
-const DB_FILE = path.join(ROOT, 'data', 'db.json');
+// DB_FILE قابل للتغيير عبر متغير بيئة (للاختبارات المعزولة خارج المستودع)
+// على Vercel نظام الملفات للقراءة فقط إلا /tmp — والـ /tmp لكل نسخة (instance) وليس مشتركاً.
+const ON_SERVERLESS = Boolean(process.env.VERCEL);
+const DB_FILE = process.env.DB_FILE
+  ? path.resolve(process.env.DB_FILE)
+  : (ON_SERVERLESS ? '/tmp/nilesys-db.json' : path.join(ROOT, 'data', 'db.json'));
+
+// مخزن مشترك (Supabase/PostgREST): اختياري تماماً. لو المتغيرين موجودين، المستند كله
+// (نفس ملف JSON كما هو) يُقرأ ويُكتب في صف واحد — فلا تعتمد البيانات على /tmp لكل نسخة.
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
+const STATE_ID = process.env.DEMO_STATE_ID || 'nilesys-demo';
+const REMOTE_STORE = Boolean(SUPABASE_URL && SUPABASE_KEY);
 const PORT = Number(process.env.PORT || 3000);
 const DAY = 24 * 60 * 60 * 1000;
+// طرق الدفع المسموحة (proposal 0007 §7). الباقي (change) من الكاش فقط.
+const TENDERS = ['cash', 'card', 'wallet', 'transfer'];
+// أقصى خصم يمنحه الكاشير بدون مدير. المدير بلا حد.
+const CASHIER_MAX_DISCOUNT_RATIO = 0.10;
 
 /* ================= بذور البيانات (Demo Seed) ================= */
 
@@ -29,9 +45,16 @@ function daysAgo(d, h, m) {
 const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+// RESET-2: معرّف ثابت لكل حساب ديمو (مشتق من النظام + اسم المستخدم) حتى لا
+// تنكسر الجلسات المفتوحة عند إعادة ضبط الديمو (الجلسة مربوطة بـ userId).
+function stableUserId(system, username) {
+  const h = crypto.createHash('sha256').update(`nile-demo-user:${system}:${username}`).digest('hex');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+}
+
 function seedUsers() {
   const mk = (system, username, name, role) => ({
-    id: crypto.randomUUID(), system, username, password: 'demo1234', name, role,
+    id: stableUserId(system, username), system, username, password: 'demo1234', name, role,
   });
   return [
     mk('pos', 'manager', 'أحمد سامي', 'manager'),
@@ -45,9 +68,12 @@ function seedUsers() {
     mk('clinic', 'reception', 'نورا سمير', 'reception'),
     mk('clinic', 'doctor', 'د. أحمد الشريف', 'doctor'),
     mk('hr', 'manager', 'مها رشدي', 'manager'),
+    mk('hr', 'officer', 'رنا فتحي', 'hr'),
     mk('hr', 'employee', 'نادين حسام', 'employee'),
     mk('courts', 'manager', 'مدير ملعبنا', 'manager'),
+    mk('courts', 'reception', 'هدى عبد الله', 'reception'),
     mk('admin', 'admin', 'مدير الموقع', 'admin'),
+    mk('admin', 'manager', 'مسؤول موقع الأزياء', 'manager'),
   ];
 }
 
@@ -131,7 +157,8 @@ function seedSales(users, products) {
       const discount = 0;
       sales.push({
         id: crypto.randomUUID(), no: no++, system: 'pos',
-        userId: cashier.id, createdAt: daysAgo(0, h, rnd(0, 59)), items,
+        // SEED-1: لا تولّد مبيعات بتاريخ مستقبلي (كانت تقع داخل أي وردية تُفتح الآن وتضخّم النقدية المتوقعة)
+        userId: cashier.id, createdAt: new Date(Math.min(Date.parse(daysAgo(0, h, rnd(0, 59))), Date.now() - 60 * 1000)).toISOString(), items,
         subtotal, discount, total: subtotal,
         profit: items.reduce((s, it) => s + (it.price - it.cost) * it.qty, 0),
         method: Math.random() < 0.7 ? 'cash' : 'card', status: 'completed', returned: [],
@@ -156,40 +183,228 @@ function buildSeed() {
 /* ================= مخزن البيانات ================= */
 
 let db;
-try {
-  db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-} catch {
-  db = buildSeed();
-  fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+let initPromise = null;
+
+/* --- التخزين المشترك عبر PostgREST (Supabase) --- */
+function remoteHeaders() {
+  return {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+  };
 }
+async function remoteRead() {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/demo_state?id=eq.${encodeURIComponent(STATE_ID)}&select=doc`,
+    { headers: remoteHeaders() },
+  );
+  if (!res.ok) throw new Error(`remote read ${res.status}: ${await res.text()}`);
+  const rows = await res.json();
+  return rows.length ? rows[0].doc : null;
+}
+async function remoteWrite(doc) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/demo_state`, {
+    method: 'POST',
+    headers: { ...remoteHeaders(), Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify([{ id: STATE_ID, doc, updated_at: new Date().toISOString() }]),
+  });
+  if (!res.ok) throw new Error(`remote write ${res.status}: ${await res.text()}`);
+}
+
+// ترحيل لطيف: أي مستند قديم ياخد الحقول الجديدة (ضريبة، موردون، عملاء، حركات…)
+// ويُشفَّر أي مستخدم ما زال بنص صريح — مرة واحدة عند أول تحميل.
+// حسابات الديمو تُضاف إن نقصت: مستند محفوظ من قبل إضافة نظام جديد لا يعرف
+// حسابات ذاك النظام، فيفشل دخولها على الديمو المنشور رغم أن الكود يضمّها.
+// لا نلمس حساباً موجوداً (كلمة مروره أو دوره قد يكونان تغيّرا).
+function ensureDemoUsers(d) {
+  const seed = seedUsers();
+  d.users = d.users || [];
+  let changed = false;
+  for (const u of seed) {
+    if (!d.users.some((x) => x.system === u.system && x.username === u.username)) {
+      d.users.push(u);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function migrate() {
+  let changed = ensureDemoUsers(db);
+  if (extensions && extensions.seedDefaults(db)) changed = true;
+  if (typeof restaurant !== 'undefined' && restaurant.seedDefaults(db)) changed = true;
+  if (typeof clinic !== 'undefined' && clinic.seedDefaults(db)) changed = true;
+  if (typeof courts !== 'undefined' && courts.seedDefaults(db)) changed = true;
+  if (typeof hr !== 'undefined' && hr.seedDefaults(db)) changed = true;
+  if (typeof sites !== 'undefined' && sites.seedDefaults(db)) changed = true;
+  if (typeof windowsApps !== 'undefined' && windowsApps.seedDefaults(db)) changed = true;
+  if (changed) {
+    try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); } catch { /* /tmp */ }
+  }
+  return changed;
+}
+
+function loadLocal() {
+  try {
+    db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+  } catch {
+    db = buildSeed();
+    fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+  }
+  migrate();
+}
+
+// تُستدعى مرة واحدة؛ آمنة للنداء المتكرر. مطلوبة لأن القراءة المشتركة غير متزامنة.
+function initialize() {
+  if (initPromise) return initPromise;
+  if (!REMOTE_STORE) {
+    loadLocal();
+    initPromise = Promise.resolve();
+    return initPromise;
+  }
+  initPromise = (async () => {
+    const doc = await remoteRead();
+    if (doc) {
+      db = doc;
+    } else {
+      db = buildSeed();
+      await remoteWrite(db);
+    }
+    // الترحيل يُحفظ فوراً في المصدر المشترك: بدونه يضيع كل ما أضافه
+    // (حسابات نظام جديد مثلاً) لأن النسخة تتجمد بعد الرد.
+    if (migrate()) await remoteWrite(db);
+  })();
+  return initPromise;
+}
+
+/* ================= تحديث الحالة من المصدر المشترك =================
+ *
+ * على Vercel كل طلب قد يصل لنسخة (lambda) مختلفة، وكل نسخة تحتفظ بنسخة `db`
+ * في الذاكرة. بدون هذا التحديث، نسخة قديمة تكتب مستندها القديم فوق تعديلات
+ * غيرها — وهو ما جعل فاتورة تشير لصنف «غير موجود» على الديمو المنشور.
+ *
+ * نقرأ المستند من Supabase قبل كل طلب API. التكلفة طلب شبكة واحد، والبديل
+ * أسوأ: حالة تُخمَّن. القفل المحلي يمنع تداخل الحفظ داخل النسخة نفسها، لكنه
+ * لا يحل التعارض بين نسختين — لذلك يبقى التخزين صفاً واحداً بلا معاملات،
+ * وهذا مذكور كقيد معماري في السجل، لا مخفي.
+ */
+let writeLock = Promise.resolve();
+function withWriteLock(fn) {
+  const next = writeLock.then(fn, fn);
+  writeLock = next.catch(() => {});
+  return next;
+}
+
+// قراءة قبل كل طلب كانت صحيحة لكنها تُثقل الديمو (طلبان لـ Supabase لكل ضغطة).
+// نحتفظ بالنسخة لثانية ونصف، ونتخطاها للطلبات المغيّرة: الحالة التي نكتب فوقها
+// لا يجوز أن تكون قديمة.
+let lastSyncAt = 0;
+let inflightSync = null;
+async function refreshFromRemote({ force = false } = {}) {
+  if (!REMOTE_STORE) return;
+  const fresh = Date.now() - lastSyncAt < 1500;
+  if (!force && fresh) return;
+  if (inflightSync) return inflightSync;
+  inflightSync = (async () => {
+    try {
+      const doc = await remoteRead();
+      if (doc && doc !== db) db = doc;
+      lastSyncAt = Date.now();
+    } finally {
+      inflightSync = null;
+    }
+  })();
+  return inflightSync;
+}
+
+/* ================= سجل العمليات (append-only) ================= */
+
+function audit(user, action, detail, meta) {
+  if (!Array.isArray(db.audit)) db.audit = [];
+  db.audit.push({
+    id: crypto.randomUUID(),
+    at: new Date().toISOString(),
+    system: user ? user.system : 'system',
+    userId: user ? user.id : null,
+    userName: user ? user.name : '—',
+    action,
+    detail: detail || '',
+    meta: meta || null,
+  });
+  // نحتفظ بآخر 2000 حدث فقط: سجل ديمو، لا أرشيف.
+  if (db.audit.length > 2000) db.audit = db.audit.slice(-2000);
+}
+
 let saveTimer = null;
+let pendingWrite = Promise.resolve();
+function flush() {
+  if (REMOTE_STORE) {
+    pendingWrite = pendingWrite
+      .then(() => remoteWrite(db))
+      .catch((e) => console.error('remote save failed:', e.message));
+    return pendingWrite;
+  }
+  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+  return Promise.resolve();
+}
 function save() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-  }, 80);
+  // على Vercel النسخة تتجمد بعد إرسال الرد، فأي حفظ مؤجَّل قد لا يحدث أبداً.
+  // نكتب فوراً في وضع التخزين المشترك، ونؤجل الملف المحلي فقط حيث لا ضرر.
+  if (REMOTE_STORE) { flush(); return; }
+  saveTimer = setTimeout(flush, 80);
 }
 function resetDemo() {
   db = buildSeed();
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+  migrate();          // البذور القديمة تاخد الحقول الجديدة (ضريبة، أكواد، عملاء…)
+  flush();
 }
 
 /* ================= الجلسات ================= */
 
-const sessions = new Map(); // token -> { userId, system, expires }
+// التوكن موقَّع ووافٍ بذاته (لا يعتمد على ذاكرة العملية) — ضروري على Vercel حيث كل طلب قد يصل لنسخة أخرى.
+// الإبطال (تسجيل خروج) عبر قائمة jti ملغاة داخل العملية الواحدة.
 const COOKIE = 'nile_sid';
+// مفتاح التوقيع: للديمو فقط. على Vercel لازم يكون ثابتاً بين النسخ (انظر README).
+const SESSION_SECRET = process.env.SESSION_SECRET || 'nilesys-demo-session-secret';
+const SESSION_TTL = 12 * 60 * 60 * 1000;
+const revoked = new Set(); // jti ملغاة (تسجيل خروج) داخل هذه العملية
+const loginAttempts = new Map(); // username -> { fails, first } — F-15
+
+function sign(payload) {
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const mac = crypto.createHmac('sha256', SESSION_SECRET).update(body).digest('base64url');
+  return `${body}.${mac}`;
+}
+function verify(token) {
+  const parts = String(token).split('.');
+  if (parts.length !== 2) return null;
+  const expect = crypto.createHmac('sha256', SESSION_SECRET).update(parts[0]).digest('base64url');
+  const a = Buffer.from(parts[1]);
+  const b = Buffer.from(expect);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  try {
+    const s = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    if (!s || !s.expires || s.expires < Date.now()) return null;
+    return s;
+  } catch { return null; }
+}
 function newSession(user) {
-  const token = crypto.randomBytes(24).toString('hex');
-  sessions.set(token, { userId: user.id, system: user.system, expires: Date.now() + 12 * 60 * 60 * 1000 });
-  return token;
+  return sign({
+    userId: user.id,
+    system: user.system,
+    expires: Date.now() + SESSION_TTL,
+    jti: crypto.randomBytes(9).toString('hex'),
+  });
 }
 function getSession(req) {
   const raw = req.headers.cookie || '';
   const m = raw.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]+)`));
   if (!m) return null;
-  const s = sessions.get(m[1]);
-  if (!s || s.expires < Date.now()) return null;
+  const s = verify(m[1]);
+  if (!s) return null;
+  if (revoked.has(s.jti)) return null;
   return s;
 }
 function currentUser(req) {
@@ -230,6 +445,82 @@ function readBody(req) {
   });
 }
 
+/* ================= الامتدادات (الباك أوفيس) ================= */
+
+const extensions = require('./lib/extensions.js')({
+  getDb: () => db,
+  save: () => save(),
+  audit: (u, a, d, m) => audit(u, a, d, m),
+  sendJSON: (res, code, body, headers) => sendJSON(res, code, body, headers),
+  sendError: (res, code, msg) => sendError(res, code, msg),
+  readBody: (req) => readBody(req),
+  restore: (data) => {
+    db = data;
+    if (!Array.isArray(db.audit)) db.audit = [];
+    if (!db.settings) db.settings = {};
+  },
+});
+
+
+// نظام المطعم — تطبيق مستقل، مساراته تحت /api/restaurant وبياناته في مجموعاته.
+const restaurant = require('./lib/restaurant.js')({
+  getDb: () => db,
+  save: () => save(),
+  audit: (u, a, d, m) => audit(u, a, d, m),
+  sendJSON: (res, code, body, headers) => sendJSON(res, code, body, headers),
+  sendError: (res, code, msg) => sendError(res, code, msg),
+  readBody: (req) => readBody(req),
+});
+
+// نظام العيادة — تطبيق مستقل، مساراته تحت /api/clinic وبياناته في مجموعاته.
+const clinic = require('./lib/clinic.js')({
+  getDb: () => db,
+  save: () => save(),
+  audit: (u, a, d, m) => audit(u, a, d, m),
+  sendJSON: (res, code, body, headers) => sendJSON(res, code, body, headers),
+  sendError: (res, code, msg) => sendError(res, code, msg),
+  readBody: (req) => readBody(req),
+});
+
+// نظام حجز الملاعب — تطبيق مستقل، مساراته تحت /api/courts.
+const courts = require('./lib/courts.js')({
+  getDb: () => db,
+  save: () => save(),
+  audit: (u, a, d, m) => audit(u, a, d, m),
+  sendJSON: (res, code, body, headers) => sendJSON(res, code, body, headers),
+  sendError: (res, code, msg) => sendError(res, code, msg),
+  readBody: (req) => readBody(req),
+});
+
+// برامج سطح المكتب — الطرف الآخر لمزامنة الأجهزة التي تعمل بلا إنترنت.
+const windowsApps = require('./lib/windows.js')({
+  getDb: () => db,
+  save: () => save(),
+  sendJSON: (res, code, body, headers) => sendJSON(res, code, body, headers),
+  sendError: (res, code, msg) => sendError(res, code, msg),
+  readBody: (req) => readBody(req),
+});
+
+// لوحة المواقع — التطبيق السابع، مساراته تحت /api/sites.
+const sites = require('./lib/sites.js')({
+  getDb: () => db,
+  save: () => save(),
+  audit: (u, a, d2, m) => audit(u, a, d2, m),
+  sendJSON: (res, code, body, headers) => sendJSON(res, code, body, headers),
+  sendError: (res, code, msg) => sendError(res, code, msg),
+  readBody: (req) => readBody(req),
+});
+
+// نظام الموارد البشرية — تطبيق مستقل، مساراته تحت /api/hr.
+const hr = require('./lib/hr.js')({
+  getDb: () => db,
+  save: () => save(),
+  audit: (u, a, d, m) => audit(u, a, d, m),
+  sendJSON: (res, code, body, headers) => sendJSON(res, code, body, headers),
+  sendError: (res, code, msg) => sendError(res, code, msg),
+  readBody: (req) => readBody(req),
+});
+
 /* ================= منطق الـ API ================= */
 
 function publicUser(u) {
@@ -243,17 +534,88 @@ function saleTotals(items, discount) {
   return { subtotal, discount: d, total: subtotal - d, profit };
 }
 
+// PERM-3: مسارات بيانات نقطة البيع — مسموحة لمستخدمي نظام pos فقط
+const POS_ROUTE = /^(GET|POST|PUT|DELETE) \/api\/(products|sales|returns|shifts|reports|branding|reset)(\/|$)/;
+
+// SHIFT-2: حركة النقدية داخل نافذة الوردية = مبيعات كاش − مرتجعات كاش مدفوعة في نفس النافذة.
+// الفواتير القديمة (قبل تسجيل refunds) المرتجعة بالكامل تُستبعد كما كان السلوك السابق.
+function shiftExpectedCash(shift, untilIso) {
+  const from = new Date(shift.openedAt).getTime();
+  const until = untilIso ? new Date(untilIso).getTime() : Infinity;
+  const inWindow = (iso) => { const t = new Date(iso).getTime(); return t >= from && t <= until; };
+  let cash = 0;
+  for (const s of db.sales) {
+    if (s.system !== 'pos' || s.method !== 'cash') continue;
+    const legacyFullReturn = !Array.isArray(s.refunds) && s.status === 'returned';
+    if (!legacyFullReturn && inWindow(s.createdAt)) cash += s.total;
+    for (const r of s.refunds || []) if (inWindow(r.at)) cash -= r.amount;
+  }
+  // حركات الدرج اليدوية والسداد فقط — F-08.
+  // حركات البيع والمرتجعات مستبعدة لأنها محسوبة أعلاه من الفواتير نفسها؛
+  // جمعها هنا أيضاً كان يضاعف كل فاتورة نقدية (أمسكه tests/regression · SHIFT-2).
+  for (const m of db.cashMovements || []) {
+    if (m.status !== 'approved') continue;
+    if (m.origin === 'sale' || m.origin === 'refund') continue;
+    if (m.shiftId && shift.id && m.shiftId !== shift.id) continue;
+    if (!inWindow(m.at)) continue;
+    cash += m.type === 'in' ? m.amount : -m.amount;
+  }
+  return shift.startingCash + cash;
+}
+
 async function handleApi(req, res, url) {
   const route = `${req.method} ${url.pathname}`;
   const user = currentUser(req);
   const isManager = user && user.role === 'manager';
   const q = url.searchParams;
 
+  // كل مسارات الباك أوفيس (F-01 … F-15) تعيش في lib/extensions.js.
+  if (await extensions.handle(req, res, url, { route, user, isManager })) return;
+
+  // تطبيق المطعم له مساراته ومحركه المستقل.
+  if (await restaurant.handle(req, res, url, { route, user, isManager })) return;
+
+  // تطبيق العيادة له مساراته ومحركه المستقل.
+  if (await clinic.handle(req, res, url, { route, user, isManager })) return;
+
+  // تطبيق الملاعب له مساراته ومحركه المستقل.
+  if (await courts.handle(req, res, url, { route, user, isManager })) return;
+
+  // تطبيق الموارد البشرية له مساراته ومحركه المستقل.
+  if (await hr.handle(req, res, url, { route, user, isManager })) return;
+
+  // برامج سطح المكتب: مساراتها تتحقق بمفتاح الجهاز لا بجلسة المستخدم،
+  // لأن البرنامج يعمل على جهاز المحل بلا متصفح ولا حساب.
+  if (await windowsApps.handle(req, res, url)) return;
+
+  // لوحة المواقع — تطبيق مستقل، ورسالة الزائر مسار عام بلا تسجيل دخول.
+  if (await sites.handle(req, res, url, { route, user, isManager })) return;
+
   /* ---- الجلسة ---- */
   if (route === 'POST /api/login') {
     const { system, username, password } = await readBody(req);
+    // F-15: خمس محاولات فاشلة في 15 دقيقة → قفل مؤقت لهذا الاسم.
+    const key = `${username || ''}`;
+    const nowMs = Date.now();
+    const rec = loginAttempts.get(key) || { fails: 0, first: nowMs };
+    if (nowMs - rec.first > 15 * 60 * 1000) { rec.fails = 0; rec.first = nowMs; }
+    if (rec.fails >= 5) {
+      return sendError(res, 429, 'محاولات كثيرة — استنى ربع ساعة');
+    }
     const u = db.users.find((x) => x.system === system && x.username === username);
-    if (!u || u.password !== password) return sendError(res, 401, 'اسم المستخدم أو كلمة المرور غلط');
+    const okPassword = u && (u.passwordHash
+      ? extensions.verifyPassword(password, u.passwordHash)
+      : u.password === password);
+    if (!okPassword) {
+      rec.fails += 1;
+      if (rec.fails === 1) rec.first = nowMs;
+      loginAttempts.set(key, rec);
+      return sendError(res, 401, 'اسم المستخدم أو كلمة المرور غلط');
+    }
+    if (u.active === false) return sendError(res, 403, 'المستخدم موقوف');
+    loginAttempts.delete(key);
+    // ترقية صامتة لأي مستخدم قديم ما زال بنص صريح.
+    if (u.password && !u.passwordHash) { u.passwordHash = extensions.hashPassword(password); delete u.password; save(); }
     const token = newSession(u);
     return sendJSON(res, 200, { user: publicUser(u) }, {
       'Set-Cookie': `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=43200`,
@@ -261,7 +623,7 @@ async function handleApi(req, res, url) {
   }
   if (route === 'POST /api/logout') {
     const m = (req.headers.cookie || '').match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]+)`));
-    if (m) sessions.delete(m[1]);
+    if (m) { const s = verify(m[1]); if (s && s.jti) revoked.add(s.jti); }
     return sendJSON(res, 200, { ok: true }, { 'Set-Cookie': `${COOKIE}=; Path=/; HttpOnly; Max-Age=0` });
   }
   if (route === 'GET /api/session') {
@@ -281,6 +643,12 @@ async function handleApi(req, res, url) {
   }
 
   /* ================= POS ================= */
+  // F-16: نظام المخازن يقرأ نفس كتالوج الأصناف — مخزونان لا يمكن أن يكونا صادقين.
+  // القراءة فقط: البيع والورديات والتقارير تبقى حصراً على مستخدمي الكاشير.
+  const INVENTORY_READ = route === 'GET /api/products';
+  if (POS_ROUTE.test(route) && user.system !== 'pos' && !(user.system === 'inventory' && INVENTORY_READ)) {
+    return sendError(res, 403, 'غير مسموح: بيانات نقطة البيع لمستخدمي نظام الكاشير فقط');
+  }
   if (route === 'GET /api/products') {
     return sendJSON(res, 200, { products: db.products.filter((p) => p.active) });
   }
@@ -288,12 +656,17 @@ async function handleApi(req, res, url) {
     if (!isManager) return sendError(res, 403, 'للمدير بس');
     const b = await readBody(req);
     if (!b.name || !(b.price > 0)) return sendError(res, 400, 'الاسم والسعر مطلوبين');
+    // SALE-6: الباركود لازم يكون فريد بين الأصناف النشطة (المسح بالباركود يختار صنفاً واحداً)
+    const barcode = String(b.barcode || `622${Date.now()}`).trim().slice(0, 20);
+    if (db.products.some((x) => x.active && x.system === 'pos' && x.barcode === barcode)) {
+      return sendError(res, 409, 'الباركود مستخدم لصنف آخر');
+    }
     const p = {
       id: crypto.randomUUID(), system: 'pos', name: String(b.name).slice(0, 80),
       category: String(b.category || 'متنوع').slice(0, 40),
       cost: Number(b.cost) || 0, price: Number(b.price),
       emoji: String(b.emoji || '📦').slice(0, 4),
-      barcode: String(b.barcode || `622${Date.now()}`).slice(0, 20),
+      barcode,
       stock: Number(b.stock) || 0, active: true,
     };
     db.products.push(p); save();
@@ -311,7 +684,13 @@ async function handleApi(req, res, url) {
       cost: Number(b.cost ?? p.cost) || 0, price: Number(b.price ?? p.price) || p.price,
       emoji: String(b.emoji ?? p.emoji).slice(0, 4),
       stock: Number(b.stock ?? p.stock) || 0,
+      // F-01 · F-05: الضريبة وحد إعادة الطلب تُعدَّل من نفس الشاشة.
+      taxExempt: b.taxExempt === undefined ? Boolean(p.taxExempt) : Boolean(b.taxExempt),
+      taxRate: b.taxRate === undefined ? p.taxRate
+        : (b.taxRate === null || b.taxRate === '' ? null : Number(b.taxRate)),
+      reorderLevel: b.reorderLevel === undefined ? p.reorderLevel : Number(b.reorderLevel),
     });
+    audit(user, 'product.updated', `تعديل ${p.name}`, { productId: p.id });
     save();
     return sendJSON(res, 200, { product: p });
   }
@@ -325,24 +704,96 @@ async function handleApi(req, res, url) {
   }
   if (route === 'POST /api/sales') {
     const b = await readBody(req);
-    const items = (b.items || []).map((it) => {
-      const p = db.products.find((x) => x.id === it.productId);
-      if (!p) throw Object.assign(new Error('صنف غير موجود'), { status: 400 });
-      return { productId: p.id, name: p.name, qty: Math.max(1, Number(it.qty) || 1), price: p.price, cost: p.cost };
-    });
-    if (!items.length) return sendError(res, 400, 'السلة فاضية');
-    const t = saleTotals(items, b.discount);
-    for (const it of items) {
+
+    // كل الحساب في مكان واحد: خصومات سطر + كود خصم + ضريبة كل سطر (F-01/F-02).
+    const priced = extensions.priceSale(db, b, user);
+
+    // كمية مجمّعة لكل صنف — ومنع السالب قبل أي خصم.
+    const need = new Map();
+    for (const it of priced.items) need.set(it.productId, (need.get(it.productId) || 0) + it.qty);
+    for (const [pid, qty] of need) {
+      const p = db.products.find((x) => x.id === pid);
+      if (qty > p.stock) return sendError(res, 409, `المخزون غير كافٍ: ${p.name} (المتاح ${p.stock})`);
+    }
+
+    const method = [...TENDERS, 'credit'].includes(b.method) ? b.method : 'cash';
+
+    // الآجل — F-07: يحتاج عميلاً وحدّ ائتمان.
+    let customer = null;
+    if (b.customerId) {
+      customer = db.customers.find((x) => x.id === b.customerId);
+      if (!customer && method === 'credit') return sendError(res, 400, 'العميل مش موجود');
+    }
+    if (method === 'credit') {
+      if (!customer) return sendError(res, 400, 'البيع الآجل يحتاج عميلاً');
+      if ((customer.balance || 0) + priced.total > (customer.creditLimit || 0)) {
+        return sendError(res, 409, `تجاوز حد الائتمان (المتاح ${Math.round((customer.creditLimit - customer.balance) * 100) / 100})`);
+      }
+    }
+
+    let paid = priced.total;
+    let change = 0;
+    if (method === 'cash') {
+      if (b.paid !== undefined && b.paid !== null && b.paid !== '') {
+        paid = Number(b.paid);
+        if (!Number.isFinite(paid) || paid < priced.total) {
+          return sendError(res, 400, `المبلغ المدفوع أقل من الإجمالي (${priced.total})`);
+        }
+      }
+      change = Math.round((paid - priced.total) * 100) / 100;
+    }
+
+    // مفتاح التكرار — F-04 (IDEM-1)
+    const idemKey = String(b.idempotencyKey || req.headers['idempotency-key'] || '').trim();
+    if (idemKey) {
+      const prior = db.sales.find((x) => x.idempotencyKey === idemKey);
+      if (prior) {
+        const sameBody = JSON.stringify(prior.items.map((i) => [i.productId, i.qty]))
+          === JSON.stringify(priced.items.map((i) => [i.productId, i.qty]))
+          && prior.discount === priced.discount && prior.method === method;
+        if (!sameBody) return sendError(res, 409, 'نفس مفتاح التكرار بطلب مختلف');
+        return sendJSON(res, 200, { sale: prior, replay: true });
+      }
+    }
+
+    for (const it of priced.items) {
       const p = db.products.find((x) => x.id === it.productId);
       p.stock = Math.max(0, p.stock - it.qty);
     }
+
     const sale = {
-      id: crypto.randomUUID(), no: (db.sales.reduce((m, s) => Math.max(m, s.no), 1000) + 1),
+      id: crypto.randomUUID(),
+      no: (db.sales.reduce((m, s) => Math.max(m, s.no), 1000) + 1),
       system: 'pos', userId: user.id, createdAt: new Date().toISOString(),
-      items, ...t, method: b.method === 'card' ? 'card' : 'cash',
-      paid: Number(b.paid) || t.total, status: 'completed', returned: [],
+      items: priced.items.map(({ lineDiscount, taxRate, ...rest }) => rest),
+      subtotal: priced.subtotal,
+      lineDiscounts: priced.lineDiscounts,
+      couponCode: priced.couponCode,
+      couponDiscount: priced.couponDiscount,
+      discount: priced.discount,
+      taxRate: priced.taxRate,
+      taxableBase: priced.taxableBase,
+      tax: priced.tax,
+      total: priced.total,
+      profit: priced.profit,
+      method, paid, change,
+      customerId: customer ? customer.id : null,
+      customerName: customer ? customer.name : null,
+      payments: [{ id: crypto.randomUUID(), at: new Date().toISOString(), amount: method === 'credit' ? 0 : priced.total, method, userId: user.id }],
+      paymentStatus: method === 'credit' ? 'unpaid' : 'paid',
+      status: 'completed', returned: [], refunds: [],
+      idempotencyKey: idemKey || null,
     };
-    db.sales.push(sale); save();
+
+    db.sales.push(sale);
+    if (b.heldId) db.held = (db.held || []).filter((h) => h.id !== b.heldId);
+    if (priced.couponCode) {
+      const c = db.coupons.find((x) => x.code === priced.couponCode);
+      if (c) c.used = (c.used || 0) + 1;
+    }
+    extensions.afterSale(db, sale, user);          // مخزون · نقاط · حركة درج (F-05/F-07/F-08)
+    audit(user, 'sale.created', `فاتورة ${sale.no} · ${sale.total} · ${method}`, { saleId: sale.id });
+    save();
     return sendJSON(res, 201, { sale });
   }
   if (route === 'GET /api/sales') {
@@ -377,7 +828,7 @@ async function handleApi(req, res, url) {
       if (p) p.stock += qty;
     }
     if (!back.length) return sendError(res, 400, 'مفيش أصناف صالحة للمرتجع');
-    const refund = back.reduce((s, r) => {
+    const gross = back.reduce((s, r) => {
       const it = sale.items.find((x) => x.productId === r.productId);
       return s + it.price * r.qty;
     }, 0);
@@ -385,7 +836,17 @@ async function handleApi(req, res, url) {
       const rr = sale.returned.find((x) => x.productId === it.productId);
       return rr && rr.qty >= it.qty;
     });
+    // SHIFT-2: المبلغ المرتجع يُسجَّل بوقته وطريقته ليُخصم من نقدية الوردية.
+    // الخصم يُوزَّع نسبياً، وآخر مرتجع يأخذ الباقي بالضبط حتى لا يتجاوز مجموع المرتجع ما دُفع.
+    if (!Array.isArray(sale.refunds)) sale.refunds = [];
+    const refundedSoFar = sale.refunds.reduce((a, r) => a + r.amount, 0);
+    const refund = allBack
+      ? Math.max(0, sale.total - refundedSoFar)
+      : (sale.subtotal > 0 ? Math.round((gross * sale.total / sale.subtotal) * 100) / 100 : 0);
+    sale.refunds.push({ at: new Date().toISOString(), amount: refund, method: sale.method });
     sale.status = allBack ? 'returned' : 'partial';
+    extensions.afterRefund(db, sale, refund, user);   // مخزون + درج + آجل
+    audit(user, 'sale.refunded', `مرتجع على فاتورة ${sale.no} · ${refund}`, { saleId: sale.id, refund });
     save();
     return sendJSON(res, 201, { sale, refund });
   }
@@ -399,51 +860,134 @@ async function handleApi(req, res, url) {
         openedAt: new Date().toISOString(), startingCash: Number(b.startingCash) || 0,
         closedAt: null, countedCash: null, expectedCash: null, diff: null,
       };
-      db.shifts.push(shift); save();
+      db.shifts.push(shift);
+      audit(user, 'shift.opened', `فتح وردية برصيد ${shift.startingCash}`, { shiftId: shift.id });
+      save();
       return sendJSON(res, 201, { shift });
     }
     if (b.action === 'close') {
       if (!open) return sendError(res, 400, 'مفيش وردية مفتوحة');
-      const cashSales = db.sales.filter((s) =>
-        s.system === 'pos' && s.method === 'cash' && s.status !== 'returned' &&
-        new Date(s.createdAt) >= new Date(open.openedAt))
-        .reduce((sum, s) => sum + s.total, 0);
-      const expected = open.startingCash + cashSales;
+      const closedAt = new Date().toISOString();
+      const expected = shiftExpectedCash(open, closedAt);
       const counted = Number(b.countedCash) || 0;
-      open.closedAt = new Date().toISOString();
+      open.closedAt = closedAt;
       open.expectedCash = expected;
       open.countedCash = counted;
       open.diff = counted - expected;
+      audit(user, 'shift.closed', `إغلاق وردية — متوقع ${expected} · معدود ${counted} · فرق ${open.diff}`, { shiftId: open.id });
       save();
       return sendJSON(res, 201, { shift: open });
     }
     return sendError(res, 400, 'action غلط');
   }
   if (route === 'GET /api/shifts') {
-    const open = db.shifts.find((s) => s.system === user.system && !s.closedAt) || null;
+    const found = db.shifts.find((s) => s.system === user.system && !s.closedAt);
+    const open = found ? { ...found, expectedCashNow: shiftExpectedCash(found) } : null;
     return sendJSON(res, 200, { openShift: open, shifts: db.shifts.filter((s) => s.system === 'pos').slice(-10).reverse() });
   }
+  /* ================= السلال المحفوظة (تعليق الفاتورة) ================= */
+
+  if (route === 'GET /api/held') {
+    if (!Array.isArray(db.held)) db.held = [];
+    const mine = db.held.filter((h) => h.system === user.system);
+    return sendJSON(res, 200, { held: mine });
+  }
+  if (route === 'POST /api/held') {
+    const b = await readBody(req);
+    if (!Array.isArray(db.held)) db.held = [];
+    const lines = (b.items || []).map((it) => {
+      const p = db.products.find((x) => x.id === it.productId);
+      return p ? { productId: p.id, name: p.name, price: p.price, emoji: p.emoji, qty: Math.max(1, Number(it.qty) || 1) } : null;
+    }).filter(Boolean);
+    if (!lines.length) return sendError(res, 400, 'السلة فاضية');
+    const held = {
+      id: crypto.randomUUID(),
+      system: user.system,
+      userId: user.id,
+      userName: user.name,
+      label: String(b.label || '').slice(0, 40) || `سلة ${(db.held.filter((h) => h.system === user.system).length + 1)}`,
+      items: lines,
+      discount: Math.max(0, Number(b.discount) || 0),
+      at: new Date().toISOString(),
+    };
+    db.held.push(held);
+    audit(user, 'cart.held', `تعليق ${held.label}`, { heldId: held.id });
+    save();
+    return sendJSON(res, 201, { held });
+  }
+  if (route.startsWith('DELETE /api/held/')) {
+    const id = route.split('/').pop();
+    if (!Array.isArray(db.held)) db.held = [];
+    const before = db.held.length;
+    db.held = db.held.filter((h) => h.id !== id);
+    if (db.held.length === before) return sendError(res, 404, 'السلة مش موجودة');
+    audit(user, 'cart.released', 'إلغاء سلة معلّقة', { heldId: id });
+    save();
+    return sendJSON(res, 200, { ok: true });
+  }
+
+  /* ================= سجل العمليات ================= */
+
+  if (route === 'GET /api/audit') {
+    if (!isManager) return sendError(res, 403, 'سجل العمليات للمدير بس');
+    const limit = Math.min(200, Math.max(1, Number(q.get('limit')) || 50));
+    return sendJSON(res, 200, { audit: (db.audit || []).slice(-limit).reverse() });
+  }
+
   if (route === 'GET /api/reports/summary') {
     const range = q.get('range') || 'today';
     const from = range === 'week' ? Date.now() - 7 * DAY : new Date(new Date().setHours(0, 0, 0, 0)).getTime();
     const sales = db.sales.filter((s) => s.system === 'pos' && new Date(s.createdAt).getTime() >= from);
-    const valid = sales.filter((s) => s.status !== 'returned');
-    const salesTotal = valid.reduce((a, s) => a + s.total, 0);
-    const profit = valid.reduce((a, s) => a + s.profit, 0);
+
+    // المال: المحصَّل ناقص المرتجعات — قرار D-E (ADR-0014). المرتجع سطر مستقل،
+    // ولا يُطرح من "إجمالي البيع" أبداً: إجمالي البيع هو ما خرج من المحل فعلاً.
+    const refundsOf = (s) => (s.refunds || []).reduce((a, r) => a + r.amount, 0);
+    const grossTotal = sales.reduce((a, s) => a + s.total, 0);
+    const refundsTotal = sales.reduce((a, s) => a + refundsOf(s), 0);
+    const net = Math.round((grossTotal - refundsTotal) * 100) / 100;
+
     const byHour = Array(24).fill(0);
-    valid.forEach((s) => { byHour[new Date(s.createdAt).getHours()] += s.total; });
+    sales.forEach((s) => { byHour[new Date(s.createdAt).getHours()] += s.total; });
+
     const top = {};
-    valid.forEach((s) => s.items.forEach((it) => {
+    sales.forEach((s) => s.items.forEach((it) => {
+      const back = (s.returned || []).find((r) => r.productId === it.productId);
+      const netQty = it.qty - (back ? back.qty : 0);
+      if (netQty <= 0) return;
       if (!top[it.name]) top[it.name] = { name: it.name, qty: 0, total: 0 };
-      top[it.name].qty += it.qty; top[it.name].total += it.price * it.qty;
+      top[it.name].qty += netQty;
+      top[it.name].total += it.price * netQty;
     }));
-    const byMethod = { cash: 0, card: 0 };
-    valid.forEach((s) => { byMethod[s.method] += s.total; });
+
+    // لكل طريقة دفع: المحصَّل ثم المرتجع بنفس الطريقة. البدء من أربع طرق ثابتة
+    // حتى لا تختفي طريقة لم تُستخدم بعد من الشاشة.
+    const byMethod = { cash: 0, card: 0, wallet: 0, transfer: 0 };
+    for (const s of sales) {
+      if (byMethod[s.method] === undefined) byMethod[s.method] = 0;
+      byMethod[s.method] += s.total;
+      for (const r of s.refunds || []) {
+        const m = r.method || s.method;
+        if (byMethod[m] === undefined) byMethod[m] = 0;
+        byMethod[m] -= r.amount;
+      }
+    }
+    Object.keys(byMethod).forEach((k) => { byMethod[k] = Math.round(byMethod[k] * 100) / 100; });
+
+    const taxTotal = Math.round(sales.reduce((a, s) => a + (s.tax || 0), 0) * 100) / 100;
+
     return sendJSON(res, 200, {
-      range, salesTotal, profit, invoices: valid.length,
-      avg: valid.length ? Math.round(salesTotal / valid.length) : 0,
-      byHour, topProducts: Object.values(top).sort((a, b) => b.total - a.total).slice(0, 6),
-      byMethod, returns: sales.filter((s) => s.status !== 'completed').length,
+      range,
+      grossTotal,            // إجمالي المبيعات (شامل الضريبة، قبل أي مرتجع)
+      refundsTotal,          // المرتجعات كسطر مستقل
+      taxTotal,              // الضريبة المحصَّلة — F-01
+      net,                   // صافي المحصَّل — الرقم الرئيسي
+      invoices: sales.length,
+      avg: sales.length ? Math.round((grossTotal / sales.length) * 100) / 100 : 0,
+      byHour,
+      topProducts: Object.values(top).sort((a, b) => b.total - a.total).slice(0, 6),
+      byMethod,
+      returns: sales.filter((s) => (s.refunds || []).length > 0).length,
+      returnedCount: sales.filter((s) => s.status === 'returned').length,
     });
   }
   if (route === 'PUT /api/branding') {
@@ -493,16 +1037,37 @@ function serveStatic(req, res, url) {
 
 /* ================= التشغيل ================= */
 
-const server = http.createServer(async (req, res) => {
+async function requestListener(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   try {
-    if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
+    await initialize();
+    // كل طلب يرى آخر حالة مُخزَّنة، لا حالة النسخة التي صدفت أن استقبلته.
+    if (url.pathname.startsWith('/api/')) {
+      await refreshFromRemote({ force: req.method !== 'GET' });
+      if (REMOTE_STORE) {
+        // لا نُنهي الرد قبل أن تُكتب الحالة: الرد يعني «حُفظت»، وإلا كذبنا.
+        const end = res.end.bind(res);
+        res.end = (...args) => { pendingWrite.finally(() => end(...args)); return res; };
+      }
+      return await handleApi(req, res, url);
+    }
     serveStatic(req, res, url);
   } catch (e) {
     sendError(res, e.status || 500, e.message || 'خطأ في السيرفر');
   }
-});
+}
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Nile Systems demo platform → http://localhost:${PORT}`);
-});
+function start() {
+  return http.createServer(requestListener).listen(PORT, '0.0.0.0', () => {
+    console.log(`Nile Systems demo platform → http://localhost:${PORT}`);
+  });
+}
+
+// Vercel (server mode) يطلب أن يكون التصدير الافتراضي دالة أو سيرفر.
+// دالة واحدة تخدم كل شيء: نفس المستمع المستخدم محلياً.
+module.exports = requestListener;
+module.exports.requestListener = requestListener;
+module.exports.start = start;
+
+// التشغيل المباشر فقط (`node server.js`) يفتح البورت — الاستيراد من Vercel لا يفتح شيئاً.
+if (require.main === module) start();

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>لوحة المواقع · نيل سيستمز</title>
+<style>
+:root{--paper:#f3f6f5;--sheet:#fcfdfc;--ink:#13201e;--muted:#5b6c67;--rule:#cdd8d3;
+--soft:#e3eae7;--brand:#0b7a6b;--brand-ink:#064c42;--warn:#a8641a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.7 "Segoe UI","Noto Sans Arabic",Tahoma,sans-serif}
+.sheet{max-width:900px;margin:0 auto;background:var(--sheet);box-shadow:0 0 0 1px var(--rule);padding:0 0 60px}
+.head{padding:38px 44px 0}
+.kicker{font-size:13px;color:var(--muted);letter-spacing:.02em}
+h1{font-size:32px;line-height:1.25;margin:8px 0 16px;letter-spacing:-.3px}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);margin:22px 44px 0}
+.fact{background:var(--sheet);padding:12px 14px}
+.fact .k{font-size:12px;color:var(--muted)}
+.fact .v{font:700 15px/1.4 ui-monospace,Menlo,Consolas,monospace;margin-top:4px;direction:ltr;unicode-bidi:isolate}
+.fact .v.ar{direction:rtl}
+.body{padding:8px 44px 0}
+h2{font-size:20px;margin:34px 0 10px;padding-top:14px;border-top:1px solid var(--soft)}
+h3{font-size:16px;margin:22px 0 6px}
+p{margin:0 0 10px}
+ul,ol{margin:0 0 12px;padding-inline-start:22px}
+li{margin-bottom:5px}
+code{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;background:#e9efec;color:var(--brand-ink);padding:1px 5px;border-radius:3px;direction:ltr;display:inline-block;unicode-bidi:isolate}
+pre{background:#0f221e;color:#e7f2ee;padding:14px 16px;overflow:auto;font:13px/1.6 ui-monospace,Menlo,Consolas,monospace;direction:ltr;text-align:left}
+pre code{background:none;color:inherit;padding:0}
+table{width:100%;border-collapse:collapse;margin:0 0 16px;font-size:14.5px}
+th{text-align:start;font-size:12.5px;color:var(--muted);border-bottom:2px solid var(--ink);padding:6px 10px 8px 0}
+td{padding:9px 10px 9px 0;border-bottom:1px solid var(--soft);vertical-align:top}
+blockquote{margin:0 0 16px;padding:12px 16px;background:#eef4f2;border-inline-start:3px solid var(--brand);color:var(--brand-ink);font-size:15px}
+ul.criteria{list-style:none;padding:0}
+ul.criteria li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--soft);font-size:15px}
+ul.criteria .box{width:18px;height:18px;border:1.5px solid var(--brand);flex:0 0 18px;display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--brand);margin-top:3px}
+ul.criteria li.open .box{border-color:var(--muted)}
+ul.criteria li.open{color:#41524d}
+hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
+.foot{margin:40px 44px 0;padding-top:16px;border-top:2px solid var(--ink);font-size:13px;color:var(--muted)}
+.badge{display:inline-block;border:1.5px solid currentColor;padding:4px 9px;font-size:12px;font-weight:700;transform:rotate(-1deg)}
+.st-live{color:var(--brand)}.st-partial{color:var(--warn)}.st-planned{color:#a3382c}
+@media (max-width:760px){.head,.body,.foot{padding-inline:20px}.facts{margin-inline:20px;grid-template-columns:repeat(2,1fr)}}
+@media print{body{background:#fff}.sheet{box-shadow:none;max-width:none}h2{break-after:avoid}table{break-inside:avoid}}
+</style></head>
+<body><div class="sheet">
+<header class="head">
+  <div class="kicker">نيل سيستمز · مواصفة تطبيق رقم 7</div>
+  <h1>لوحة المواقع</h1>
+  <span class="badge st-live">يعمل ومُختبَر</span>
+</header>
+<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-sites</div></div><div class="fact"><div class="k">النظام</div><div class="v">admin</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/sites.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">admin, manager</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">7/7</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/sites.test.js</div></div></div>
+<main class="body">
+<blockquote>الحالة: <strong>لم يُبنَ بعد</strong>. المواقع السبعة نفسها تعمل كصفحات؛ اللوحة التي تديرها لم تُبنَ.</blockquote>
+<h2>1) الغرض في سطر</h2>
+<p>تعرف أي موقع شغّال، كم زائر، وكم رسالة جات منه — وتعدّل كلامه من مكان واحد.</p>
+<h2>2) المستخدمون</h2>
+<table><thead><tr><th>المستخدم</th><th>يدخل بـ</th><th>يقدر يعمل</th><th>لا يقدر</th></tr></thead><tbody>
+<tr><td>مدير الموقع</td><td><code>admin</code></td><td>كل شيء: حالات · محتوى · رسائل · تقارير</td><td>—</td></tr>
+<tr><td>مدير نشاط</td><td><code>manager</code></td><td>يرى موقعه ورسائله فقط</td><td>تعديل مواقع أخرى</td></tr>
+</tbody></table>
+<h2>3) الشاشات</h2>
+<table><thead><tr><th>الشاشة</th><th>ماذا فيها</th></tr></thead><tbody>
+<tr><td>نظرة عامة</td><td>الأنظمة (يعمل/مخطط) · المواقع السبعة · الرسائل الجديدة اليوم</td></tr>
+<tr><td>المواقع</td><td>اسم · رابط · حالة · عنوان · تليفون · واتساب · نشط/موقوف</td></tr>
+<tr><td>المحتوى</td><td>عنوان الصفحة · وصف · صورة · يُحدَّث من هنا بلا كود</td></tr>
+<tr><td>الرسائل</td><td>اسم · موبايل · رسالة · المصدر · جديدة/تم الرد/مغلقة</td></tr>
+<tr><td>الزيارات</td><td>عدد الزيارات لكل موقع باليوم</td></tr>
+<tr><td>التقارير</td><td>أكثر المواقع جذباً · نسبة الرد · رسائل بلا رد</td></tr>
+</tbody></table>
+<h2>4) نموذج البيانات</h2>
+<table><thead><tr><th>المجموعة</th><th>الحقول</th></tr></thead><tbody>
+<tr><td><code>sites</code></td><td><code>id</code> · <code>slug</code> · <code>name</code> · <code>status</code> (<code>live</code>/<code>coming</code>) · <code>url</code> · <code>headline</code> · <code>phone</code> · <code>whatsapp</code> · <code>active</code></td></tr>
+<tr><td><code>siteLeads</code></td><td><code>id</code> · <code>siteSlug</code> · <code>name</code> · <code>phone</code> · <code>message</code> · <code>status</code> (<code>new</code>/<code>replied</code>/<code>closed</code>) · <code>at</code></td></tr>
+<tr><td><code>siteViews</code></td><td><code>siteSlug</code> · <code>date</code> · <code>count</code></td></tr>
+</tbody></table>
+<h2>5) الواجهات</h2>
+<pre>GET  /api/sites                 ← سبعة مواقع بحالتها الحقيقية
+POST /api/sites/:slug/lead      { name, phone, message }    ← عام، بلا تسجيل دخول
+GET  /api/sites/leads?status=
+POST /api/sites/leads/:id/status { status }
+PUT  /api/sites/:slug           { headline, phone, whatsapp, active }   (admin)
+POST /api/sites/:slug/view      ← عدّاد زيارة، مرة لكل جلسة
+GET  /api/sites/summary</pre>
+<h2>6) القواعد</h2>
+<ol><li>كل موقع يقول حالته الحقيقية؛ لا «قريباً» على شيء يعمل ولا «يعمل» على شيء لم يُبنَ.</li><li>الرسالة تُحفظ مع مصدرها، وموبايل مكرر في نفس الموقع لا يفتح رسالة مكررة قبل 24 ساعة.</li><li>الرسالة «مغلقة» لا تعود «جديدة».</li><li><code>admin</code> يرى الكل؛ مدير نشاط يرى موقعه فقط (403 لغيره).</li><li>العدّاد لا يُضاعف زيارة نفس الجلسة في نفس اليوم.</li></ol>
+<h2>7) معايير القبول</h2>
+<ul class="criteria"><li class="crit done"><span class="box">✓</span>سبعة مواقع بحالة صادقة، واثنان على الأقل <code>live</code> مع رابط يعمل</li><li class="crit done"><span class="box">✓</span>رسالة من صفحة موقع عامة تُحفظ وتظهر في اللوحة</li><li class="crit done"><span class="box">✓</span>نفس الموبايل مرتين في 24 ساعة → رسالة واحدة</li><li class="crit done"><span class="box">✓</span>مدير نشاط يطلب موقعاً آخر → 403</li><li class="crit done"><span class="box">✓</span>رسالة مغلقة لا ترجع جديدة (409)</li><li class="crit done"><span class="box">✓</span>زيارة مكررة من نفس الجلسة لا تُحسب مرتين</li><li class="crit done"><span class="box">✓</span>اللوحة تعرض عدد الأنظمة العاملة من سجل الأنظمة نفسه لا من رقم مكتوب</li></ul>
+<h2>8) كيف يُثبت ذلك</h2>
+<pre>sh tools/run-tests.sh sites                    # المحرّك وواجهته البرمجية — 10/10
+sh tools/setup-browser.sh tools/ui-sites-dash.js   # اللوحة في متصفح حقيقي — 24/24</pre>
+<p><strong>أين الإثبات:</strong> <code>tests/sites.test.js</code> (SETUP + S-01…S-09) · <code>tools/ui-sites-dash.js</code> (24 فحصاً).</p>
+<table><thead><tr><th>المعيار</th><th>الدليل</th></tr></thead><tbody>
+<tr><td>سبعة مواقع بحالة صادقة</td><td>S-01: قائمة السبعة كلها ترد 200، والأزياء <code>live</code> والجيم <code>coming</code> — مطابقة لشارة صفحته</td></tr>
+<tr><td>رسالة عامة تُحفظ</td><td>S-02: <code>POST /api/sites/fashion/lead</code> بلا تسجيل دخول → 201، وتظهر في <code>/api/sites/leads</code> باسم الموقع</td></tr>
+<tr><td>موبايل مكرر</td><td>S-03: الطلب الثاني → 200 مع <code>duplicate:true</code> ونفس مُعرِّف الرسالة، وصف واحد في اللوحة</td></tr>
+<tr><td>مدير نشاط مقيَّد</td><td>S-05: يرى <code>fashion</code> وحده، وتعديل رسالة/محتوى موقع آخر → 403، ومستخدم نظام آخر → 403</td></tr>
+<tr><td>رسالة مغلقة</td><td>S-06: مغلقة → «تم الرد» → 409، ومغلقة → مغلقة → 409، وحالة غير معروفة → 400</td></tr>
+<tr><td>زيارة واحدة للجلسة</td><td>S-07: نفس الكوكي → <code>counted:false</code> والعدد ثابت؛ جلسة أخرى → +1 ويظهر في اللوحة</td></tr>
+<tr><td>الأنظمة من السجل</td><td>S-08: العدد يطابق <code>public/data/systems.json</code> المولَّد من <code>docs/product/systems/*.md</code></td></tr>
+<tr><td>المحتوى والحالة</td><td>S-09: تعديل العنوان يحفظ ويظهر، وكتابة <code>status</code> من اللوحة → 400 (تُقرأ من الصفحة)، والإيقاف لا يحذف</td></tr>
+</tbody></table>
+<p><strong>تغطية الواجهة (24 فحصاً):</strong> الدخول ورفض حساب نظام آخر · 7 بطاقات · رقم الأنظمة من السجل · الحالات الصادقة ·</p>
+<p>نموذج الرسالة في الصفحة العامة (ورفض موبايل غير صالح) · تكرار الموبايل · الرسالة تظهر في اللوحة ·</p>
+<p>«تم الرد» ثم «إغلاق» على صفّ بعينه وما بعده لا إجراء · الزيارات والتقارير بلا NaN · تعديل المحتوى يظهر فوراً ·</p>
+<p>مدير النشاط: موقع واحد، بلا تعديل، ورسائل موقعه فقط · صفر أخطاء JavaScript.</p>
+<p><strong>كيف يعمل العدّاد والنموذج على الصفحات العامة:</strong> <code>public/assets/js/site-lead.js</code> يُحقن في كل صفحة تحمل</p>
+<p><code>&lt;body data-site="slug"&gt;</code>، ويسجّل زيارة واحدة لكل جلسة (<code>nile_vid</code>) في اليوم، ويرسل الرسالة إلى</p>
+<p><code>POST /api/sites/:slug/lead</code> — بلا تسجيل دخول وبلا مكتبات.</p>
+<h2>9) خارج النطاق الآن</h2>
+<ul><li>محرّر صفحات مرئي (drag &amp; drop).</li><li>تحليلات تفصيلية (مصادر الزيارة، مسارات).</li><li>إشعار واتساب تلقائي على الرسالة.</li></ul></main>
+<footer class="foot">مُولَّد من <code>docs/product/systems/sites.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@81a7d30</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
+</div></body></html>

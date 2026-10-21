@@ -8,6 +8,17 @@ Current implementation status and gaps: [`docs/STATUS.md`](../docs/STATUS.md).
 
 **Rule: no product screen is built before its engine exists and is tested.**
 
+**Running the tests:**
+
+```bash
+npx vitest run                 # fast path: in-process PGlite, 1 connection
+./tools/local-pg.sh test       # full path: real PostgreSQL 17, run this before claiming concurrency works
+```
+
+The four `.pg.test.ts` files skip themselves unless `NILE_TEST_PG_ADMIN_URL` is set. `tools/local-pg.sh`
+installs, starts and exports it. Until 2026-10-19 no sandbox set it, so 22 concurrency assertions never ran.
+Do not report a suite as green without saying which of the two commands produced it.
+
 | Engine | What it owns | Main sources |
 |---|---|---|
 | `platform/` | Tenant context (fail-closed, ADR-0002/0005), command idempotency, visitor branding, Arabic/date/phone locale utils | Terranex, starting, ADR-0005 |
@@ -47,7 +58,7 @@ npm run api:smoke   # live: cashier login → sale → receipt
 
 Extraction provenance for every file: [`docs/REUSE.md`](../docs/REUSE.md).
 
-**Citations inside extracted files** (for example `docs/adr/0009-cash-reconciliation.md`,
+**Citations inside extracted files** (for example `docs/adr/kayyal-core/0009-cash-reconciliation.md`,
 `docs/FINANCIAL_RULES.md`, `ADR-0008`, decision IDs such as `D32`, golden IDs such as `G-10`) refer to the
 **source repository** named in each file's provenance header, **not** to this repository's ADRs, documents
 or findings. This repository's decisions are only those in [`docs/DECISIONS.md`](../docs/DECISIONS.md).

@@ -1,0 +1,62 @@
+{
+  "generatedAt": "2026-10-21",
+  "rev": "81a7d30",
+  "systems": [
+    {
+      "slug": "pos",
+      "name": "نظام الكاشير",
+      "status": "live",
+      "order": 1,
+      "entry": "/systems/pos.html",
+      "criteria": "9/9"
+    },
+    {
+      "slug": "inventory",
+      "name": "نظام المخازن",
+      "status": "live",
+      "order": 2,
+      "entry": "/systems/inventory.html",
+      "criteria": "7/7"
+    },
+    {
+      "slug": "restaurant",
+      "name": "نظام المطعم",
+      "status": "live",
+      "order": 3,
+      "entry": "/systems/restaurant.html",
+      "criteria": "10/10"
+    },
+    {
+      "slug": "clinic",
+      "name": "نظام العيادة",
+      "status": "live",
+      "order": 4,
+      "entry": "/systems/clinic.html",
+      "criteria": "8/8"
+    },
+    {
+      "slug": "courts",
+      "name": "نظام حجز الملاعب",
+      "status": "live",
+      "order": 5,
+      "entry": "/systems/courts.html",
+      "criteria": "7/7"
+    },
+    {
+      "slug": "hr",
+      "name": "نظام الموارد البشرية",
+      "status": "live",
+      "order": 6,
+      "entry": "/systems/hr.html",
+      "criteria": "8/8"
+    },
+    {
+      "slug": "sites",
+      "name": "لوحة المواقع",
+      "status": "live",
+      "order": 7,
+      "entry": "/systems/sites.html",
+      "criteria": "7/7"
+    }
+  ]
+}

@@ -5,7 +5,7 @@
  */
 /**
  * Regrade allocation by relative sales value, with snapshots and deferred resolution.
- * Contract: docs/FINANCIAL_RULES.md §6 and §7, docs/adr/0007-regrade-allocation.md.
+ * Contract: docs/FINANCIAL_RULES.md §6 and §7, docs/adr/kayyal-core/0007-regrade-allocation.md.
  * Golden examples G-8 (allocation) and G-9 (deferred resolution).
  */
 import {

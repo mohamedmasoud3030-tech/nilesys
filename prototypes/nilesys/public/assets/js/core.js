@@ -55,7 +55,13 @@
     });
     let data = null;
     try { data = await res.json(); } catch { /* ignore */ }
-    if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+    if (!res.ok) {
+      // نحمل الحالة والجسم على الخطأ: الواجهة تحتاج 409 ومعرّف الملف الموجود مثلاً.
+      const err = new Error(data?.error || `HTTP ${res.status}`);
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
     return data;
   }
 

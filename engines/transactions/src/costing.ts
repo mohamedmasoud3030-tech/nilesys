@@ -5,7 +5,7 @@
  */
 /**
  * Weighted moving average costing and sale profit.
- * Contract: docs/FINANCIAL_RULES.md §4, docs/adr/0006-costing-model.md. Golden G-5…G-7, G-12.
+ * Contract: docs/FINANCIAL_RULES.md §4, docs/adr/kayyal-core/0006-costing-model.md. Golden G-5…G-7, G-12.
  */
 import {
   Decimal, type EGP, type EGPPerKg, type Kg,

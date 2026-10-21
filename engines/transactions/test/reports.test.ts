@@ -1,0 +1,176 @@
+import { describe, expect, it, beforeAll, afterAll } from 'vitest';
+import { openPglite, type OpenedDatabase, type NileDb } from '../../db/open.js';
+import { organization } from '../../platform/src/auth/schema.js';
+import { withTenant } from '../../platform/src/db/with-tenant.js';
+import { catalogItems, catalogVariants } from '../../catalog/src/db/schema.js';
+import { cashShifts } from '../src/db/schema.js';
+import { checkout } from '../src/checkout.js';
+import { createRefund } from '../src/refunds.js';
+import { getDailyReport } from '../src/reports.js';
+import { salesTransactions } from '../src/db/schema.js';
+import { recordPayment } from '../src/payments.js';
+
+let opened: OpenedDatabase;
+let db: NileDb;
+let A: string;
+let variantA: string;
+let variantB: string;
+
+function todayStr() {
+  const d = new Date();
+  const y = d.getUTCFullYear().toString().padStart(4, '0');
+  const m = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+  const day = d.getUTCDate().toString().padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+beforeAll(async () => {
+  opened = await openPglite();
+  db = opened.db;
+  const [a] = await db.insert(organization).values({ name: 'ReportA', slug: 'report-a' }).returning({ id: organization.id }) as [{ id: string }];
+  A = a.id;
+  const seed = await withTenant(db, A, async (tx: any) => {
+    const [item1] = await tx.insert(catalogItems).values({ tenantId: A, nameAr: 'مياه', nameEn: 'Water', category: 'drinks', priceMinor: 1000, isActive: true }).returning({ id: catalogItems.id });
+    const [v1] = await tx.insert(catalogVariants).values({ tenantId: A, itemId: item1.id as string, sku: `WTR-${A.slice(0,4)}`, labelAr: 'افتراضي', labelEn: 'Default', stock: '100.000' }).returning({ id: catalogVariants.id });
+    const [item2] = await tx.insert(catalogItems).values({ tenantId: A, nameAr: 'زيت', nameEn: 'Oil', category: 'food', priceMinor: 2000, isActive: true }).returning({ id: catalogItems.id });
+    const [v2] = await tx.insert(catalogVariants).values({ tenantId: A, itemId: item2.id as string, sku: `OIL-${A.slice(0,4)}`, labelAr: 'افتراضي', labelEn: 'Default', stock: '100.000' }).returning({ id: catalogVariants.id });
+    return { v1: v1.id as string, v2: v2.id as string };
+  });
+  variantA = seed.v1; variantB = seed.v2;
+});
+afterAll(() => opened.close());
+
+describe('daily reports — gross/refunds/net, by method', () => {
+  it('calculates gross, refunds, net correctly for today', async () => {
+    const today = todayStr();
+    const shiftId = await withTenant(db, A, async (tx: any) => {
+      const [s] = await tx.insert(cashShifts).values({ tenantId: A, registerCode: 'main', openedBy: A, openingMinor: 0, idempotencyKey: 'shift-report-001', requestHash: 'h1' }).returning({ id: cashShifts.id });
+      return s.id as string;
+    });
+    // Sale 1: 2 water cash 2000
+    const s1 = await checkout(db, { tenantId: A, userId: A }, {
+      idempotencyKey: 'rep-chk-001',
+      shiftId,
+      lines: [{ variantId: variantA, quantity: '2' }],
+      tenders: [{ method: 'cash', amountMinor: 2000 }],
+    });
+    // Sale 2: 1 oil card 2000
+    const s2 = await checkout(db, { tenantId: A, userId: A }, {
+      idempotencyKey: 'rep-chk-002',
+      lines: [{ variantId: variantB, quantity: '1' }],
+      tenders: [{ method: 'card', amountMinor: 2000 }],
+    });
+    // Sale 3: 1 water card 1000 (will be partially refunded)
+    const s3 = await checkout(db, { tenantId: A, userId: A }, {
+      idempotencyKey: 'rep-chk-003',
+      lines: [{ variantId: variantA, quantity: '1' }],
+      tenders: [{ method: 'card', amountMinor: 1000 }],
+    });
+    const pays = await withTenant(db, A, async (tx: any) => {
+      const { payments } = await import('../src/db/schema.js');
+      const { eq } = await import('drizzle-orm');
+      const rows = await tx.select().from(payments).where(eq(payments.transactionId, s3.sale.id));
+      return rows;
+    });
+    const pay = pays[0];
+    await createRefund(db, { tenantId: A, userId: A }, {
+      idempotencyKey: 'rep-refund-001',
+      originalTransactionId: s3.sale.id,
+      paymentId: pay.id,
+      items: [{ variantId: variantA, quantity: '1' }],
+    });
+
+    const report = await getDailyReport(db, A, { from: today, to: today });
+    expect(report.grossMinor).toBe(2000 + 2000 + 1000); // 5000
+    expect(report.grossCount).toBe(3);
+    expect(report.refundsMinor).toBe(1000);
+    expect(report.refundsCount).toBe(1);
+    expect(report.netMinor).toBe(4000);
+    // byMethod should include cash 2000 and card 3000 (2000+1000), but refunds not subtracted from byMethod (gross payments)
+    const cash = report.byMethod.find((m) => m.method === 'cash');
+    const card = report.byMethod.find((m) => m.method === 'card');
+    expect(cash?.totalMinor).toBe(2000);
+    expect(card?.totalMinor).toBe(3000);
+  });
+
+  it('tenant isolation: other tenant report is zero', async () => {
+    const [other] = await db.insert(organization).values({ name: 'ReportOther', slug: 'report-other' }).returning({ id: organization.id }) as [{ id: string }];
+    const today = todayStr();
+    const rep = await getDailyReport(db, other.id, { from: today, to: today });
+    expect(rep.grossMinor).toBe(0);
+    expect(rep.refundsMinor).toBe(0);
+    expect(rep.netMinor).toBe(0);
+    expect(rep.grossCount).toBe(0);
+  });
+
+  it('date filtering: future date returns zero', async () => {
+    const future = '2099-01-01';
+    const rep = await getDailyReport(db, A, { from: future, to: future });
+    expect(rep.grossMinor).toBe(0);
+  });
+});
+
+
+describe('D-E — the sales total is money collected, not money rung up', () => {
+  it('separates billed, collected and outstanding on the same day', async () => {
+    const today = todayStr();
+    const [org] = await db.insert(organization).values({ name: 'DE', slug: `de-${Date.now()}` }).returning({ id: organization.id }) as [{ id: string }];
+    const T = org.id;
+    const seed = await withTenant(db, T, async (tx: any) => {
+      const [i] = await tx.insert(catalogItems).values({ tenantId: T, nameAr: 'صنف', nameEn: 'Item', category: 'x', priceMinor: 1000, isActive: true }).returning({ id: catalogItems.id });
+      const [v] = await tx.insert(catalogVariants).values({ tenantId: T, itemId: i.id, sku: `DE-${T.slice(0, 4)}`, labelAr: 'ا', labelEn: 'a', stock: '50.000' }).returning({ id: catalogVariants.id });
+      const [s] = await tx.insert(cashShifts).values({ tenantId: T, registerCode: 'de', openedBy: T, openingMinor: 0, idempotencyKey: 'de-shift', requestHash: 'h' }).returning({ id: cashShifts.id });
+      return { v: v.id as string, shiftId: s.id as string };
+    });
+
+    // Fully paid at the counter: billed 1000, collected 1000.
+    await checkout(db, { tenantId: T, userId: T }, {
+      idempotencyKey: 'de-chk-1', shiftId: seed.shiftId,
+      lines: [{ variantId: seed.v, quantity: '1' }], tenders: [{ method: 'cash', amountMinor: 1000 }],
+    });
+
+    // Rung up but only half collected: billed +2000, collected +1000, outstanding 1000.
+    const unpaid = await withTenant(db, T, async (tx: any) => {
+      const [row] = await tx.insert(salesTransactions).values({ tenantId: T, kind: 'sale', totalMinor: 2000, idempotencyKey: 'de-unpaid', requestHash: 'h', createdBy: T }).returning({ id: salesTransactions.id });
+      return row.id as string;
+    });
+    await recordPayment(db, { tenantId: T, userId: T }, {
+      idempotencyKey: 'de-pay-1', transactionId: unpaid, shiftId: seed.shiftId,
+      tender: { method: 'cash', amountMinor: 1000 },
+    });
+
+    const r = await getDailyReport(db, T, { from: today, to: today });
+    expect(r.billedMinor).toBe(3000);
+    expect(r.collectedMinor).toBe(2000);
+    expect(r.refundsMinor).toBe(0);
+    expect(r.netCollectedMinor).toBe(2000); // the D-E headline
+    expect(r.outstandingMinor).toBe(1000);
+    // the deprecated aliases still say what they always said
+    expect(r.grossMinor).toBe(3000);
+    expect(r.netMinor).toBe(3000);
+    expect(r.billedMinor).not.toBe(r.netCollectedMinor); // the whole point of the decision
+  });
+
+  it('a refund lowers what was collected and raises what is outstanding on that sale', async () => {
+    const today = todayStr();
+    const [org] = await db.insert(organization).values({ name: 'DE2', slug: `de2-${Date.now()}` }).returning({ id: organization.id }) as [{ id: string }];
+    const T = org.id;
+    const seed = await withTenant(db, T, async (tx: any) => {
+      const [i] = await tx.insert(catalogItems).values({ tenantId: T, nameAr: 'x', nameEn: 'x', category: 'x', priceMinor: 1000, isActive: true }).returning({ id: catalogItems.id });
+      const [v] = await tx.insert(catalogVariants).values({ tenantId: T, itemId: i.id, sku: `DE2-${T.slice(0, 4)}`, labelAr: 'ا', labelEn: 'a', stock: '10.000' }).returning({ id: catalogVariants.id });
+      const [s] = await tx.insert(cashShifts).values({ tenantId: T, registerCode: 'de2', openedBy: T, openingMinor: 0, idempotencyKey: 'de2-shift', requestHash: 'h' }).returning({ id: cashShifts.id });
+      return { v: v.id as string, shiftId: s.id as string };
+    });
+    const { sale, payments: pays } = await checkout(db, { tenantId: T, userId: T }, {
+      idempotencyKey: 'de2-chk-0001', shiftId: seed.shiftId,
+      lines: [{ variantId: seed.v, quantity: '1' }], tenders: [{ method: 'cash', amountMinor: 1000 }],
+    });
+    await createRefund(db, { tenantId: T, userId: T }, {
+      idempotencyKey: 'de2-ref-0001', originalTransactionId: sale.id, paymentId: pays[0]!.id,
+      shiftId: seed.shiftId, items: [{ variantId: seed.v, quantity: '1' }],
+    });
+    const r = await getDailyReport(db, T, { from: today, to: today });
+    expect([r.billedMinor, r.collectedMinor, r.refundsMinor, r.netCollectedMinor]).toEqual([1000, 1000, 1000, 0]);
+    expect(r.outstandingMinor).toBe(1000); // the goods came back: nothing is owed on a reversal
+  });
+});

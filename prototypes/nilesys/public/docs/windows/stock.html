@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>نيل مخازن (ويندوز) · نيل سيستمز</title>
+<style>
+:root{--paper:#f3f6f5;--sheet:#fcfdfc;--ink:#13201e;--muted:#5b6c67;--rule:#cdd8d3;
+--soft:#e3eae7;--brand:#0b7a6b;--brand-ink:#064c42;--warn:#a8641a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.7 "Segoe UI","Noto Sans Arabic",Tahoma,sans-serif}
+.sheet{max-width:900px;margin:0 auto;background:var(--sheet);box-shadow:0 0 0 1px var(--rule);padding:0 0 60px}
+.head{padding:38px 44px 0}
+.kicker{font-size:13px;color:var(--muted);letter-spacing:.02em}
+h1{font-size:32px;line-height:1.25;margin:8px 0 16px;letter-spacing:-.3px}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);margin:22px 44px 0}
+.fact{background:var(--sheet);padding:12px 14px}
+.fact .k{font-size:12px;color:var(--muted)}
+.fact .v{font:700 15px/1.4 ui-monospace,Menlo,Consolas,monospace;margin-top:4px;direction:ltr;unicode-bidi:isolate}
+.fact .v.ar{direction:rtl}
+.body{padding:8px 44px 0}
+h2{font-size:20px;margin:34px 0 10px;padding-top:14px;border-top:1px solid var(--soft)}
+h3{font-size:16px;margin:22px 0 6px}
+p{margin:0 0 10px}
+ul,ol{margin:0 0 12px;padding-inline-start:22px}
+li{margin-bottom:5px}
+code{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;background:#e9efec;color:var(--brand-ink);padding:1px 5px;border-radius:3px;direction:ltr;display:inline-block;unicode-bidi:isolate}
+pre{background:#0f221e;color:#e7f2ee;padding:14px 16px;overflow:auto;font:13px/1.6 ui-monospace,Menlo,Consolas,monospace;direction:ltr;text-align:left}
+pre code{background:none;color:inherit;padding:0}
+table{width:100%;border-collapse:collapse;margin:0 0 16px;font-size:14.5px}
+th{text-align:start;font-size:12.5px;color:var(--muted);border-bottom:2px solid var(--ink);padding:6px 10px 8px 0}
+td{padding:9px 10px 9px 0;border-bottom:1px solid var(--soft);vertical-align:top}
+blockquote{margin:0 0 16px;padding:12px 16px;background:#eef4f2;border-inline-start:3px solid var(--brand);color:var(--brand-ink);font-size:15px}
+ul.criteria{list-style:none;padding:0}
+ul.criteria li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--soft);font-size:15px}
+ul.criteria .box{width:18px;height:18px;border:1.5px solid var(--brand);flex:0 0 18px;display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--brand);margin-top:3px}
+ul.criteria li.open .box{border-color:var(--muted)}
+ul.criteria li.open{color:#41524d}
+hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
+.foot{margin:40px 44px 0;padding-top:16px;border-top:2px solid var(--ink);font-size:13px;color:var(--muted)}
+.badge{display:inline-block;border:1.5px solid currentColor;padding:4px 9px;font-size:12px;font-weight:700;transform:rotate(-1deg)}
+.st-live{color:var(--brand)}.st-partial{color:var(--warn)}.st-planned{color:#a3382c}
+@media (max-width:760px){.head,.body,.foot{padding-inline:20px}.facts{margin-inline:20px;grid-template-columns:repeat(2,1fr)}}
+@media print{body{background:#fff}.sheet{box-shadow:none;max-width:none}h2{break-after:avoid}table{break-inside:avoid}}
+</style></head>
+<body><div class="sheet">
+<header class="head">
+  <div class="kicker">نيل سيستمز · مواصفة تطبيق رقم 2</div>
+  <h1>نيل مخازن (ويندوز)</h1>
+  <span class="badge st-live">يعمل ومُختبَر</span>
+</header>
+<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">win-stock</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/windows/stock/</div></div><div class="fact"><div class="k">المستخدمون</div><div class="v ar">أمين المخزن</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">7/7</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/windows.test.js</div></div><div class="fact"><div class="k">واجهات الخادم</div><div class="v">/api/windows/*</div></div></div>
+<main class="body">
+<blockquote>الحالة: <strong>يعمل ومُختبَر</strong> — جرد واستلام وملصقات على جهاز المخزن، بلا إنترنت. التغليف كـ <code>.exe</code> لم يُبنَ بعد.</blockquote>
+<h2>1) الغرض في سطر</h2>
+<p>رصيد المخزن يطابق الرف: عدّ فعلي بفرق مكتوب السبب، استلام من مورد، وملصق باركود يُطبع من الجهاز.</p>
+<h2>2) المستخدمون</h2>
+<table><thead><tr><th>المستخدم</th><th>يدخل بـ</th><th>يقدر يعمل</th><th>لا يقدر</th></tr></thead><tbody>
+<tr><td>أمين المخزن</td><td>بلا تسجيل (جهاز المخزن)</td><td>صنف · جرد · استلام · ملصق · مزامنة</td><td>تعديل حركة قديمة</td></tr>
+<tr><td>الخادم</td><td>مفتاح الجهاز</td><td>استقبال الحركات ورفض المكرر</td><td>تعديل رصيد الجهاز</td></tr>
+</tbody></table>
+<h2>3) الشاشات</h2>
+<table><thead><tr><th>الشاشة</th><th>ماذا فيها</th></tr></thead><tbody>
+<tr><td>الأصناف</td><td>كود · اسم · رصيد · حد تنبيه · تكلفة · سعر · ملصق</td></tr>
+<tr><td>الجرد</td><td>الرصيد الدفتري مقابل المعدود · الفرق · سبب إلزامي عند الفرق</td></tr>
+<tr><td>استلام</td><td>مورد/إذن · سطور كمية · تحديث الرصيد</td></tr>
+<tr><td>الحركات</td><td>كل تعديل رصيد بنوعه وسببه ومفتاحه</td></tr>
+<tr><td>المزامنة</td><td>الطابور وآخر مزامنة</td></tr>
+</tbody></table>
+<h2>4) نموذج البيانات (على الجهاز)</h2>
+<table><thead><tr><th>المفتاح</th><th>الحقول</th></tr></thead><tbody>
+<tr><td><code>items[]</code></td><td><code>id</code> · <code>code</code> · <code>name</code> · <code>unit</code> · <code>qty</code> · <code>cost</code> · <code>price</code> · <code>min</code></td></tr>
+<tr><td><code>moves[]</code></td><td><code>id</code> · <code>at</code> · <code>type</code> (<code>count</code>/<code>in</code>) · <code>itemId</code> · <code>code</code> · <code>qty</code> · <code>reason</code> · <code>ref</code></td></tr>
+<tr><td><code>counts[]</code></td><td><code>id</code> · <code>at</code> · <code>rows[]</code> (<code>book</code> · <code>counted</code> · <code>diff</code> · <code>reason</code>)</td></tr>
+<tr><td><code>receipts[]</code></td><td><code>id</code> · <code>at</code> · <code>supplier</code> · <code>lines[]</code></td></tr>
+</tbody></table>
+<h2>5) الواجهات</h2>
+<pre>POST /api/windows/sync      { program:'stock', ops:[…] }
+GET  /api/windows/summary</pre>
+<h2>6) القواعد</h2>
+<ol><li>أي فرق في الجرد بلا سبب مكتوب → الجرد لا يُحفظ ويُقال أي صنف ناقص السبب.</li><li>الرصيد لا يصير سالباً.</li><li>كود الصنف فريد ومطلوب (بدونه لا ملصق)، والكود المستخدم يُرفض.</li><li>ملصق الباركود <strong>Code39 حقيقي</strong> يُرسم من جدول الترميز لا شكلاً عشوائياً.</li><li>الاستلام لا يقبل كمية صفر أو سالبة.</li><li>كل حركة لها مفتاح فريد، والمزامنة لا تضاعف الحركة.</li><li>قيمة المخزون = مجموع (الرصيد × التكلفة) — لا تُقدَّر.</li></ol>
+<h2>7) معايير القبول</h2>
+<ul class="criteria"><li class="crit done"><span class="box">✓</span>صنف جديد يُضاف بكوده، والكود المكرر يُرفض</li><li class="crit done"><span class="box">✓</span>جرد بفرق بلا سبب لا يُحفظ ويُنبَّه</li><li class="crit done"><span class="box">✓</span>جرد بسبب يُحدّث الرصيد ويكتب حركة <code>count</code> بالفرق</li><li class="crit done"><span class="box">✓</span>استلام يزيد الرصيد ويكتب حركة <code>in</code></li><li class="crit done"><span class="box">✓</span>ملصق باركود Code39 يُرسم من الكود ويُطبع 50mm</li><li class="crit done"><span class="box">✓</span>العمل كامل بعد قطع الشبكة</li><li class="crit done"><span class="box">✓</span>المزامنة تُفرّغ الطابور بلا تكرار</li></ul>
+<h2>8) كيف يُثبت ذلك</h2>
+<pre>sh tools/run-tests.sh windows
+sh tools/setup-browser.sh tools/ui-windows.js</pre>
+<h2>9) خارج النطاق الآن</h2>
+<ul><li>قارئ باركود USB (الإدخال يدوي/بالكود في هذه المرحلة).</li><li>تعدُّد المخازن والتحويل بينها.</li><li>تغليف <code>.exe</code>.</li></ul></main>
+<footer class="foot">مُولَّد من <code>docs/product/windows/stock.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@81a7d30</code> · كل معيار قبول معلَّم ✓ له فحص يعمل.</footer>
+</div></body></html>
