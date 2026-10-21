@@ -44,6 +44,23 @@ Now `./tools/local-pg.sh test` runs all 29 files with nothing skipped.
 
 None of these results comes from GitHub Actions, staging or production.
 
+### 2026-10-21 — demo site (`prototypes/nilesys`): the 5 Windows programs are live
+
+The public demo project (`prototypes/nilesys`, deployed to Vercel project `nilesys-demo`) now ships
+the **seven systems + seven marketing sites + five Windows programs** the landing page promises.
+The Windows programs work in the browser today: local-first storage, real offline selling, 80mm/50mm
+receipt and label printing, Code39 barcode, and a sync endpoint that cannot double-count.
+
+| Command | Result |
+| --- | --- |
+| `sh tools/run-tests.sh` (in `prototypes/nilesys`) | **156/156** — includes new `tests/windows.test.js` 6/6 |
+| `sh tools/setup-browser.sh tools/ui-windows.js` | **52/52** — five programs in a real browser, incl. a full sale with `context.setOffline(true)` then sync on reconnect |
+| `sh tools/setup-browser.sh tools/ui-sites.js` | **37/37** — landing/site pages, incl. the five Windows cards now link to working programs |
+| `python3 tools/build-app-specs.py` | 7 systems **7/7 live** + 5 Windows specs **7/7 each**, generated into `public/docs/` |
+
+**Not claimed:** the `.exe` installer (Electron packaging) is **not built**; USB thermal-printer and
+USB scanner support, and ETA e-invoicing, remain out of scope. Nothing on any page offers a download.
+
 ## 2. Branches and pull requests
 
 | Ref | Head | State | Notes |

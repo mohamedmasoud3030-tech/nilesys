@@ -187,6 +187,96 @@ def render(meta, body_html, facts, footer):
 </div></body></html>"""
 
 
+WIN_SRC = ROOT / "docs" / "product" / "windows"
+WIN_OUT = PROTO / "public" / "docs" / "windows"
+
+
+def windows_specs():
+    """مواصفات برامج ويندوز الخمسة: تُصدَّر داخل الموقع حتى تُقرأ من الديمو.
+
+    نفس قاعدة المواصفات الأخرى: لا `status: live` بلا ملف اختبار موجود،
+    ولا `entry:` بلا صفحة تعمل، وعدد المعايير المعلَّمة يُحسب من الملف لا يُكتب.
+    """
+    import json
+    if not WIN_SRC.exists():
+        return []
+    WIN_OUT.mkdir(parents=True, exist_ok=True)
+    built, problems = [], []
+
+    def to_html(md):
+        # روابط المواصفات في الملفات مكتوبة `.md` (صحيحة على GitHub) وتصبح `.html`
+        # في الموقع المولَّد — وإلا كنا نسلّم 404.
+        return re.sub(r'href="([^"]+)\.md"', r'href="\1.html"', md_to_html(md))
+
+    for f in sorted(WIN_SRC.glob("*.md")):
+        if f.name == "index.md":
+            continue
+        meta, body = parse(f)
+        slug = meta.get("slug", f.stem)
+        checked = len(re.findall(r"^\s*[-*]\s+\[[xX]\]", body, re.M))
+        total = checked + len(re.findall(r"^\s*[-*]\s+\[ \]", body, re.M))
+        if meta.get("status") == "live":
+            t = meta.get("tests", "")
+            if t and not (PROTO / t).exists():
+                problems.append(f"{f.name}: الحالة live لكن {t} غير موجود")
+            entry = meta.get("entry", "")
+            if entry and not (PROTO / "public" / entry.strip("/")).exists():
+                problems.append(f"{f.name}: الحالة live لكن الصفحة {entry} غير موجودة")
+        facts = [
+            ("المُعرِّف", meta.get("id", ""), False),
+            ("الصفحة", meta.get("entry", ""), False),
+            ("المستخدمون", meta.get("users", "—"), True),
+            ("معايير القبول", f"{checked}/{total}", False),
+            ("ملف الاختبار", meta.get("tests", "—"), False),
+            ("واجهات الخادم", meta.get("api", "—"), False),
+        ]
+        footer = (f"مُولَّد من <code>{f.relative_to(ROOT)}</code> بواسطة "
+                  f"<code>tools/build-app-specs.py</code> · الكود <code>nilesys@{git_rev()}</code> · "
+                  "كل معيار قبول معلَّم ✓ له فحص يعمل.")
+        body_html = re.sub(r"^\s*<h1>.*?</h1>", "", to_html(body), count=1)
+        (WIN_OUT / f"{slug}.html").write_text(render(meta, body_html, facts, footer), encoding="utf-8")
+        built.append((meta, checked, total))
+
+    idx = WIN_SRC / "index.md"
+    if idx.exists():
+        meta, body = parse(idx)
+        rows = "".join(
+            f'<li><a href="{m.get("slug")}.html">{esc(m.get("name"))}</a> — '
+            f'{ORDER_LABEL.get(m.get("status"), "—")} · {c}/{t} معيار · '
+            f'<code>{esc(m.get("entry", ""))}</code></li>'
+            for m, c, t in built
+        )
+        body_html = re.sub(r"^\s*<h1>.*?</h1>", "", to_html(body), count=1)
+        facts = [("البرامج", str(len(built)), False),
+                 ("معايير القبول", f"{sum(c for _, c, _ in built)}/{sum(t for _, _, t in built)}", False),
+                 ("الصفحة", "/windows/", False),
+                 ("الكود", f"nilesys@{git_rev()}", False)]
+        footer = ("هذه المواصفات تُولَّد من <code>docs/product/windows/*.md</code>. "
+                  "البرامج الخمسة تعمل في المتصفح؛ التغليف كـ <code>.exe</code> خارج النطاق الحالي.")
+        html = render({**(meta or {}), "name": meta.get("name", "برامج ويندوز الخمسة")},
+                      body_html + f"<h2>البرامج</h2><ul>{rows}</ul>", facts, footer)
+        (WIN_OUT / "index.html").write_text(html, encoding="utf-8")
+
+    reg = {
+        "generatedAt": __import__("datetime").date.today().isoformat(),
+        "rev": git_rev(),
+        "programs": [
+            {"slug": m.get("slug"), "name": m.get("name"), "status": m.get("status"),
+             "order": int(m.get("order", 99) or 99), "entry": m.get("entry"),
+             "criteria": f"{c}/{t}"}
+            for m, c, t in built
+        ],
+    }
+    out = PROTO / "public" / "data" / "windows.json"
+    out.write_text(json.dumps(reg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"برامج ويندوز: {len(built)} مواصفة → {WIN_OUT.relative_to(ROOT)}")
+    for m, c, t in built:
+        print(f"  {m.get('order')}. {m.get('name'):<22} {m.get('status'):<7} {c}/{t} معيار")
+    for p in problems:
+        print("  ⚠ " + p)
+    return built
+
+
 def main():
     files = sorted(SRC.glob("*.md"))
     files = [f for f in files if f.name != "index.md"]
@@ -286,6 +376,8 @@ def main():
     print(f"كُتبت {len(specs)} مواصفة + فهرس في {SRC}")
     for m, _, c, t in specs:
         print(f"  {m.get('order')}. {m.get('name'):<22} {m.get('status'):<8} {c}/{t} معيار")
+    windows_specs()
+
     if problems:
         print("\nمشاكل:")
         for p in problems:

@@ -237,6 +237,7 @@ function migrate() {
   if (typeof courts !== 'undefined' && courts.seedDefaults(db)) changed = true;
   if (typeof hr !== 'undefined' && hr.seedDefaults(db)) changed = true;
   if (typeof sites !== 'undefined' && sites.seedDefaults(db)) changed = true;
+  if (typeof windowsApps !== 'undefined' && windowsApps.seedDefaults(db)) changed = true;
   if (changed) {
     try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); } catch { /* /tmp */ }
   }
@@ -491,6 +492,15 @@ const courts = require('./lib/courts.js')({
   readBody: (req) => readBody(req),
 });
 
+// برامج سطح المكتب — الطرف الآخر لمزامنة الأجهزة التي تعمل بلا إنترنت.
+const windowsApps = require('./lib/windows.js')({
+  getDb: () => db,
+  save: () => save(),
+  sendJSON: (res, code, body, headers) => sendJSON(res, code, body, headers),
+  sendError: (res, code, msg) => sendError(res, code, msg),
+  readBody: (req) => readBody(req),
+});
+
 // لوحة المواقع — التطبيق السابع، مساراته تحت /api/sites.
 const sites = require('./lib/sites.js')({
   getDb: () => db,
@@ -573,6 +583,10 @@ async function handleApi(req, res, url) {
 
   // تطبيق الموارد البشرية له مساراته ومحركه المستقل.
   if (await hr.handle(req, res, url, { route, user, isManager })) return;
+
+  // برامج سطح المكتب: مساراتها تتحقق بمفتاح الجهاز لا بجلسة المستخدم،
+  // لأن البرنامج يعمل على جهاز المحل بلا متصفح ولا حساب.
+  if (await windowsApps.handle(req, res, url)) return;
 
   // لوحة المواقع — تطبيق مستقل، ورسالة الزائر مسار عام بلا تسجيل دخول.
   if (await sites.handle(req, res, url, { route, user, isManager })) return;

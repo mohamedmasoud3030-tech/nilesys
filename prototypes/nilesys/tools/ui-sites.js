@@ -47,7 +47,14 @@ const check = (n, ok, extra = '') => { results.push({ n, ok }); console.log(`${o
   await page.goto(`${BASE}/sites/windows.html`, { waitUntil: 'networkidle' });
   const winTxt = (await page.textContent('body')) || '';
   const planned = (winTxt.match(/قيد التخطيط/g) || []).length;
-  check('F-17 · خمسة برامج ويندوز كلها معلنة «قيد التخطيط»', planned >= 5, `${planned}`);
+  const liveWin = (winTxt.match(/يعمل · 7\/7/g) || []).length;
+  check('F-17 · خمسة برامج ويندوز معلنة «يعمل» بدليلها', liveWin >= 5 && planned === 0, `${liveWin} يعمل · ${planned} قيد التخطيط`);
+  let winLinks = 0;
+  for (const slug of ['cashier', 'stock', 'kitchen', 'attendance', 'reports']) {
+    winLinks += await page.locator(`a[href="/windows/${slug}/"]`).count();
+  }
+  check('F-17 · صفحة ويندوز تفتح البرامج الخمسة نفسها', winLinks >= 5, `${winLinks} رابط`);
+  check('F-17 · الصفحة تقول صراحة إن .exe لم يُبنَ', winTxt.includes('.exe'));
   await page.screenshot({ path: `${OUT}/sites-windows.png`, fullPage: true });
 
   // الصفحة الرئيسية تربط الأنظمة والمواقع الحقيقية — لا مراسي وهمية
@@ -57,6 +64,16 @@ const check = (n, ok, extra = '') => { results.push({ n, ok }); console.log(`${o
   const footInv = await page.locator('a[href="/systems/inventory.html"]').count();
   check('F-17 · الرئيسية تربط المواقع السبعة الحقيقية', footSites === 7, `${footSites} رابط`);
   check('F-16 · الرئيسية تربط نظام المخازن', footInv > 0, `${footInv} رابط`);
+
+  // قسم برامج ويندوز في الرئيسية: خمس بطاقات حقيقية بروابط تعمل — لا «قريباً»
+  const winCards = await page.locator('#winGrid .tile').count();
+  let winCardLinks = 0;
+  for (const slug of ['cashier', 'stock', 'kitchen', 'attendance', 'reports']) {
+    winCardLinks += await page.locator(`#winGrid a[href="/windows/${slug}/"]`).count();
+  }
+  const winGridTxt = (await page.textContent('#winGrid')) || '';
+  check('F-17 · الرئيسية: خمس بطاقات ويندوز بروابط تشغيل', winCards === 5 && winCardLinks === 5, `${winCards} بطاقة · ${winCardLinks} رابط`);
+  check('F-17 · الرئيسية لا تعرض «قريباً» على برامج ويندوز', !winGridTxt.includes('قريباً') && !winGridTxt.includes('Soon'));
 
   // صفحة فرعية جاهزة تفتح النظام فعلاً
   await page.goto(`${BASE}/sites/mobile.html`, { waitUntil: 'networkidle' });

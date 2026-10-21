@@ -43,13 +43,32 @@
   <main class="wrap">
   <section class="hero">
     <div class="icon">🪟</div>
-    <span class="b soon">قيد التنفيذ</span>
+    <span class="b live">يعمل الآن · 5 من 5</span>
     <h1>خمسة برامج ويندوز</h1>
-    <p class="lead">للمحلات اللي بتشتغل على جهاز في المحل، بلا متصفح وبلا نت. كلها لم تُبنَ بعد — ومكتوب هنا عشان محدش يستنى حاجة مش موجودة.</p>
+    <p class="lead">للمحلات اللي بتشتغل على جهاز في المحل. الخمسة مبنيين ومُختبَرين: كل برنامج يفتح، بيبيع أو يجرد أو يبصم فعلاً، وبيحفظ على الجهاز قبل أي شبكة.</p>
+    <a class="cta" href="/windows/">افتح البرامج الخمسة</a>
+    <a class="cta ghost" href="/docs/windows/index.html">المواصفات</a>
   </section>
+
+  <div class="note">
+    <b>اللي لسه ناقص، مكتوب صريح:</b> التغليف كملف تثبيت <span class="mono">.exe</span> لم يُبنَ بعد — البرامج تعمل اليوم في المتصفح على نفس الجهاز بنفس السلوك (تخزين محلي، طباعة 80mm وA4، باركود Code39، ومزامنة لا تكرر حركة).
+    كمان خارج النطاق حالياً: الطباعة على طابعة حرارية عبر USB، وقارئ باركود USB، والفاتورة الإلكترونية.
+  </div>
+
   <section class="grid">
-    <div class="card"><b>برنامج الكاشير للويندوز</b><span class="b soon">قيد التخطيط</span><div class="muted" style="font-size:14px;margin-top:6px">نسخة تعمل بلا متصفح، تعمل أوفلاين وترفع لما الشبكة ترجع</div></div><div class="card"><b>برنامج المخازن</b><span class="b soon">قيد التخطيط</span><div class="muted" style="font-size:14px;margin-top:6px">جرد بالباركود وطبع ملصقات</div></div><div class="card"><b>برنامج المطعم</b><span class="b soon">قيد التخطيط</span><div class="muted" style="font-size:14px;margin-top:6px">شاشة مطبخ وشاشة كاشير على نفس الشبكة المحلية</div></div><div class="card"><b>برنامج الحضور</b><span class="b soon">قيد التخطيط</span><div class="muted" style="font-size:14px;margin-top:6px">بصمة/كارت وربط بالمرتبات</div></div><div class="card"><b>برنامج التقارير</b><span class="b soon">قيد التخطيط</span><div class="muted" style="font-size:14px;margin-top:6px">تقارير ثقيلة تعمل على جهاز المدير</div></div>
-  </section></main>
+    <div class="card"><b>نيل كاشير</b><span class="b live">يعمل · 7/7</span><div class="muted" style="font-size:14px;margin-top:6px">بيع، إيصال 80mm، وردية ودرج بفرق محسوب. البيع شغال والشبكة مقطوعة، والمزامنة بعدها لا تكرر فاتورة.</div><div style="margin-top:10px"><a class="cta ghost" href="/windows/cashier/">شغّله</a></div></div>
+    <div class="card"><b>نيل مخازن</b><span class="b live">يعمل · 7/7</span><div class="muted" style="font-size:14px;margin-top:6px">جرد فعلي، وأي فرق لازم سبب مكتوب قبل الحفظ. استلام بضاعة، حركات، وملصق باركود Code39 حقيقي.</div><div style="margin-top:10px"><a class="cta ghost" href="/windows/stock/">شغّله</a></div></div>
+    <div class="card"><b>نيل مطعم</b><span class="b live">يعمل · 7/7</span><div class="muted" style="font-size:14px;margin-top:6px">ترابيزات، تذكرة مطبخ 80mm مع تسجيل إعادة الطبع، ولا تحصيل قبل ما كل صنف يتقدّم.</div><div style="margin-top:10px"><a class="cta ghost" href="/windows/kitchen/">شغّله</a></div></div>
+    <div class="card"><b>نيل حضور</b><span class="b live">يعمل · 7/7</span><div class="muted" style="font-size:14px;margin-top:6px">بصمة بكود الموظف، دخول وخروج بضغطة، ملخص شهري وCSV بترميز يفتح في إكسل العربي.</div><div style="margin-top:10px"><a class="cta ghost" href="/windows/attendance/">شغّله</a></div></div>
+    <div class="card"><b>نيل تقارير</b><span class="b live">يعمل · 7/7</span><div class="muted" style="font-size:14px;margin-top:6px">يقرأ ما حفظه البرامج الأربعة على نفس الجهاز، ويعرض المؤشرات وتقرير A4 بمصادره — والصفر يُقال صفراً.</div><div style="margin-top:10px"><a class="cta ghost" href="/windows/reports/">شغّله</a></div></div>
+  </section>
+
+  <div class="note">
+    <b>الدليل، مش الكلام:</b> <span class="mono">tests/windows.test.js</span> (6/6 للمزامنة ومنع التكرار و401) ·
+    <span class="mono">tools/ui-windows.js</span> (52/52 في متصفح حقيقي، وفيه بيع كامل بعد قطع الشبكة ثم مزامنة) ·
+    المجموع الكلي <span class="mono">156/156</span>. كل معيار في مواصفة كل برنامج معلَّم ✓ وله فحص يعمل.
+  </div>
+</main>
   <footer><div class="wrap">نيل سيستمز — كل شارة على هذه الصفحة تقول الحقيقة: ما يعمل مكتوب أنه يعمل، وما لم يُبنَ مكتوب أنه قيد التنفيذ.</div></footer>
 </body>
 </html>

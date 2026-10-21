@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>برامج ويندوز الخمسة · نيل سيستمز</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230d9488'/><text x='50' y='68' font-size='46' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>N</text></svg>" />
+  <link rel="stylesheet" href="./desk.css" />
+  <style>
+    .hero { padding: 40px 20px 8px; max-width: 1040px; margin: 0 auto; }
+    .hero h1 { font-size: clamp(24px, 4vw, 36px); margin: 6px 0 8px; }
+    .wrap-main { max-width: 1040px; margin: 0 auto; padding: 0 20px 40px; }
+    .prog { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .prog-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px; }
+    .prog-card .hd { display: flex; align-items: center; gap: 10px; }
+    .prog-card .ico { font-size: 26px; }
+    .prog-card .nm { font-weight: 800; font-size: 17px; }
+    .prog-card ul { margin: 0; padding-inline-start: 18px; color: var(--muted); font-size: 13.5px; }
+    .prog-card .foot { margin-top: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <section class="hero">
+    <span class="badge b-ok">خمسة برامج · تعمل الآن</span>
+    <h1>برامج ويندوز الخمسة</h1>
+    <p class="muted">كل برنامج يشتغل على جهاز المحل بلا متصفح ولا إنترنت: البيع، المخزن، المطبخ، الحضور، والتقارير.
+      البيانات تُحفظ على الجهاز أولاً وتُزامن عند رجوع الشبكة. هنا تفتح كل برنامج وتجرّبه، والحالة المكتوبة هي الحالة الحقيقية.</p>
+  </section>
+
+  <main class="wrap-main">
+    <div class="prog" id="progGrid"></div>
+
+    <div class="card pad mt" style="margin-top:22px">
+      <h2 class="sec mb">كيف يعمل بلا إنترنت؟</h2>
+      <div class="small muted">
+        كل عملية (فاتورة، جرد، تذكرة، بصمة) تُحفظ في تخزين الجهاز فوراً بمفتاح فريد، وتدخل طابور مزامنة.
+        الشبكة لما ترجع، الطابور يتبعت للخادم، والخادم يعرف المفتاح — فإعادة الإرسال بعد انقطاع لا تصنع حركة مكررة.
+        شريط الحالة أعلى كل برنامج يقول لك: متصل ولا بلا شبكة، وكام عملية في الانتظار.
+      </div>
+      <h2 class="sec mb" style="margin-top:16px">وتغليف البرنامج كـ .exe؟</h2>
+      <div class="small muted">
+        الملفات نفسها هي البرنامج. تغليفها كـ <span class="mono">.exe</span> يحتاج بناء على ويندوز (Electron) ولم يُبنَ بعد —
+        لذلك لا يوجد زر تحميل على هذه الصفحة. ما يعمل الآن مكتوب أنه يعمل، وما لم يُبنَ مكتوب أنه لم يُبنَ.
+      </div>
+    </div>
+  </main>
+
+  <script src="./desk.js"></script>
+  <script>
+    const PROGRAMS = [
+      { slug: 'cashier', icon: '🧾', name: 'نيل كاشير', desc: 'بيع وتحصيل وإيصال 80mm ووردية ودرج.', points: ['فاتورة بلا إنترنت', 'إيصال 80mm', 'وردية وفرق الدرج'] },
+      { slug: 'stock', icon: '📦', name: 'نيل مخازن', desc: 'أصناف وجرد واستلام وملصقات باركود Code39.', points: ['جرد بسبب إلزامي', 'ملصق باركود حقيقي', 'حركات رصيد مسجّلة'] },
+      { slug: 'kitchen', icon: '🍽️', name: 'نيل مطعم', desc: 'ترابيزات وطلب وشاشة مطبخ وتذكرة مطبوعة.', points: ['تذكرة للمطبخ', 'لا تحصيل قبل التقديم', 'إعادة طباعة مسجّلة'] },
+      { slug: 'attendance', icon: '🖐️', name: 'نيل حضور', desc: 'بصمة دخول وخروج، تأخير، وملخص شهري للمرتبات.', points: ['دخول مزدوج مرفوض', 'تأخير بعد 09:15', 'تصدير CSV للمرتبات'] },
+      { slug: 'reports', icon: '📈', name: 'نيل تقارير', desc: 'مؤشرات وتقرير A4 مقروء من البرامج على نفس الجهاز.', points: ['مصدر لكل رقم', 'تقرير A4 قابل للتوقيع', 'CSV بترميز عربي'] },
+    ];
+    document.getElementById('progGrid').innerHTML = PROGRAMS.map((p) => `
+      <article class="prog-card">
+        <div class="hd"><span class="ico">${p.icon}</span><span class="nm">${p.name}</span>
+          <span class="badge b-ok" style="margin-inline-start:auto">يعمل</span></div>
+        <div class="small muted">${p.desc}</div>
+        <ul>${p.points.map((x) => `<li>${x}</li>`).join('')}</ul>
+        <div class="foot">
+          <a class="btn btn-primary btn-sm" href="/windows/${p.slug}/">افتح البرنامج</a>
+          <a class="btn btn-ghost btn-sm" href="/docs/windows/${p.slug}.html">المواصفة</a>
+        </div>
+      </article>`).join('');
+  </script>
+</body>
+</html>
