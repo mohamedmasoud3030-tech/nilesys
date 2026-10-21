@@ -208,6 +208,14 @@ async function remoteWrite(doc) {
   if (!res.ok) throw new Error(`remote write ${res.status}: ${await res.text()}`);
 }
 
+// ترحيل لطيف: أي مستند قديم ياخد الحقول الجديدة (ضريبة، موردون، عملاء، حركات…)
+// ويُشفَّر أي مستخدم ما زال بنص صريح — مرة واحدة عند أول تحميل.
+function migrate() {
+  if (extensions && extensions.seedDefaults(db)) {
+    try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); } catch { /* /tmp */ }
+  }
+}
+
 function loadLocal() {
   try {
     db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
@@ -216,6 +224,7 @@ function loadLocal() {
     fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
   }
+  migrate();
 }
 
 // تُستدعى مرة واحدة؛ آمنة للنداء المتكرر. مطلوبة لأن القراءة المشتركة غير متزامنة.
@@ -234,6 +243,7 @@ function initialize() {
       db = buildSeed();
       await remoteWrite(db);
     }
+    migrate();
   })();
   return initPromise;
 }
@@ -274,6 +284,7 @@ function save() {
 }
 function resetDemo() {
   db = buildSeed();
+  migrate();          // البذور القديمة تاخد الحقول الجديدة (ضريبة، أكواد، عملاء…)
   flush();
 }
 
@@ -286,6 +297,7 @@ const COOKIE = 'nile_sid';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'nilesys-demo-session-secret';
 const SESSION_TTL = 12 * 60 * 60 * 1000;
 const revoked = new Set(); // jti ملغاة (تسجيل خروج) داخل هذه العملية
+const loginAttempts = new Map(); // username -> { fails, first } — F-15
 
 function sign(payload) {
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -360,6 +372,23 @@ function readBody(req) {
   });
 }
 
+/* ================= الامتدادات (الباك أوفيس) ================= */
+
+const extensions = require('./lib/extensions.js')({
+  getDb: () => db,
+  save: () => save(),
+  audit: (u, a, d, m) => audit(u, a, d, m),
+  sendJSON: (res, code, body, headers) => sendJSON(res, code, body, headers),
+  sendError: (res, code, msg) => sendError(res, code, msg),
+  readBody: (req) => readBody(req),
+  restore: (data) => {
+    db = data;
+    if (!Array.isArray(db.audit)) db.audit = [];
+    if (!db.settings) db.settings = {};
+  },
+});
+
+
 /* ================= منطق الـ API ================= */
 
 function publicUser(u) {
@@ -389,6 +418,16 @@ function shiftExpectedCash(shift, untilIso) {
     if (!legacyFullReturn && inWindow(s.createdAt)) cash += s.total;
     for (const r of s.refunds || []) if (inWindow(r.at)) cash -= r.amount;
   }
+  // حركات الدرج اليدوية والسداد فقط — F-08.
+  // حركات البيع والمرتجعات مستبعدة لأنها محسوبة أعلاه من الفواتير نفسها؛
+  // جمعها هنا أيضاً كان يضاعف كل فاتورة نقدية (أمسكه tests/regression · SHIFT-2).
+  for (const m of db.cashMovements || []) {
+    if (m.status !== 'approved') continue;
+    if (m.origin === 'sale' || m.origin === 'refund') continue;
+    if (m.shiftId && shift.id && m.shiftId !== shift.id) continue;
+    if (!inWindow(m.at)) continue;
+    cash += m.type === 'in' ? m.amount : -m.amount;
+  }
   return shift.startingCash + cash;
 }
 
@@ -398,11 +437,34 @@ async function handleApi(req, res, url) {
   const isManager = user && user.role === 'manager';
   const q = url.searchParams;
 
+  // كل مسارات الباك أوفيس (F-01 … F-15) تعيش في lib/extensions.js.
+  if (await extensions.handle(req, res, url, { route, user, isManager })) return;
+
   /* ---- الجلسة ---- */
   if (route === 'POST /api/login') {
     const { system, username, password } = await readBody(req);
+    // F-15: خمس محاولات فاشلة في 15 دقيقة → قفل مؤقت لهذا الاسم.
+    const key = `${username || ''}`;
+    const nowMs = Date.now();
+    const rec = loginAttempts.get(key) || { fails: 0, first: nowMs };
+    if (nowMs - rec.first > 15 * 60 * 1000) { rec.fails = 0; rec.first = nowMs; }
+    if (rec.fails >= 5) {
+      return sendError(res, 429, 'محاولات كثيرة — استنى ربع ساعة');
+    }
     const u = db.users.find((x) => x.system === system && x.username === username);
-    if (!u || u.password !== password) return sendError(res, 401, 'اسم المستخدم أو كلمة المرور غلط');
+    const okPassword = u && (u.passwordHash
+      ? extensions.verifyPassword(password, u.passwordHash)
+      : u.password === password);
+    if (!okPassword) {
+      rec.fails += 1;
+      if (rec.fails === 1) rec.first = nowMs;
+      loginAttempts.set(key, rec);
+      return sendError(res, 401, 'اسم المستخدم أو كلمة المرور غلط');
+    }
+    if (u.active === false) return sendError(res, 403, 'المستخدم موقوف');
+    loginAttempts.delete(key);
+    // ترقية صامتة لأي مستخدم قديم ما زال بنص صريح.
+    if (u.password && !u.passwordHash) { u.passwordHash = extensions.hashPassword(password); delete u.password; save(); }
     const token = newSession(u);
     return sendJSON(res, 200, { user: publicUser(u) }, {
       'Set-Cookie': `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=43200`,
@@ -468,7 +530,13 @@ async function handleApi(req, res, url) {
       cost: Number(b.cost ?? p.cost) || 0, price: Number(b.price ?? p.price) || p.price,
       emoji: String(b.emoji ?? p.emoji).slice(0, 4),
       stock: Number(b.stock ?? p.stock) || 0,
+      // F-01 · F-05: الضريبة وحد إعادة الطلب تُعدَّل من نفس الشاشة.
+      taxExempt: b.taxExempt === undefined ? Boolean(p.taxExempt) : Boolean(b.taxExempt),
+      taxRate: b.taxRate === undefined ? p.taxRate
+        : (b.taxRate === null || b.taxRate === '' ? null : Number(b.taxRate)),
+      reorderLevel: b.reorderLevel === undefined ? p.reorderLevel : Number(b.reorderLevel),
     });
+    audit(user, 'product.updated', `تعديل ${p.name}`, { productId: p.id });
     save();
     return sendJSON(res, 200, { product: p });
   }
@@ -482,70 +550,94 @@ async function handleApi(req, res, url) {
   }
   if (route === 'POST /api/sales') {
     const b = await readBody(req);
-    const items = (b.items || []).map((it) => {
-      const p = db.products.find((x) => x.id === it.productId);
-      if (!p) throw Object.assign(new Error('صنف غير موجود'), { status: 400 });
-      return { productId: p.id, name: p.name, qty: Math.max(1, Number(it.qty) || 1), price: p.price, cost: p.cost };
-    });
-    if (!items.length) return sendError(res, 400, 'السلة فاضية');
-    // SALE-2: التحقق من كفاية المخزون (مع تجميع تكرار نفس الصنف في السلة) قبل أي خصم.
-    // التحقق والخصم متزامنان في نفس الدورة (Node أحادي الخيط) فلا يوجد سباق بين الطلبات.
+
+    // كل الحساب في مكان واحد: خصومات سطر + كود خصم + ضريبة كل سطر (F-01/F-02).
+    const priced = extensions.priceSale(db, b, user);
+
+    // كمية مجمّعة لكل صنف — ومنع السالب قبل أي خصم.
     const need = new Map();
-    for (const it of items) need.set(it.productId, (need.get(it.productId) || 0) + it.qty);
+    for (const it of priced.items) need.set(it.productId, (need.get(it.productId) || 0) + it.qty);
     for (const [pid, qty] of need) {
       const p = db.products.find((x) => x.id === pid);
       if (qty > p.stock) return sendError(res, 409, `المخزون غير كافٍ: ${p.name} (المتاح ${p.stock})`);
     }
-    const t = saleTotals(items, b.discount);
 
-    // PERM-4: الخصم الكبير يحتاج مدير. الكاشير محدود بنسبة، والمدير بلا حد.
-    const ratio = t.subtotal > 0 ? t.discount / t.subtotal : 0;
-    if (!isManager && ratio > CASHIER_MAX_DISCOUNT_RATIO + 1e-9) {
-      return sendError(res, 403, `الخصم الأقصى للكاشير ${Math.round(CASHIER_MAX_DISCOUNT_RATIO * 100)}% — اطلب مدير`);
+    const method = [...TENDERS, 'credit'].includes(b.method) ? b.method : 'cash';
+
+    // الآجل — F-07: يحتاج عميلاً وحدّ ائتمان.
+    let customer = null;
+    if (b.customerId) {
+      customer = db.customers.find((x) => x.id === b.customerId);
+      if (!customer && method === 'credit') return sendError(res, 400, 'العميل مش موجود');
+    }
+    if (method === 'credit') {
+      if (!customer) return sendError(res, 400, 'البيع الآجل يحتاج عميلاً');
+      if ((customer.balance || 0) + priced.total > (customer.creditLimit || 0)) {
+        return sendError(res, 409, `تجاوز حد الائتمان (المتاح ${Math.round((customer.creditLimit - customer.balance) * 100) / 100})`);
+      }
     }
 
-    // TENDER-1: أربع طرق دفع. الباقي من الكاش فقط، وغير الكاش يُسجَّل بالضبط.
-    const method = TENDERS.includes(b.method) ? b.method : 'cash';
-    let paid = t.total;
+    let paid = priced.total;
     let change = 0;
     if (method === 'cash') {
       if (b.paid !== undefined && b.paid !== null && b.paid !== '') {
         paid = Number(b.paid);
-        if (!Number.isFinite(paid) || paid < t.total) {
-          return sendError(res, 400, `المبلغ المدفوع أقل من الإجمالي (${t.total})`);
+        if (!Number.isFinite(paid) || paid < priced.total) {
+          return sendError(res, 400, `المبلغ المدفوع أقل من الإجمالي (${priced.total})`);
         }
       }
-      change = Math.round((paid - t.total) * 100) / 100;
+      change = Math.round((paid - priced.total) * 100) / 100;
     }
 
-    // IDEM-1: نفس مفتاح التكرار بنفس الطلب → نفس الفاتورة (بدون خصم مخزون تاني).
-    // نفس المفتاح بجسم مختلف → 409. هذا ما يمنع الفاتورة المزدوجة عند ضغطتين.
+    // مفتاح التكرار — F-04 (IDEM-1)
     const idemKey = String(b.idempotencyKey || req.headers['idempotency-key'] || '').trim();
     if (idemKey) {
       const prior = db.sales.find((x) => x.idempotencyKey === idemKey);
       if (prior) {
         const sameBody = JSON.stringify(prior.items.map((i) => [i.productId, i.qty]))
-          === JSON.stringify(items.map((i) => [i.productId, i.qty]))
-          && prior.discount === t.discount && prior.method === method;
+          === JSON.stringify(priced.items.map((i) => [i.productId, i.qty]))
+          && prior.discount === priced.discount && prior.method === method;
         if (!sameBody) return sendError(res, 409, 'نفس مفتاح التكرار بطلب مختلف');
         return sendJSON(res, 200, { sale: prior, replay: true });
       }
     }
 
-    for (const it of items) {
+    for (const it of priced.items) {
       const p = db.products.find((x) => x.id === it.productId);
       p.stock = Math.max(0, p.stock - it.qty);
     }
+
     const sale = {
-      id: crypto.randomUUID(), no: (db.sales.reduce((m, s) => Math.max(m, s.no), 1000) + 1),
+      id: crypto.randomUUID(),
+      no: (db.sales.reduce((m, s) => Math.max(m, s.no), 1000) + 1),
       system: 'pos', userId: user.id, createdAt: new Date().toISOString(),
-      items, ...t, method,
-      paid, change, status: 'completed', returned: [], refunds: [],
+      items: priced.items.map(({ lineDiscount, taxRate, ...rest }) => rest),
+      subtotal: priced.subtotal,
+      lineDiscounts: priced.lineDiscounts,
+      couponCode: priced.couponCode,
+      couponDiscount: priced.couponDiscount,
+      discount: priced.discount,
+      taxRate: priced.taxRate,
+      taxableBase: priced.taxableBase,
+      tax: priced.tax,
+      total: priced.total,
+      profit: priced.profit,
+      method, paid, change,
+      customerId: customer ? customer.id : null,
+      customerName: customer ? customer.name : null,
+      payments: [{ id: crypto.randomUUID(), at: new Date().toISOString(), amount: method === 'credit' ? 0 : priced.total, method, userId: user.id }],
+      paymentStatus: method === 'credit' ? 'unpaid' : 'paid',
+      status: 'completed', returned: [], refunds: [],
       idempotencyKey: idemKey || null,
     };
+
     db.sales.push(sale);
-    // HELD-1: لو السلة كانت محفوظة، إتمام البيع يشيلها.
     if (b.heldId) db.held = (db.held || []).filter((h) => h.id !== b.heldId);
+    if (priced.couponCode) {
+      const c = db.coupons.find((x) => x.code === priced.couponCode);
+      if (c) c.used = (c.used || 0) + 1;
+    }
+    extensions.afterSale(db, sale, user);          // مخزون · نقاط · حركة درج (F-05/F-07/F-08)
     audit(user, 'sale.created', `فاتورة ${sale.no} · ${sale.total} · ${method}`, { saleId: sale.id });
     save();
     return sendJSON(res, 201, { sale });
@@ -599,6 +691,7 @@ async function handleApi(req, res, url) {
       : (sale.subtotal > 0 ? Math.round((gross * sale.total / sale.subtotal) * 100) / 100 : 0);
     sale.refunds.push({ at: new Date().toISOString(), amount: refund, method: sale.method });
     sale.status = allBack ? 'returned' : 'partial';
+    extensions.afterRefund(db, sale, refund, user);   // مخزون + درج + آجل
     audit(user, 'sale.refunded', `مرتجع على فاتورة ${sale.no} · ${refund}`, { saleId: sale.id, refund });
     save();
     return sendJSON(res, 201, { sale, refund });
@@ -726,10 +819,13 @@ async function handleApi(req, res, url) {
     }
     Object.keys(byMethod).forEach((k) => { byMethod[k] = Math.round(byMethod[k] * 100) / 100; });
 
+    const taxTotal = Math.round(sales.reduce((a, s) => a + (s.tax || 0), 0) * 100) / 100;
+
     return sendJSON(res, 200, {
       range,
-      grossTotal,            // إجمالي المبيعات (قبل أي مرتجع)
+      grossTotal,            // إجمالي المبيعات (شامل الضريبة، قبل أي مرتجع)
       refundsTotal,          // المرتجعات كسطر مستقل
+      taxTotal,              // الضريبة المحصَّلة — F-01
       net,                   // صافي المحصَّل — الرقم الرئيسي
       invoices: sales.length,
       avg: sales.length ? Math.round((grossTotal / sales.length) * 100) / 100 : 0,
