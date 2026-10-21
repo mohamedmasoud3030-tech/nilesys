@@ -14,6 +14,49 @@ Update it in the same change as anything that alters what is below. Do not creat
 - **Agents working in an Arena sandbox:** read ``agent-system/ARENA_SANDBOX.md``
   first. The owner's guide is ``owner/AGENT_PLAYBOOK_ar.md``.
 
+
+## ملف إصدار R1 — أول كاشير إنتاجي فوق المحركات (معماري إصدارات 2026-10-21)
+
+**المنهج:** جرد اعتماديات ← أصغر مجموعة متماسكة ← أثر مسارات/صلاحيات/محاسبة ← بوابات إصدار.
+
+### 1) جرد الاعتماديات (من الكود، 2026-10-21)
+
+| الطبقة | الموجود فعلًا | المسار |
+|---|---|---|
+| محرك معاملات | بيع/درج/تكلفة/مرتجعات + اختبارات golden وتزامن PG | `engines/transactions/` |
+| محرك كتالوج | أصناف وخدمة كتالوج | `engines/catalog/` |
+| محرك منصة | Better Auth + أدوار وصلاحيات fail-closed + مستأجر/RLS | `engines/platform/` |
+| قاعدة | 6 ترحيلات (0000–0005) تشمل append-only وقيود مال | `engines/db/migrations/` |
+| API | health · me · catalog/items · checkout · shifts(+close) · refunds · reports/daily · sales | `apps/api/src/controllers.ts` |
+| اختبارات طرفية | e2e-pos · e2e-sale · split-tender | `apps/api/test/` |
+
+### 2) أصغر مجموعة متماسكة للإصدار
+
+بيع + مرتجع + وردية (فتح/إغلاق) + تقرير يومي + دخول بدورين (مدير/كاشير).
+**خارج R1 صراحة:** إدارة مستخدمين موسعة، نسخ احتياطي من الواجهة، تعدد فروع، فاتورة ETA.
+
+### 3) فحص الأثر
+
+| النطاق | الأثر |
+|---|---|
+| المسارات | الواجهة تستهلك `/api/v1/*` القائمة فقط؛ لا مسارات جديدة في R1 إلا عند فجوة موثّقة باختبار |
+| الصلاحيات | `manager/cashier` من `engines/platform/src/auth/permissions.ts`؛ المجهول = لا صلاحية |
+| المحاسبة | `FINANCIAL_RULES.md` + «المحصّل هو إجمالي البيع» (DECISIONS) + دفاتر append-only (0002/0004) وقيود 0005 لا تُكسر |
+
+### 4) بوابة مانعة واحدة
+
+قاعدة بيانات الإنتاج غير مُختارة (مرشح Supabase مشروط) — لا نشر إنتاجي قبل قرار موقّع في `DECISIONS.md` (مهمة رودماب 2.1).
+
+### 5) بوابات الإصدار (تُشغَّل قبل أي دمج للإصدار)
+
+```sh
+npm run typecheck
+npx vitest run engines/transactions engines/catalog apps/api
+cd prototypes/nilesys && bash tools/run-tests.sh   # سلامة الديمو المجمد (156)
+```
+
+---
+
 ## 1. Repository state (2026-10-19)
 
 | Item | Value | Verified how |
