@@ -218,3 +218,13 @@ each gate is in `docs/STATUS.md`.
 - Skills teach how to apply policy; they must not duplicate it.
 - Rules that can be enforced deterministically migrate to tooling/CI when the
   scaffold exists. Prose is for judgment, never for what tooling can check.
+
+## Supplemental autonomous execution protocol
+
+Read [AUTONOMOUS EXECUTION PROTOCOL — FULL POWER MODE 2026](docs/agent-system/AUTONOMOUS_EXECUTION_PROTOCOL.md) as supplemental execution guidance.
+
+- This protocol does not replace this repository's existing instruction precedence, accepted architecture/product decisions, skills, or verification gates. Surface consequential conflicts rather than silently overriding them.
+- It grants no additional tools, credentials, permissions, budget, or authorization. Platform/tool safety requirements and the owner's current task-specific restrictions remain binding.
+- Scope capability discovery to the task; reuse verified findings. Prefer targeted remote file reads for cross-repository assessment. Do not bulk-clone repositories, install dependencies, or provision resources merely to inventory capabilities. Obtain task-appropriate authorization first.
+- Keep discovery read-only by default. Preserve secrets; detect credential availability without printing values. Use bounded, evidence-based retries and report genuine blockers.
+- Creating this guidance does not approve moving Nile into Platform, combining their runtimes, changing either stack, or merging branches. Such choices require separate evidence and owner approval.
