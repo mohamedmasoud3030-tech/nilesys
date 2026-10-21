@@ -32,3 +32,6 @@ node_modules/
 .probe/
 .list.mts
 *.bundle
+
+# Vercel local link (never commit project linkage)
+.vercel/

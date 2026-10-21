@@ -668,7 +668,11 @@ function start() {
   });
 }
 
-module.exports = { requestListener, start };
+// Vercel (server mode) يطلب أن يكون التصدير الافتراضي دالة أو سيرفر.
+// دالة واحدة تخدم كل شيء: نفس المستمع المستخدم محلياً.
+module.exports = requestListener;
+module.exports.requestListener = requestListener;
+module.exports.start = start;
 
 // التشغيل المباشر فقط (`node server.js`) يفتح البورت — الاستيراد من Vercel لا يفتح شيئاً.
 if (require.main === module) start();
