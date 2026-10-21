@@ -58,6 +58,15 @@ receipt and label printing, Code39 barcode, and a sync endpoint that cannot doub
 | `sh tools/setup-browser.sh tools/ui-sites.js` | **37/37** — landing and the seven site pages, incl. the five Windows cards opening the real programs |
 | `sh tools/setup-browser.sh tools/ui-sites.js` | **37/37** — landing/site pages, incl. the five Windows cards now link to working programs |
 | `python3 tools/build-app-specs.py` | 7 systems **7/7 live** + 5 Windows specs **7/7 each**, generated into `public/docs/` |
+| live Vercel run (`BASE=https://nilesys-demo-git-feat-demo-on-vercel-lenabeauty.vercel.app sh tools/setup-browser.sh tools/ui-windows.js`) | **69/69** against the deployed build, including a real sale with the network cut and a sync that lands in Supabase |
+
+**Which URL has this build (2026-10-21):** the branch alias
+`https://nilesys-demo-git-feat-demo-on-vercel-lenabeauty.vercel.app` serves commit `8c4f342` and is proven
+green. The production alias `nilesys-demo.vercel.app` is **one build behind**: Vercel only builds production
+from `main`, and the Vercel connector in this session rejects `git_source` (its tool schema wants a string,
+the app wants an object), so promotion could not be executed from the sandbox. To close it: click *Promote to
+Production* on deployment `dpl_6nyhrvSEAqsiCLZZLCkA5y2dALTS`, or approve a Vercel device login so the CLI can
+run `vercel deploy --prod`.
 
 **Not claimed:** the `.exe` installer (Electron packaging) is **not built**; USB thermal-printer and
 USB scanner support, and ETA e-invoicing, remain out of scope. Nothing on any page offers a download.
