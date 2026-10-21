@@ -48,20 +48,20 @@ Append-only protection for the five ledger tables is **open on `main`** and fixe
 
 | ADR | Decision | Status | Known gap between the ADR and the code |
 | --- | --- | --- | --- |
-| 0001 | TypeScript modular monolith; NestJS/Fastify; Next.js; Nx + pnpm; PostgreSQL; boundaries enforced in CI | ACCEPTED | **Gap:** there is no Next.js app and **no CI**, so boundaries are not mechanically enforced. The Nx + pnpm part is superseded by [ADR-0011](adr/0011-repository-tooling-npm.md) (npm, 2026-10-19) |
+| 0001 | TypeScript modular monolith; NestJS/Fastify; Next.js; Nx + pnpm; PostgreSQL; boundaries enforced in CI | ACCEPTED | **Gap:** there is no Next.js app and **no CI**, so boundaries are not mechanically enforced. The Nx + pnpm part is superseded by `ADR-0011` (npm, 2026-10-19) |
 | 0002 | Multi-tenant from day one; shared PostgreSQL for Milestone 1; each vertical independently deployable | ACCEPTED | **Gap:** one `apps/api` serves all systems; there are no per-vertical apps. Needs a decision when the first product UI is built |
 | 0003 | Milestone 1 = Sales walking skeleton (auth, tenancy, customers, audit, migrations, design-system UI, tests, CI, boundaries) | ACCEPTED | **Gap:** no customer/party module, no design-system UI, no CI, no boundary enforcement. Auth, tenancy, audit, migrations and tests exist |
 | 0004 | Drizzle ORM + Drizzle Kit | ACCEPTED | none known |
 | 0005 | Better Auth organizations; tenant context; RLS as the security boundary | ACCEPTED | Open gate findings G-5 (dev-mode origin, secret, cookies, rate limit) and G-7 (role assertion; fixed on branch `fix/g7-runtime-role-assertion`, not merged) |
 | 0006 | REST + OpenAPI | ACCEPTED | G-11: `/api/openapi.json` is public; not yet an explicit decision |
 | 0007 | Roles via Better Auth access control | ACCEPTED | none known |
-| 0008 | Build vs. adopt the regulated core: recommends Odoo behind a port, only under conditions | **PROPOSED** | Evidence and limits: [`architecture/README.md`](architecture/README.md) |
+| 0008 | Build vs. adopt the regulated core: recommends Odoo behind a port, only under conditions | **PROPOSED** | Evidence and limits: ``architecture/README.md`` |
 | 0009 | Arabic and RTL first | ACCEPTED | none known for the engines; product UIs not built yet |
 | 0010 | Engines continue; ledger only through a provider-neutral port | ACCEPTED | Port not built (by design; ADR-0010 §5) |
 
 **Open decisions** (owner): D2 (time-boxed ERPNext measurement), D3 (ETA credential ownership and a
 pilot), D4 (ledger budget and licence route), all in
-[proposal 0006](architecture/proposals/0006-ledger-decision-memo.md). **Rejected:** none recorded.
+`proposal 0006`. **Rejected:** none recorded.
 
 The gaps for ADR-0001..0003 are surfaced here, not resolved. The coordinating agent will propose catch-up
 work or superseding ADRs in separate PRs. Until then, the accepted ADR text stands.
@@ -77,4 +77,24 @@ work or superseding ADRs in separate PRs. Until then, the accepted ADR text stan
 - **ERPNext: not evaluated.**
 - Licensing, upgrades, tenant operations and responsibility for tax credentials remain evaluation
   concerns.
-- Full evidence, provenance and limitations: [`architecture/README.md`](architecture/README.md).
+- Full evidence, provenance and limitations: ``architecture/README.md``.
+
+---
+
+## ملحق 2026-10-21 — الازدواج المكتشف ومسار التقارب (قانوني)
+
+**الحقيقة:** توجد نسختان من منطق العمل: المحركات (`engines/` + `apps/api`) وبروتوتايب العرض
+(`prototypes/nilesys/lib/`, ~4,200 سطر JavaScript) الذي بُنيت فوقه الشاشات الحية. الهدف واحد؛ النسختان خطأ
+تاريخي سببه بناء العرض قبل دمج المحركات، ولا تُبنى نسخة ثالثة.
+
+**قاعدة التقارب (ملزمة):**
+
+1. البروتوتايب مجمّد: إصلاحات تشغيل فقط، لا مزايا.
+2. كل واجهة إنتاجية تُبنى فوق `apps/api` والمحركات، بترتيب مواصفة `specs/projects/nilesys-platform.md`.
+3. أي قاعدة ناقصة تُستكمل في محركها مع اختبارها، لا في الشاشة.
+4. عند اكتمال نظام إنتاجي، يُحوَّل رابط «جرّبه» إليه وتُقاعَد نسخة البروتوتايب منه.
+
+**نسب الكود المستخرج (Provenance — كان في `REUSE.md` ودُمج هنا):**
+ملفات المحركات إما مستخرجة من مستودعات المالك (الأصول باقية، والاستشهادات داخل الملفات تشير لمصادرها)
+أو كود عام جديد موثّق المصدر داخل رأسه. اختبارات `golden` المالية لا تتغير إلا بقرار في `DECISIONS.md`.
+التفصيل التاريخي الكامل محفوظ في تاريخ Git قبل 2026-10-21.

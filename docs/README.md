@@ -1,53 +1,28 @@
-# Documentation index
+# مستندات نيل — مصدر الحقيقة الوحيد
 
-Every document has one canonical location and one status. Tiers follow [`AGENTS.md`](../AGENTS.md):
-tiers 1–4 are binding; tiers 5–6 are evidence or history and never authorise work by themselves. If a
-document is not listed here, it is not authoritative. Add it here in the same PR that creates it.
+**قاعدة المالك (2026-10-21):** كل مستندات المشروع تعيش هنا فقط. لا أرشيف، لا نسخ موازية،
+لا مستندات في أي مجلد آخر. الحذف يتم عبر Git — وتاريخ Git هو الأرشيف الوحيد.
+أي ملف توثيق خارج هذه القائمة يُحذف في نفس التغيير الذي يكتشفه.
 
-## Binding (tiers 1–4)
+## المجموعة القانونية الكاملة
 
-| Tier | Document | Purpose | Status |
-| --- | --- | --- | --- |
-| 1 | [`AGENTS.md`](../AGENTS.md) | Rules for every agent: reading order, gates, safety, testing, where to record things | CANONICAL |
-| 2 | [`DECISIONS.md`](DECISIONS.md) + [`adr/`](adr/) | Architecture decisions. ACCEPTED: 0001–0007, 0009, 0010. PROPOSED: 0008 | CANONICAL |
-| 3 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Current architecture, engine status, decision status, ADR-vs-code gaps | CANONICAL |
-| 3 | [`../engines/README.md`](../engines/README.md) | What each engine owns; persistence and API layout; run commands | CANONICAL |
-| 3 | [`REUSE.md`](REUSE.md) | Provenance of every extracted engine file; meaning of in-code citations | CANONICAL |
-| 4 | [`STATUS.md`](STATUS.md) | Verified state, PRs and branches, next task, gates, open findings register | CANONICAL (the only live status file) |
-| 4 (after owner approval) | [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) | The single product plan: catalogue (7 systems, 7 sites, 5 Windows), phases 0–5, feature IDs, acceptance criteria, owner decisions D-x | **PROPOSED** (2026-10-19); binding for scope once the owner approves |
-| — | [`../README.md`](../README.md) | Project overview, layout, setup | CANONICAL (overview only) |
-| — | [`../.agents/skills/`](../.agents/skills/README.md), [`agent-system/REFERENCES.md`](agent-system/REFERENCES.md) | Procedural skills and their external sources | CANONICAL (process) |
-| — | [`agent-system/ARENA_SANDBOX.md`](agent-system/ARENA_SANDBOX.md) | Environment facts and recipes for agents in an Arena Agent Mode sandbox (setup, real-PG tests, credentials, reporting) | CANONICAL (process; never relaxes `AGENTS.md`) |
-| — | [`owner/AGENT_PLAYBOOK_ar.md`](owner/AGENT_PLAYBOOK_ar.md) | Owner's Arabic guide: copy-paste prompts per task, safe GitHub tokens, how to check an agent's delivery | CANONICAL (owner guide; not an agent rule) |
+| # | المستند | دوره |
+|---|---|---|
+| 1 | [`README.md`](README.md) | هذا الفهرس والقاعدة |
+| 2 | [`STATUS.md`](STATUS.md) | الحالة الحية الوحيدة: ما تم، ما التالي، البوابات |
+| 3 | [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) | الخطة المعتمدة: الكتالوج والمراحل ومعايير القبول |
+| 4 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | خريطة النظام والملكيات ومسار التقارب |
+| 5 | [`DECISIONS.md`](DECISIONS.md) | سجل القرارات الوحيد (يلخص ADRs التاريخية كلها) |
+| 6 | [`FINANCIAL_RULES.md`](FINANCIAL_RULES.md) | القواعد المالية الملزمة |
+| 7 | [`specs/`](specs/README.md) | مواصفة كل نظام (7) وكل موقع (7) وكل برنامج ويندوز (5) وكل مشروع (3) |
 
-## Evidence and proposals (tier 5, non-binding)
+## ملفات تشغيلية ليست مستندات مشروع
 
-| Document | Purpose | Status |
-| --- | --- | --- |
-| [`architecture/README.md`](architecture/README.md) | Ledger evidence index: facts, hypotheses, limitations, provenance, review-0001 disposition | CANONICAL index of the evidence |
-| [`architecture/proposals/0002`](architecture/proposals/0002-open-source-reuse-audit.md)…[`0005`](architecture/proposals/0005-option-c-evidence.md) | Open-source audit; Odoo spike plan, results and measurements | PROPOSED / evidence (imported from `e61cd06`, provenance recorded) |
-| [`architecture/proposals/0006-ledger-decision-memo.md`](architecture/proposals/0006-ledger-decision-memo.md) | Ledger decision memo and owner decisions D1–D4 | PROPOSED (D1 decided → ADR-0010) |
-| [`architecture/proposals/0007-payment-engine.md`](architecture/proposals/0007-payment-engine.md) | Payment engine design, plus §8: invariant-by-invariant conformance against the integration branch (2026-10-19) | PROPOSED; the PR #4 gate is open, the engine is partly built |
-| [`reviews/2026-10-14-pr4-review.md`](reviews/2026-10-14-pr4-review.md) | PR #4 review with real-PostgreSQL evidence | Verdict APPROVE (by the PR's author; independent review not available) |
-| [`reviews/2026-10-14-post-merge-security-gate.md`](reviews/2026-10-14-post-merge-security-gate.md) | Security gate on `ebcfe72`; source of G-1…G-15 | HISTORICAL evidence; live status in `STATUS.md` |
-| [`reviews/2026-10-14-engines-db-auth-review.md`](reviews/2026-10-14-engines-db-auth-review.md) | Review before PR #3 (F-n) | HISTORICAL |
-| [`reviews/0001-nile-engines-db-auth-review.md`](reviews/0001-nile-engines-db-auth-review.md) | Independent review of the same code (H-n) | HISTORICAL |
-| [`reviews/2026-10-14-documentation-cleanup-inventory.md`](reviews/2026-10-14-documentation-cleanup-inventory.md) | What this cleanup kept, demoted, consolidated and proposes to delete | HISTORICAL once its PR merges |
-| [`../tools/spikes/option-c/`](../tools/spikes/option-c/README.md), [`../tools/spikes/nile-review/`](../tools/spikes/nile-review/probe-db-findings.mjs) | Probe scripts and artifacts | Evidence; not production code |
+`AGENTS.md` (قواعد الوكلاء) و`.agents/skills/` (مهارات إجرائية) و`README.md` الجذري (مدخل المستودع):
+أدوات عمل، تبقى في أماكنها، ولا تحمل أي مواصفة أو قرار أو حالة.
 
-## History (tier 6, never overrides the above)
+## كيف يتغير أي مستند
 
-| Document | Status |
-| --- | --- |
-| [`archive/`](archive/README.md), including the 2026-09-04 architecture assessment | HISTORICAL |
-| [`../prototypes/`](../prototypes/README.md) (plain-Node Nile demo, its README and review; Arabic) | HISTORICAL / UX reference |
-| [`plan/002-phase-0-execution-board.md`](plan/002-phase-0-execution-board.md) | Phase 0 made executable: owner, order, and the evidence that closes each `F0-n` task | PROPOSED instrument; it authorises nothing (`STATUS.md` §5 wins) |
-| [`plan/001`](plan/001-pos-implementation-ready.md), [`prd/001`](prd/001-marketing-site-as-platform.md), [`todo/001`](todo/001-marketing-phased-todo.md), [`vision/001`](vision/001-lena-as-umbrella-nile-integration.md) (Arabic, 2026-10-18) | SUPERSEDED by `PRODUCT_PLAN.md` |
-| `prototypes/nilesys/public/assets/js/home.js` | HISTORICAL code, but **the source of the product catalogue** (`PRODUCT_PLAN.md` §2) |
-
-## Naming conventions
-
-- ADRs: `adr/NNNN-kebab-title.md`; the next free number is in `DECISIONS.md`.
-- Proposals: `architecture/proposals/NNNN-*.md` (a separate sequence from ADRs).
-- Reviews: `reviews/YYYY-MM-DD-*.md`. The older `reviews/0001-*` keeps its name because other documents
-  link to it.
+1. عدّل الملف القانوني نفسه — لا تنشئ ملفًا جديدًا.
+2. حدّث «آخر تحقق» في المواصفة/الحالة مع أي تغيير سلوك.
+3. شغّل مولّد المواصفات بعد تعديل أي مواصفة: `python3 tools/build-app-specs.py`.
