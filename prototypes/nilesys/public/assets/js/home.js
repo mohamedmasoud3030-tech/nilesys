@@ -31,7 +31,7 @@
       en: { n: 'Clinic Management', d: 'Per-doctor schedules, patient files, visits and printed prescriptions, online booking.', f: ['Doctor schedules', 'Patient history', 'Printed prescriptions'] },
     },
     {
-      id: 'hr', icon: '👥', ready: false,
+      id: 'hr', icon: '👥', ready: true, href: '/systems/hr.html',
       ar: { n: 'الموارد البشرية والمرتبات', d: 'الموظفين، الحضور والانصراف بالتأخير والإضافي، الإجازات، السلف، والمرتبات وقسائمها.', f: ['حضور وانصراف', 'إجازات وأرصدة', 'سلف ومرتبات'] },
       en: { n: 'HR & Payroll', d: 'Employees, attendance with lateness and overtime, leaves, advances and payroll slips.', f: ['Attendance', 'Leaves & balances', 'Advances & payroll'] },
     },

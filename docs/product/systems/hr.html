@@ -45,11 +45,11 @@ hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
 <header class="head">
   <div class="kicker">نيل سيستمز · مواصفة تطبيق رقم 6</div>
   <h1>نظام الموارد البشرية</h1>
-  <span class="badge st-planned">لم يُبنَ بعد</span>
+  <span class="badge st-live">يعمل ومُختبَر</span>
 </header>
-<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-hr</div></div><div class="fact"><div class="k">النظام</div><div class="v">hr</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/hr.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">manager, hr, employee</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">0/8</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/hr.test.js</div></div></div>
+<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-hr</div></div><div class="fact"><div class="k">النظام</div><div class="v">hr</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/hr.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">manager, hr, employee</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">8/8</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/hr.test.js</div></div></div>
 <main class="body">
-<blockquote>الحالة: <strong>لم يُبنَ بعد</strong>. هذه المواصفة هي ما سيُبنى بالضبط.</blockquote>
+<blockquote>الحالة: <strong>حيّ ويعمل</strong> — المحرّك والواجهة والاختبارات الآلية (10 API + 29 واجهة) خضراء. شاشة الدخول: <code>/systems/hr.html</code> · الحسابات التجريبية بكلمة <code>demo1234</code>.</blockquote>
 <h2>1) الغرض في سطر</h2>
 <p>حضور الموظف وانصرافه، وأجر الشهر محسوب بالنقص والزيادة قبل يوم الصرف لا بعده.</p>
 <h2>2) المستخدمون</h2>
@@ -63,7 +63,7 @@ hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
 <tr><td>لوحة اليوم</td><td>حاضر · متأخر · غائب · في إجازة · من لم يسجّل انصرافاً</td></tr>
 <tr><td>الحضور</td><td>تسجيل دخول/خروج · تصحيح بسبب (بموافقة)</td></tr>
 <tr><td>الموظفون</td><td>كود · اسم · وظيفة · راتب أساسي · بدلات · تاريخ تعيين · نشط</td></tr>
-<tr><td>الإجازات</td><td>طلب · نوع (سنوية/مرضية/بدون أجر) · رصيد · موافقة/رفض</td></tr>
+<tr><td>الإجازات</td><td>طلب · نوع (سنوية/مرضية/بدون أجر) · موافقة/رفض</td></tr>
 <tr><td>المرتبات</td><td>شهر · أساسي + بدلات + إضافي − غياب − تأخير − سلف = الصافي</td></tr>
 <tr><td>المسيّر</td><td>كشف راتب مفرد قابل للطباعة</td></tr>
 </tbody></table>
@@ -90,11 +90,24 @@ GET  /api/hr/me                       ← حضور ومسيّر الموظف ن�
 <h2>6) القواعد</h2>
 <ol><li>تسجيل حضور مرتين لنفس الموظف ونفس اليوم → 409.</li><li>يوم بلا انصراف يُحسب «نصف يوم» حتى يُصحَّح بسبب موثّق.</li><li>الإجازة المعتمدة لا تُحسب غياباً، والمرفوضة تُحسب.</li><li>المرتب = أساسي + بدلات + إضافي − (غياب × قيمة اليوم) − تأخير − سلف.</li><li>مرتب مُعتمد لا يُعاد حسابه؛ ومرتب مصروف لا يُعدَّل إطلاقاً.</li><li>الموظف يرى سجله فقط — طلب سجل غيره → 403.</li><li>صرف المرتب يخصم من الخزينة مرة واحدة (مفتاح شهر).</li></ol>
 <h2>7) معايير القبول</h2>
-<ul class="criteria"><li class="crit open"><span class="box"></span>حضور مكرر في نفس اليوم → 409</li><li class="crit open"><span class="box"></span>يوم بلا انصراف يُحسب نصف يوم</li><li class="crit open"><span class="box"></span>إجازة معتمدة لا تُخصم، ومرفوضة تُخصم</li><li class="crit open"><span class="box"></span>مرتب شهر: أساسي 6000 + بدل 500 − غياب يومين (400) = 6100</li><li class="crit open"><span class="box"></span>مرتب معتمد لا يُعاد حسابه؛ ومصروف لا يُعدَّل → 409</li><li class="crit open"><span class="box"></span>الموظف يطلب سجل زميله → 403</li><li class="crit open"><span class="box"></span>صرف شهر مرتين → 409 والخزينة لا تتأثر مرتين</li><li class="crit open"><span class="box"></span>المسيّر المطبوع يحمل كل بنود الحساب</li></ul>
+<ul class="criteria"><li class="crit done"><span class="box">✓</span>حضور مكرر في نفس اليوم → 409</li><li class="crit done"><span class="box">✓</span>يوم بلا انصراف يُحسب نصف يوم</li><li class="crit done"><span class="box">✓</span>إجازة معتمدة لا تُخصم، ومرفوضة تُخصم</li><li class="crit done"><span class="box">✓</span>مرتب شهر: أساسي 6000 + بدل 500 − غياب يومين (400) = 6100</li><li class="crit done"><span class="box">✓</span>مرتب معتمد لا يُعاد حسابه؛ ومصروف لا يُعدَّل → 409</li><li class="crit done"><span class="box">✓</span>الموظف يطلب سجل زميله → 403</li><li class="crit done"><span class="box">✓</span>صرف شهر مرتين → 409 والخزينة لا تتأثر مرتين</li><li class="crit done"><span class="box">✓</span>المسيّر المطبوع يحمل كل بنود الحساب</li></ul>
 <h2>8) كيف يُثبت ذلك</h2>
-<pre>npm test -- hr
-node tools/ui-hr.js</pre>
+<pre>sh tools/run-tests.sh hr                 # المحرّك وواجهته البرمجية — 10/10
+sh tools/setup-browser.sh tools/ui-hr.js # الشاشة في متصفح حقيقي — 29/29</pre>
+<p><strong>أين الإثبات:</strong> <code>tests/hr.test.js</code> (H-01…H-09 + SETUP) · <code>tools/ui-hr.js</code> (29 فحصاً في المتصفح).</p>
+<p><strong>آثار التشغيل الفعلية:</strong></p>
+<table><thead><tr><th>المعيار</th><th>الدليل</th></tr></thead><tbody>
+<tr><td>حضور مكرر → 409</td><td>H-01: التسجيل الثاني لنفس الموظف/اليوم يرد 409</td></tr>
+<tr><td>بلا انصراف = نصف يوم</td><td>H-02: يومان بلا انصراف ⇒ 3 أيام (ومنها يوم غياب كامل)؛ بعد التصحيح بسبب تنزل إلى 2.5 والخصم 500</td></tr>
+<tr><td>إجازة معتمدة/مرفوضة</td><td>H-04: المعتمدة لا تُخصم، والمرفوضة تُخصم ⇒ صافي 6300</td></tr>
+<tr><td>حساب الشهر 6100</td><td>H-05: 6000 + 500 − 400 (غياب يومين × 200) = 6100</td></tr>
+<tr><td>معتمد لا يُحسب، مصروف لا يُعدَّل</td><td>H-06/H-08: إعادة الحساب بعد الاعتماد → 409، وتعديل المصروف → 409</td></tr>
+<tr><td>سجل الزميل → 403</td><td>H-07: <code>GET /api/hr/attendance?employeeId=&lt;زميل&gt;</code> → 403، و<code>/api/hr/day</code> → 403</td></tr>
+<tr><td>صرف مرتين</td><td>H-09: الثاني → 409، وحركة خزينة واحدة فقط بمبلغ مطابق</td></tr>
+<tr><td>المسيّر بكل البنود</td><td><code>ui-hr</code>: نافذة المسيّر تعرض الأساسي والبدلات والغياب والتأخير والسلف والصافي</td></tr>
+</tbody></table>
+<p><strong>تغطية الواجهة (29 فحصاً):</strong> الدخول ورفض حساب نظام آخر · لوحة اليوم بحالاتها الأربع · تسجيل حضور متأخر · النصف يوم «ناقص» · تصحيح بلا سبب مرفوض والنافذة تبقى مفتوحة · التصحيح يثبت وقت الخروج · طلب إجازة واعتمادها · قائمة الموظفين وقيمة اليوم · حساب الشهر (4 صفوف مسودة) · المسيّر · الموارد البشرية لا ترى زر الصرف · الاعتماد يغلق إعادة الحساب · المدير يصرف مرة واحدة ثم يختفي الزر · الموظف لا يرى شاشات الغير ولا لوحة اليوم ويُعاد إلى سجله عند الرابط المباشر · صفر أخطاء JavaScript.</p>
 <h2>9) خارج النطاق الآن</h2>
 <ul><li>بصمة أو كارت (التسجيل يدوي في هذه المرحلة).</li><li>التأمينات والضرائب على المرتب.</li><li>تقييم الأداء.</li></ul></main>
-<footer class="foot">مُولَّد من <code>docs/product/systems/hr.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@b0198eb</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
+<footer class="foot">مُولَّد من <code>docs/product/systems/hr.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@6aced0a</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
 </div></body></html>
