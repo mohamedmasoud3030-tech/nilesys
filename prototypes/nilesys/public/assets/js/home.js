@@ -16,7 +16,7 @@
       en: { n: 'POS System', d: 'Fast selling by barcode or images, shifts and drawer counts, returns and printable receipts.', f: ['Barcode selling', 'Shifts & drawer diff', 'Returns & profit reports'] },
     },
     {
-      id: 'inventory', icon: '📦', ready: false,
+      id: 'inventory', icon: '📦', ready: true, href: '/systems/inventory.html',
       ar: { n: 'المخازن والمشتريات', d: 'الأصناف في كل مخزن، الموردين وحساباتهم، فواتير الشراء، الجرد وحركة كل صنف.', f: ['أصناف ومخازن', 'موردون وحساباتهم', 'فواتير شراء وجرد'] },
       en: { n: 'Inventory & Purchases', d: 'Items per warehouse, suppliers and their accounts, purchase invoices, stock counts.', f: ['Items & warehouses', 'Suppliers & accounts', 'Purchases & stocktake'] },
     },
@@ -145,7 +145,8 @@
     // الفوتر
     const link = (label, href) => `<a href="${href}">${esc(label)}</a>`;
     $('#footSystems').innerHTML = SYSTEMS.map((s) => link(s[L()].n, s.ready ? s.href : '#systems')).join('');
-    $('#footSites').innerHTML = SITES.map((s) => link(s[L()].n, '#sites')).join('');
+    // F-17: الروابط تفتح صفحات المواقع الفعلية لا مرساة في نفس الصفحة.
+    $('#footSites').innerHTML = SITES.map((s) => link(s[L()].n, `/sites/${s.id}.html`)).join('');
     $('#footWin').innerHTML = WINDOWS.map((w) => link(w[L()], '#windows')).join('');
 
     renderChips();

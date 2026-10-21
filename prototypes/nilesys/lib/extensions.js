@@ -71,6 +71,24 @@ module.exports = function createExtensions(ctx) {
      الافتراضيات — تُضاف لمستند قديم عند أول قراءة (ترحيل لطيف)
      ============================================================ */
 
+  // مستخدمو الأنظمة الجديدة — F-16.
+  // كل نظام له مستخدموه: مدير الكاشير لا يدخل نظام المخازن تلقائياً، والعكس.
+  // كلمة المرور نفسها في الديمو (demo1234) لكن التجزئة تُحسب هنا مرة واحدة.
+  function ensureSystemUsers(d, system, names) {
+    let changed = false;
+    for (const n of names) {
+      const exists = (d.users || []).some((u) => u.system === system && u.username === n.username);
+      if (exists) continue;
+      d.users.push({
+        id: crypto.randomUUID(), name: n.name, username: n.username,
+        system, role: n.role, active: true,
+        passwordHash: hashPassword('demo1234'),
+      });
+      changed = true;
+    }
+    return changed;
+  }
+
   function seedDefaults(d) {
     let changed = false;
     const ensure = (key, value) => {
@@ -138,6 +156,8 @@ module.exports = function createExtensions(ctx) {
       name: product.name,
       qty,                      // موجب = داخل، سالب = خارج
       reason,                   // sale | refund | purchase | adjust | waste
+      kind: reason,             // اسم صريح للعرض (نفس القيمة، لكن مقروء)
+      after: product.stock,     // الرصيد بعد الحركة — «+5 ← 42» أصدق من «+5»
       ref: (meta && meta.ref) || null,
       note: (meta && meta.note) || '',
       userId: user ? user.id : null,
@@ -791,7 +811,7 @@ module.exports = function createExtensions(ctx) {
     if (route === 'GET /api/systems') {
       const systems = [
         { key: 'pos', name: 'الكاشير', path: '/systems/pos.html', status: 'live', note: 'بيع · مرتجعات · ورديات · تقارير · ضريبة' },
-        { key: 'inventory', name: 'المخازن', path: '/systems/inventory.html', status: 'partial', note: 'حركات مخزون وتوريد داخل الكاشير — شاشة مستقلة لسه' },
+        { key: 'inventory', name: 'المخازن', path: '/systems/inventory.html', status: 'live', note: 'نظام مستقل: أصناف · حركات · توريد · جرد' },
         { key: 'restaurant', name: 'المطعم', path: '/systems/restaurant.html', status: 'planned', note: 'ترابيزات وشاشة مطبخ' },
         { key: 'clinic', name: 'العيادة', path: '/systems/clinic.html', status: 'planned', note: 'مواعيد وروشتات' },
         { key: 'hr', name: 'الموارد البشرية', path: '/systems/hr.html', status: 'planned', note: 'حضور ومرتبات' },

@@ -7,6 +7,7 @@
     "start": "node server.js",
     "test": "./tools/run-tests.sh",
     "test:api": "./tools/run-tests.sh backlog",
-    "test:ui": "node tools/ui-tour.js && node tools/ui-flow.js"
+    "test:ui": "node tools/ui-tour.js && node tools/ui-flow.js && node tools/ui-offline-print.js && node tools/ui-inventory.js && node tools/ui-sites.js",
+    "sites": "node tools/build-sites.js"
   }
 }

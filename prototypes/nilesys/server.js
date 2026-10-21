@@ -492,7 +492,10 @@ async function handleApi(req, res, url) {
   }
 
   /* ================= POS ================= */
-  if (POS_ROUTE.test(route) && user.system !== 'pos') {
+  // F-16: نظام المخازن يقرأ نفس كتالوج الأصناف — مخزونان لا يمكن أن يكونا صادقين.
+  // القراءة فقط: البيع والورديات والتقارير تبقى حصراً على مستخدمي الكاشير.
+  const INVENTORY_READ = route === 'GET /api/products';
+  if (POS_ROUTE.test(route) && user.system !== 'pos' && !(user.system === 'inventory' && INVENTORY_READ)) {
     return sendError(res, 403, 'غير مسموح: بيانات نقطة البيع لمستخدمي نظام الكاشير فقط');
   }
   if (route === 'GET /api/products') {
