@@ -43,9 +43,9 @@ Update it in the same change as anything that alters what is below. Do not creat
 | الصلاحيات | `manager/cashier` من `engines/platform/src/auth/permissions.ts`؛ المجهول = لا صلاحية |
 | المحاسبة | `FINANCIAL_RULES.md` + «المحصّل هو إجمالي البيع» (DECISIONS) + دفاتر append-only (0002/0004) وقيود 0005 لا تُكسر |
 
-### 4) بوابة مانعة واحدة
+### 4) بوابة قاعدة البيانات — أُغلقت 2026-10-21
 
-قاعدة بيانات الإنتاج غير مُختارة (مرشح Supabase مشروط) — لا نشر إنتاجي قبل قرار موقّع في `DECISIONS.md` (مهمة رودماب 2.1).
+قرار المالك: قسم معزول داخل مشروع Supabase الحالي. نُفّذ مخطط `nile_prod` كاملًا (26 جدولًا، الترحيلات 0000–0005) وتحقّق منه: دور `nile_app` و19 سياسة و188 قيدًا، ونُظّفت أدوات التنفيذ. عند نشر الـAPI يُربط بـ`search_path=nile_prod`.
 
 ### 5) بوابات الإصدار (تُشغَّل قبل أي دمج للإصدار)
 
