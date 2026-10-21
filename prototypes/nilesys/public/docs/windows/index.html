@@ -47,7 +47,7 @@ hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
   <h1>برامج ويندوز الخمسة</h1>
   <span class="badge st-planned">—</span>
 </header>
-<div class="facts"><div class="fact"><div class="k">البرامج</div><div class="v">5</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">35/35</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/windows/</div></div><div class="fact"><div class="k">الكود</div><div class="v">nilesys@861d889</div></div></div>
+<div class="facts"><div class="fact"><div class="k">البرامج</div><div class="v">5</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">35/35</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/windows/</div></div><div class="fact"><div class="k">الكود</div><div class="v">nilesys@0065249</div></div></div>
 <main class="body">
 <p>محدَّث 2026-10-21</p>
 <p>خمسة برامج بدأت كوعد في صفحة الهبوط، وهي الآن تعمل. كل برنامج له مواصفة مستقلة، وصفحة تُشغّله،</p>
@@ -63,6 +63,14 @@ hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
 </tbody></table>
 <h2>ما يشترك فيه الخمسة</h2>
 <ul><li>نواة واحدة <code>public/windows/desk.js</code>: تخزين محلي، طابور مزامنة، طباعة 80mm/A4، باركود Code39، تنسيق أرقام.</li><li>كل عملية تُحفظ على الجهاز أولاً بمفتاح فريد، وتُزامن عند رجوع الشبكة.</li><li>الخادم (<code>lib/windows.js</code>) يتذكّر المفتاح: إعادة الإرسال تعود <code>duplicates</code> ولا تصنع حركة ثانية.</li><li>شريط حالة واحد في كل برنامج يقول: متصل؟ كام عملية في الانتظار؟ رقم الجهاز إيه؟</li></ul>
+<h2>شكل البرامج فعلياً</h2>
+<p>لقطات حقيقية من التشغيل (لا رسوم توضيحية) — في <code>screenshots/</code>:</p>
+<table><thead><tr><th>الملف</th><th>ما يُظهره</th></tr></thead><tbody>
+<tr><td><code>win-cashier.png</code></td><td>شاشة البيع: أصناف، سلة، إجمالي، وآخر الفواتير على الجهاز</td></tr>
+<tr><td><code>win-stock.png</code> · <code>win-attendance.png</code></td><td>الجرد بالسبب · البصمة مع قائمة الموظفين وآخر البصمات</td></tr>
+<tr><td><code>win-kitchen.png</code> · <code>win-reports.png</code></td><td>الترابيزات · لوحة المؤشرات المقروءة من الأربعة</td></tr>
+<tr><td><code>win-hub.png</code> · <code>m-cashier.png</code></td><td>فهرس البرامج · الكاشير على موبايل 390px</td></tr>
+</tbody></table>
 <h2>ما لم يُبنَ بعد (مذكور لا مخفي)</h2>
 <ul><li><strong>تغليف <code>.exe</code></strong>: يحتاج بناء Electron على ويندوز. الملفات هي البرنامج، والتغليف خطوة نشر لاحقة.</li><li>طابعة حرارية عبر USB، وقارئ باركود/كارت كأجهزة.</li><li>مفتاح جهاز حقيقي لكل عميل (الحالي مشترك للعرض التجريبي: <code>demo-device</code>).</li></ul><h2>البرامج</h2><ul><li><a href="attendance.html">نيل حضور (ويندوز)</a> — يعمل ومُختبَر · 7/7 معيار · <code>/windows/attendance/</code></li><li><a href="cashier.html">نيل كاشير (ويندوز)</a> — يعمل ومُختبَر · 7/7 معيار · <code>/windows/cashier/</code></li><li><a href="kitchen.html">نيل مطعم (ويندوز)</a> — يعمل ومُختبَر · 7/7 معيار · <code>/windows/kitchen/</code></li><li><a href="reports.html">نيل تقارير (ويندوز)</a> — يعمل ومُختبَر · 7/7 معيار · <code>/windows/reports/</code></li><li><a href="stock.html">نيل مخازن (ويندوز)</a> — يعمل ومُختبَر · 7/7 معيار · <code>/windows/stock/</code></li></ul></main>
 <footer class="foot">هذه المواصفات تُولَّد من <code>docs/product/windows/*.md</code>. البرامج الخمسة تعمل في المتصفح؛ التغليف كـ <code>.exe</code> خارج النطاق الحالي.</footer>
