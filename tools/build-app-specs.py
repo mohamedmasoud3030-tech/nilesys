@@ -318,6 +318,10 @@ def main():
         body_html = re.sub(r"^\s*<h1>.*?</h1>", "", body_html, count=1)
         html = render(meta, body_html, facts, footer)
         (SRC / f"{slug}.html").write_text(html, encoding="utf-8")
+        # نسخة داخل الموقع: صفحات الديمو تربط /docs/<slug>.html، وكتابتها في
+        # docs/product فقط كانت تعطي 404 على الديمو المنشور.
+        (PROTO / "public" / "docs").mkdir(parents=True, exist_ok=True)
+        (PROTO / "public" / "docs" / f"{slug}.html").write_text(html, encoding="utf-8")
         specs.append((meta, body, checked, total))
 
     specs.sort(key=lambda x: int(x[0].get("order", 99)))
