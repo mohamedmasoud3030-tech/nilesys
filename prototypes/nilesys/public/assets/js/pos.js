@@ -219,8 +219,10 @@
       try {
         await api('/api/sales', { method: 'POST', body: item.body });
       } catch (err) {
-        // 409 = الخادم رآها قبل كذا (نفس مفتاح التكرار) ⇒ ليست فاتورة ناقصة.
-        const dup = /مكرر|duplicate|idempot/i.test(err.message);
+        // «الخادم رآها قبل كذا» ليست فاتورة ناقصة: أي رفض بسبب مفتاح التكرار
+        // يعني أن الفاتورة موجودة عنده أصلاً، فنُخرجها من الطابور.
+        const msg = String(err.message || '');
+        const dup = /تكرار|مكرر|duplicate|idempot/i.test(msg);
         if (!dup) left.push(item);
       }
     }

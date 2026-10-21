@@ -23,8 +23,11 @@ const check = (name, ok, extra = '') => {
   await page.goto(BASE + '/systems/pos.html', { waitUntil: 'networkidle' });
   await page.click('.demo-user[data-u="manager"]');
   await page.waitForSelector('#appView:not(.hidden)');
-  await page.request.post(BASE + '/api/reset');
-  await page.reload({ waitUntil: 'networkidle' });
+  // المسح محلي فقط: على الديمو المنشور كانت تمسح بيانات حقيقية.
+  if (/localhost|127\.0\.0\.1/.test(BASE)) {
+    await page.request.post(BASE + '/api/reset');
+    await page.reload({ waitUntil: 'networkidle' });
+  }
   await page.waitForSelector('#appView:not(.hidden)');
   await page.waitForTimeout(500);
 
@@ -53,10 +56,13 @@ const check = (name, ok, extra = '') => {
   check('F-04 · باركود غير معروف لا يغلق النافذة ولا يضيف صنفاً', stillOpen === 1);
 
   // باركود حقيقي عبر الخطاف الاختباري (القراءة نفسها من الكاميرا لا تُختبر بلا كاميرا)
+  // صنف له مخزون كافٍ: الصنف الأول على الديمو قد يكون رصيده 1، وعندها
+  // يرفض الكاشير الإضافة بحق ويبدو الاختبار فاشلاً بلا سبب.
   const realBarcode = await page.evaluate(async () => {
     const r = await fetch('/api/products');
     const { products } = await r.json();
-    return products[0].barcode;
+    const p = products.filter((x) => x.stock > 5).sort((a, b) => b.stock - a.stock)[0] || products[0];
+    return p.barcode;
   });
   await page.fill('#scanManual', realBarcode);
   await page.click('#scanAdd');
@@ -64,18 +70,40 @@ const check = (name, ok, extra = '') => {
   const cartCount = await page.textContent('#cartCount');
   check('F-04 · باركود معروف يضيف صنفاً للسلة ويغلق النافذة', cartCount === '1', `cart=${cartCount}`);
 
-  // منع التكرار في أقل من 500ms
+  // منع التكرار في أقل من 500ms — نقيس الفرق، لا الرقم المطلق:
+  // القراءة السابقة كانت من نفس الباركود، والرقم المطلق يعتمد على توقيتها.
+  await page.waitForTimeout(700); // نخرج من نافذة 500ms الخاصة بالقراءة السابقة
+  const before = Number(await page.textContent('#cartCount'));
   const dup = await page.evaluate((code) => {
     const w = window.__nileScan;
     return [w(code), w(code)];
   }, realBarcode);
-  const cartAfter = await page.textContent('#cartCount');
-  check('F-04 · القراءة المكررة السريعة لا تضاعف الكمية', cartAfter === '2', `cart=${cartAfter}, direct=${dup.join('/')}`);
+  const after = Number(await page.textContent('#cartCount'));
+  check('F-04 · القراءة المكررة السريعة لا تضاعف الكمية', after - before === 1,
+    `${before}→${after}, direct=${dup.join('/')}`);
 
   /* ---------------- F-11 · العمل بلا شبكة ---------------- */
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForSelector('#appView:not(.hidden)');
-  await page.waitForTimeout(600);
+  // ننتظر وصول الأصناف فعلاً: بعد إعادة التحميل على Vercel يستغرق الطلب ثانية،
+  // والنقر قبل وصولها لا يضيف شيئاً فيصير الحساب كله على سلة فاضية.
+  await page.waitForSelector('.pcard', { timeout: 20000 });
+  await page.waitForTimeout(400);
+  // نضمن صنفاً متاحاً بكمية كافية: الاختبار يحتاج بضاعة، لا يعتمد على رصيد
+  // الديمو المتراكم من جولات سابقة.
+  await page.evaluate(async () => {
+    const { products } = await (await fetch('/api/products')).json();
+    const p = products[0];
+    await fetch('/api/products/' + p.id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stock: 400 }),
+    });
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForSelector('#appView:not(.hidden)');
+  await page.waitForSelector('.pcard', { timeout: 20000 });
+
   const salesBefore = (await (await page.request.get(BASE + '/api/sales?limit=500')).json()).sales.length;
 
   // نقطع طلبات البيع فقط — بقية الشاشة تبقى حية كما في انقطاع حقيقي جزئي.
@@ -85,11 +113,25 @@ const check = (name, ok, extra = '') => {
     return route.continue();
   });
 
+  // نختار صنفاً متاحاً فعلاً: الصنف الأول على الديمو قد ينفد بعد جولات سابقة،
+  // والكاشير يرفض إضافته بحق — فيبدو الاختبار فاشلاً بينما النظام سليم.
+  const clickSellable = async () => {
+    const id = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll('.pcard')];
+      const ok = cards.find((c) => c.querySelector('.st') && c.querySelector('.st').textContent.trim() !== '0');
+      if (!ok) return null;
+      ok.click();
+      return ok.dataset.id;
+    });
+    return Boolean(id);
+  };
+
   for (let i = 0; i < 3; i++) {
-    await page.locator('.pcard').first().click();
-    await page.waitForTimeout(250);
+    const added = await clickSellable();
+    if (!added) { check('F-11 · يوجد صنف متاح للبيع', false, 'كل الأصناف نافدة'); break; }
+    await page.waitForFunction(() => Number(document.querySelector('#cartCount')?.textContent || 0) > 0, { timeout: 10000 }).catch(() => {});
     await page.click('#checkoutBtn');
-    await page.waitForTimeout(350);
+    await page.waitForSelector('#cOk', { timeout: 15000 });
     await page.click('#cOk');
     await page.waitForTimeout(700);
   }
@@ -105,7 +147,11 @@ const check = (name, ok, extra = '') => {
   blocked = false;
   await page.unroute('**/api/sales');
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
-  await page.waitForTimeout(2500);
+  // انتظار حقيقي: على Vercel كل فاتورة رحلة شبكة كاملة، والانتظار الثابت كان
+  // يعلن الفشل قبل أن ينتهي الإرسال.
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('nile_pos_queue_v1') || '[]').length === 0,
+    { timeout: 20000 }).catch(() => {});
+  await page.waitForTimeout(500);
   const afterQ = await page.evaluate(() => JSON.parse(localStorage.getItem('nile_pos_queue_v1') || '[]').length);
   check('F-11 · الطابور يفرغ بعد رجوع الشبكة', afterQ === 0, `${afterQ}`);
 
