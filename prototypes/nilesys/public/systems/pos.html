@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>نظام الكاشير · نيل سيستمز</title>
-  <link rel="stylesheet" href="/assets/css/app.css" />
+  <link rel="stylesheet" href="/assets/css/app.css?v=774567a4" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230d9488'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>N</text></svg>" />
 </head>
 <body data-title-key="pos.loginKicker">
@@ -46,7 +46,16 @@
       <button class="nav-item" data-view="shifts"><span class="nav-ico">🕐</span><span data-i18n="pos.shifts"></span></button>
       <button class="nav-item" data-view="reports"><span class="nav-ico">📊</span><span data-i18n="pos.reports"></span></button>
       <button class="nav-item" data-view="products"><span class="nav-ico">📦</span><span data-i18n="pos.products"></span></button>
+      <button class="nav-item" data-view="stock"><span class="nav-ico">🏷️</span><span data-i18n="adm.stock">المخزون</span></button>
+      <button class="nav-item" data-view="customers"><span class="nav-ico">👥</span><span data-i18n="adm.customers">العملاء والآجل</span></button>
+      <button class="nav-item" data-view="suppliers" data-mgr="1"><span class="nav-ico">🚚</span><span data-i18n="adm.suppliers">الموردون</span></button>
+      <button class="nav-item" data-view="coupons" data-mgr="1"><span class="nav-ico">🎟️</span><span data-i18n="adm.coupons">أكواد الخصم</span></button>
+      <button class="nav-item" data-view="cash"><span class="nav-ico">💰</span><span data-i18n="adm.cash">حركة الدرج</span></button>
+      <button class="nav-item" data-view="users" data-mgr="1"><span class="nav-ico">👤</span><span data-i18n="adm.users">المستخدمون</span></button>
+      <button class="nav-item" data-view="settings" data-mgr="1"><span class="nav-ico">⚙️</span><span data-i18n="adm.settings">الإعدادات</span></button>
+      <button class="nav-item" data-view="backup" data-mgr="1"><span class="nav-ico">💾</span><span data-i18n="adm.backup">النسخ الاحتياطي</span></button>
       <button class="nav-item" data-view="branding"><span class="nav-ico">🎨</span><span data-i18n="pos.branding"></span></button>
+      <button class="nav-item" data-view="audit"><span class="nav-ico">🧾</span><span data-i18n="pos.audit"></span></button>
       <div class="spacer"></div>
       <button class="nav-item" id="logoutBtn"><span class="nav-ico">⎋</span><span data-i18n="common.logout"></span></button>
     </aside>
@@ -56,6 +65,9 @@
         <button class="btn btn-ghost btn-sm" id="menuBtn" style="display:none">☰</button>
         <b data-brand-name>سوبر ماركت النيل</b>
         <span class="badge badge-brand" id="sysBadge" data-i18n="pos.loginKicker"></span>
+        <button class="btn btn-ghost btn-sm" id="alertsBtn" title="التنبيهات" aria-label="التنبيهات" style="position:relative">
+          🔔<span class="badge badge-bad hidden" id="alertBadge" style="position:absolute;top:-2px;inset-inline-start:-2px;font-size:10px;padding:1px 5px"></span>
+        </button>
         <div class="who">
           <button class="btn btn-ghost btn-sm" id="langBtn3"></button>
           <span class="avatar" id="avatar">--</span>
@@ -70,7 +82,8 @@
   </div>
 
   <script src="/assets/js/i18n.js"></script>
-  <script src="/assets/js/core.js"></script>
-  <script src="/assets/js/pos.js"></script>
+  <script src="/assets/js/core.js?v=774567a4"></script>
+  <script src="/assets/js/admin.js?v=774567a4"></script>
+  <script src="/assets/js/pos.js?v=774567a4"></script>
 </body>
 </html>

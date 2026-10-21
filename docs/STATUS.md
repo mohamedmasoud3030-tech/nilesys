@@ -44,6 +44,33 @@ Now `./tools/local-pg.sh test` runs all 29 files with nothing skipped.
 
 None of these results comes from GitHub Actions, staging or production.
 
+### 2026-10-21 — demo site (`prototypes/nilesys`): the 5 Windows programs are live
+
+The public demo project (`prototypes/nilesys`, deployed to Vercel project `nilesys-demo`) now ships
+the **seven systems + seven marketing sites + five Windows programs** the landing page promises.
+The Windows programs work in the browser today: local-first storage, real offline selling, 80mm/50mm
+receipt and label printing, Code39 barcode, and a sync endpoint that cannot double-count.
+
+| Command | Result |
+| --- | --- |
+| `sh tools/run-tests.sh` (in `prototypes/nilesys`) | **156/156** — includes new `tests/windows.test.js` 6/6 |
+| `sh tools/setup-browser.sh tools/ui-windows.js` | **69/69** — five programs in a real browser, incl. a full sale with `context.setOffline(true)` then sync on reconnect, plus 390px-no-overflow and SVG-icon checks |
+| `sh tools/setup-browser.sh tools/ui-sites.js` | **37/37** — landing and the seven site pages, incl. the five Windows cards opening the real programs |
+| `sh tools/setup-browser.sh tools/ui-sites.js` | **37/37** — landing/site pages, incl. the five Windows cards now link to working programs |
+| `python3 tools/build-app-specs.py` | 7 systems **7/7 live** + 5 Windows specs **7/7 each**, generated into `public/docs/` |
+| live Vercel run (`BASE=https://nilesys-demo-git-feat-demo-on-vercel-lenabeauty.vercel.app sh tools/setup-browser.sh tools/ui-windows.js`) | **69/69** against the deployed build, including a real sale with the network cut and a sync that lands in Supabase |
+
+**Which URL has this build (2026-10-21):** the branch alias
+`https://nilesys-demo-git-feat-demo-on-vercel-lenabeauty.vercel.app` serves commit `8c4f342` and is proven
+green. The production alias `nilesys-demo.vercel.app` is **one build behind**: Vercel only builds production
+from `main`, and the Vercel connector in this session rejects `git_source` (its tool schema wants a string,
+the app wants an object), so promotion could not be executed from the sandbox. To close it: click *Promote to
+Production* on deployment `dpl_6nyhrvSEAqsiCLZZLCkA5y2dALTS`, or approve a Vercel device login so the CLI can
+run `vercel deploy --prod`.
+
+**Not claimed:** the `.exe` installer (Electron packaging) is **not built**; USB thermal-printer and
+USB scanner support, and ETA e-invoicing, remain out of scope. Nothing on any page offers a download.
+
 ## 2. Branches and pull requests
 
 | Ref | Head | State | Notes |

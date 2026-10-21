@@ -342,3 +342,43 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .cmp th { background: var(--bg); font-size: 13px; }
 .cmp .yes { color: var(--ok); font-weight: 800; }
 .cmp .no { color: var(--bad); font-weight: 800; }
+
+/* ===== الطباعة — F-03 =====
+   الكاشير بيطبع على رول 80 مم. الشاشة كلها أزرار وقوائم؛ على الورق لا يبقى
+   إلا الإيصال: أسود على أبيض، عمود واحد، ولا شيء مقصوص. */
+@media print {
+  @page { size: 80mm auto; margin: 4mm; }
+  html, body { background: #fff !important; color: #000 !important; }
+  .side, .topbar, .footer, #toasts, .btn, .chip, .x-btn,
+  .view-title, .view-sub, .kpi, .tbl, .pgrid, .cart, .demo-user { display: none !important; }
+  .app, .main, .content, .modal-back, .modal, .modal-b { display: block !important; position: static !important; }
+  .modal-back { background: #fff !important; }
+  .modal { box-shadow: none !important; border: 0 !important; max-width: 100% !important; width: 100% !important; }
+  .modal-h, .modal-f { display: none !important; }
+  .receipt { color: #000 !important; font-size: 12px; }
+  .receipt table { width: 100%; border-collapse: collapse; }
+  .receipt td { padding: 2px 0; vertical-align: top; }
+  .receipt .muted { color: #000 !important; }
+  .receipt .r-head h3 { font-size: 15px; }
+  .badge { border: 1px solid #000; color: #000 !important; background: #fff !important; }
+}
+
+/* ===== عمل بلا شبكة — F-11 ===== */
+.offline-bar {
+  position: fixed; inset-inline: 0; bottom: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 8px 14px; font-size: 13px; font-weight: 700;
+  background: var(--warn-bg); color: #7c2d12; border-top: 1px solid #fcd34d;
+}
+.offline-bar.ok { background: var(--ok-bg); color: #14532d; border-top-color: #86efac; }
+.offline-bar .dot { width: 8px; height: 8px; border-radius: 99px; background: currentColor; }
+.offline-bar button { font-size: 12px; }
+
+/* ===== كاميرا الباركود — F-04 ===== */
+.scan-box { position: relative; background: #000; border-radius: var(--r); overflow: hidden; aspect-ratio: 4/3; }
+.scan-box video { width: 100%; height: 100%; object-fit: cover; }
+.scan-box .frame {
+  position: absolute; inset: 18% 10%; border: 2px solid #fff9;
+  border-radius: 12px; box-shadow: 0 0 0 999px rgb(0 0 0 / .35);
+}
+.scan-box .hint { position: absolute; inset-inline: 0; bottom: 10px; text-align: center; color: #fff; font-size: 12px; }

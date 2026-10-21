@@ -6,7 +6,7 @@
   /* ---------- بيانات المنتجات ---------- */
   const SYSTEMS = [
     {
-      id: 'courts', icon: '🎾', ready: false,
+      id: 'courts', icon: '⚽', ready: true, href: '/systems/courts.html',
       ar: { n: 'حجز الملاعب والبادل', d: 'مواعيد متاحة، منع الحجز المزدوج، عربون ولوحة مستقلة للنادي.', f: ['موقع حجز متجاوب', 'لوحة مستقلة للملاعب', 'إدارة الأسعار والعربون'] },
       en: { n: 'Courts & Padel Booking', d: 'Available slots, double-booking prevention, deposits and a standalone club panel.', f: ['Responsive booking site', 'Standalone courts panel', 'Pricing & deposits'] },
     },
@@ -16,27 +16,27 @@
       en: { n: 'POS System', d: 'Fast selling by barcode or images, shifts and drawer counts, returns and printable receipts.', f: ['Barcode selling', 'Shifts & drawer diff', 'Returns & profit reports'] },
     },
     {
-      id: 'inventory', icon: '📦', ready: false,
+      id: 'inventory', icon: '📦', ready: true, href: '/systems/inventory.html',
       ar: { n: 'المخازن والمشتريات', d: 'الأصناف في كل مخزن، الموردين وحساباتهم، فواتير الشراء، الجرد وحركة كل صنف.', f: ['أصناف ومخازن', 'موردون وحساباتهم', 'فواتير شراء وجرد'] },
       en: { n: 'Inventory & Purchases', d: 'Items per warehouse, suppliers and their accounts, purchase invoices, stock counts.', f: ['Items & warehouses', 'Suppliers & accounts', 'Purchases & stocktake'] },
     },
     {
-      id: 'restaurant', icon: '🍽️', ready: false,
+      id: 'restaurant', icon: '🍽️', ready: true, href: '/systems/restaurant.html',
       ar: { n: 'إدارة المطعم', d: 'الصالة والترابيزات، شاشة المطبخ، الدليفري والتيك أواي، الحجوزات، وأوردرات الموقع.', f: ['خريطة الترابيزات', 'شاشة مطبخ لحظية', 'دليفري وحجوزات'] },
       en: { n: 'Restaurant Management', d: 'Floor and tables, kitchen screen, delivery and takeaway, reservations and website orders.', f: ['Floor & tables', 'Live kitchen screen', 'Delivery & reservations'] },
     },
     {
-      id: 'clinic', icon: '🩺', ready: false,
+      id: 'clinic', icon: '🩺', ready: true, href: '/systems/clinic.html',
       ar: { n: 'إدارة العيادة', d: 'جدول مواعيد لكل دكتور، ملف المريض، الكشف والروشتة المطبوعة، والحجز أونلاين.', f: ['مواعيد كل دكتور', 'ملف وتاريخ مرضي', 'روشتة مطبوعة'] },
       en: { n: 'Clinic Management', d: 'Per-doctor schedules, patient files, visits and printed prescriptions, online booking.', f: ['Doctor schedules', 'Patient history', 'Printed prescriptions'] },
     },
     {
-      id: 'hr', icon: '👥', ready: false,
+      id: 'hr', icon: '👥', ready: true, href: '/systems/hr.html',
       ar: { n: 'الموارد البشرية والمرتبات', d: 'الموظفين، الحضور والانصراف بالتأخير والإضافي، الإجازات، السلف، والمرتبات وقسائمها.', f: ['حضور وانصراف', 'إجازات وأرصدة', 'سلف ومرتبات'] },
       en: { n: 'HR & Payroll', d: 'Employees, attendance with lateness and overtime, leaves, advances and payroll slips.', f: ['Attendance', 'Leaves & balances', 'Advances & payroll'] },
     },
     {
-      id: 'admin', icon: '🗂️', ready: false,
+      id: 'admin', icon: '🗂️', ready: true, href: '/systems/sites.html',
       ar: { n: 'لوحة تحكم المواقع', d: 'المواقع بتتدار من هنا: الوحدات العقارية، اشتراكات الجيم، طلبات العملاء، وكلام كل موقع.', f: ['وحدات بالصور', 'اشتراكات وكلاسات', 'صندوق طلبات العملاء'] },
       en: { n: 'Websites Control Panel', d: 'Manage all sites from here: real-estate units, gym subscriptions, customer requests and site copy.', f: ['Units with photos', 'Plans & classes', 'Customer requests inbox'] },
     },
@@ -80,12 +80,14 @@
     },
   ];
 
+  // البرامج الخمسة — كل بطاقة تفتح البرنامج نفسه، لا وعداً. ومعيار «7/7» مأخوذ
+  // من docs/product/windows/<slug>.md ولا يُكتب هنا قبل أن يوجد اختبار يثبته.
   const WINDOWS = [
-    { id: 'pos', icon: '🧾', ar: 'نظام الكاشير', en: 'POS System' },
-    { id: 'inventory', icon: '📦', ar: 'المخازن والمشتريات', en: 'Inventory' },
-    { id: 'restaurant', icon: '🍽️', ar: 'إدارة المطعم', en: 'Restaurant' },
-    { id: 'clinic', icon: '🩺', ar: 'إدارة العيادة', en: 'Clinic' },
-    { id: 'hr', icon: '👥', ar: 'الموارد البشرية والمرتبات', en: 'HR & Payroll' },
+    { id: 'cashier', icon: '🧾', ar: 'نيل كاشير', en: 'Nile Cashier', ar2: 'بيع · إيصال 80mm · وردية ودرج', en2: 'Sell · 80mm receipt · shift & drawer', href: '/windows/cashier/', img: 'nile-cashier.png' },
+    { id: 'stock', icon: '📦', ar: 'نيل مخازن', en: 'Nile Stock', ar2: 'جرد بسبب · استلام · ملصق باركود', en2: 'Count with reason · receive · barcode label', href: '/windows/stock/', img: 'nile-stock.png' },
+    { id: 'kitchen', icon: '🍽️', ar: 'نيل مطعم', en: 'Nile Restaurant', ar2: 'ترابيزات · تذكرة مطبخ · تحصيل بعد التقديم', en2: 'Tables · kitchen ticket · pay after served', href: '/windows/kitchen/', img: 'nile-restaurant.png' },
+    { id: 'attendance', icon: '🖐️', ar: 'نيل حضور', en: 'Nile Attendance', ar2: 'بصمة بالكود · ملخص شهري · CSV للمرتبات', en2: 'Code punch · monthly summary · payroll CSV', href: '/windows/attendance/', img: 'nile-attendance.png' },
+    { id: 'reports', icon: '📈', ar: 'نيل تقارير', en: 'Nile Reports', ar2: 'مؤشرات من الأربعة · تقرير A4 · مصادر', en2: 'KPIs from the other four · A4 report · sources', href: '/windows/reports/', img: 'nile-reports.png' },
   ];
 
   const ACTIVITIES = [
@@ -122,16 +124,19 @@
   function renderAll() {
     $('#systemsGrid').innerHTML = SYSTEMS.map((s) => tile(s, 'systems')).join('');
     $('#sitesGrid').innerHTML = SITES.map((s) => tile(s, 'sites')).join('');
-    $('#winGrid').innerHTML = WINDOWS.map((w) => {
-      const d = w[L()];
-      return `<div class="tile">
-        <span class="badge badge-warn ribbon">${t('common.soon')}</span>
+    const AR = L() === 'ar';
+    $('#winGrid').innerHTML = WINDOWS.map((w) => `
+      <div class="tile">
+        <span class="badge badge-ok ribbon">${AR ? 'يعمل الآن · 7/7 معيار' : 'Live · 7/7 criteria'}</span>
         <div class="icon">${w.icon}</div>
-        <h3>${esc(d)}</h3>
-        <p class="small muted">89 MB · Windows 10/11 · <span class="mono">3</span> ${L() === 'ar' ? 'أيام تجربة' : 'days trial'}</p>
-        <div class="go"><button class="btn btn-ghost btn-sm" disabled>${t('common.soon')}</button></div>
-      </div>`;
-    }).join('');
+        <h3>${esc(AR ? w.ar : w.en)}</h3>
+        <p class="small muted">${esc(AR ? w.ar2 : w.en2)}</p>
+        <p class="small muted">${AR ? 'يشتغل بلا إنترنت ويحفظ على الجهاز · المتصفح' : 'Works offline, saves on the device · browser'}</p>
+        <div class="go">
+          <a class="btn btn-primary btn-sm" href="${w.href}">${AR ? 'شغّله' : 'Open'}</a>
+          <a class="btn btn-ghost btn-sm" href="/docs/windows/${w.id}.html">${AR ? 'المواصفة' : 'Spec'}</a>
+        </div>
+      </div>`).join('');
 
     // شريط المقارنة
     $('#cmpOnline').textContent = L() === 'ar' ? 'أونلاين' : 'Online';
@@ -145,8 +150,9 @@
     // الفوتر
     const link = (label, href) => `<a href="${href}">${esc(label)}</a>`;
     $('#footSystems').innerHTML = SYSTEMS.map((s) => link(s[L()].n, s.ready ? s.href : '#systems')).join('');
-    $('#footSites').innerHTML = SITES.map((s) => link(s[L()].n, '#sites')).join('');
-    $('#footWin').innerHTML = WINDOWS.map((w) => link(w[L()], '#windows')).join('');
+    // F-17: الروابط تفتح صفحات المواقع الفعلية لا مرساة في نفس الصفحة.
+    $('#footSites').innerHTML = SITES.map((s) => link(s[L()].n, `/sites/${s.id}.html`)).join('');
+    $('#footWin').innerHTML = WINDOWS.map((w) => link(w[L()] || w.ar, w.href)).join('');
 
     renderChips();
     updateLangBtn();

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>نيل كاشير (ويندوز) · نيل سيستمز</title>
+<style>
+:root{--paper:#f3f6f5;--sheet:#fcfdfc;--ink:#13201e;--muted:#5b6c67;--rule:#cdd8d3;
+--soft:#e3eae7;--brand:#0b7a6b;--brand-ink:#064c42;--warn:#a8641a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.7 "Segoe UI","Noto Sans Arabic",Tahoma,sans-serif}
+.sheet{max-width:900px;margin:0 auto;background:var(--sheet);box-shadow:0 0 0 1px var(--rule);padding:0 0 60px}
+.head{padding:38px 44px 0}
+.kicker{font-size:13px;color:var(--muted);letter-spacing:.02em}
+h1{font-size:32px;line-height:1.25;margin:8px 0 16px;letter-spacing:-.3px}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);margin:22px 44px 0}
+.fact{background:var(--sheet);padding:12px 14px}
+.fact .k{font-size:12px;color:var(--muted)}
+.fact .v{font:700 15px/1.4 ui-monospace,Menlo,Consolas,monospace;margin-top:4px;direction:ltr;unicode-bidi:isolate}
+.fact .v.ar{direction:rtl}
+.body{padding:8px 44px 0}
+h2{font-size:20px;margin:34px 0 10px;padding-top:14px;border-top:1px solid var(--soft)}
+h3{font-size:16px;margin:22px 0 6px}
+p{margin:0 0 10px}
+ul,ol{margin:0 0 12px;padding-inline-start:22px}
+li{margin-bottom:5px}
+code{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;background:#e9efec;color:var(--brand-ink);padding:1px 5px;border-radius:3px;direction:ltr;display:inline-block;unicode-bidi:isolate}
+pre{background:#0f221e;color:#e7f2ee;padding:14px 16px;overflow:auto;font:13px/1.6 ui-monospace,Menlo,Consolas,monospace;direction:ltr;text-align:left}
+pre code{background:none;color:inherit;padding:0}
+table{width:100%;border-collapse:collapse;margin:0 0 16px;font-size:14.5px}
+th{text-align:start;font-size:12.5px;color:var(--muted);border-bottom:2px solid var(--ink);padding:6px 10px 8px 0}
+td{padding:9px 10px 9px 0;border-bottom:1px solid var(--soft);vertical-align:top}
+blockquote{margin:0 0 16px;padding:12px 16px;background:#eef4f2;border-inline-start:3px solid var(--brand);color:var(--brand-ink);font-size:15px}
+ul.criteria{list-style:none;padding:0}
+ul.criteria li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--soft);font-size:15px}
+ul.criteria .box{width:18px;height:18px;border:1.5px solid var(--brand);flex:0 0 18px;display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--brand);margin-top:3px}
+ul.criteria li.open .box{border-color:var(--muted)}
+ul.criteria li.open{color:#41524d}
+hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
+.foot{margin:40px 44px 0;padding-top:16px;border-top:2px solid var(--ink);font-size:13px;color:var(--muted)}
+.badge{display:inline-block;border:1.5px solid currentColor;padding:4px 9px;font-size:12px;font-weight:700;transform:rotate(-1deg)}
+.st-live{color:var(--brand)}.st-partial{color:var(--warn)}.st-planned{color:#a3382c}
+@media (max-width:760px){.head,.body,.foot{padding-inline:20px}.facts{margin-inline:20px;grid-template-columns:repeat(2,1fr)}}
+@media print{body{background:#fff}.sheet{box-shadow:none;max-width:none}h2{break-after:avoid}table{break-inside:avoid}}
+</style></head>
+<body><div class="sheet">
+<header class="head">
+  <div class="kicker">نيل سيستمز · مواصفة تطبيق رقم 1</div>
+  <h1>نيل كاشير (ويندوز)</h1>
+  <span class="badge st-live">يعمل ومُختبَر</span>
+</header>
+<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">win-cashier</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/windows/cashier/</div></div><div class="fact"><div class="k">المستخدمون</div><div class="v ar">كاشير الجهاز</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">7/7</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/windows.test.js</div></div><div class="fact"><div class="k">واجهات الخادم</div><div class="v">/api/windows/*</div></div></div>
+<main class="body">
+<blockquote>الحالة: <strong>يعمل ومُختبَر</strong> — البرنامج يفتح في المتصفح وكل عمله محلي، ويعمل بعد قطع الشبكة كاملاً. التغليف كـ <code>.exe</code> (Electron) لم يُبنَ بعد، ولا يوجد زر تحميل يدّعي غير ذلك.</blockquote>
+<h2>1) الغرض في سطر</h2>
+<p>كاشير يشتغل على جهاز المحل بلا إنترنت: يبيع، يطبع إيصالاً، ويقفل ورديته بفرق محسوب — ويزامن لاحقاً بلا فاتورة مكررة.</p>
+<h2>2) المستخدمون</h2>
+<table><thead><tr><th>المستخدم</th><th>يدخل بـ</th><th>يقدر يعمل</th><th>لا يقدر</th></tr></thead><tbody>
+<tr><td>كاشير الجهاز</td><td>بلا تسجيل (جهاز المحل)</td><td>بيع · إيصال · فتح/إغلاق وردية · مزامنة</td><td>—</td></tr>
+<tr><td>الخادم</td><td>مفتاح الجهاز <code>x-nile-device</code></td><td>استقبال الدفعات ورفض المكرر</td><td>تعديل بيانات الجهاز</td></tr>
+</tbody></table>
+<h2>3) الشاشات</h2>
+<table><thead><tr><th>الشاشة</th><th>ماذا فيها</th></tr></thead><tbody>
+<tr><td>بيع</td><td>شبكة الأصناف بالبحث · سلة بأزرار كمية · الإجمالي والضريبة · تحصيل (F2)</td></tr>
+<tr><td>الفواتير</td><td>كل فاتورة على الجهاز · إعادة طباعة الإيصال</td></tr>
+<tr><td>الوردية والدرج</td><td>فتح بدرج البداية · المتوقع · المعدود · الفرق</td></tr>
+<tr><td>المزامنة</td><td>الطابور · آخر مزامنة · رقم الجهاز · إعادة ضبط العرض</td></tr>
+</tbody></table>
+<h2>4) نموذج البيانات (على الجهاز — <code>localStorage</code>)</h2>
+<table><thead><tr><th>المفتاح</th><th>الحقول</th></tr></thead><tbody>
+<tr><td><code>settings</code></td><td><code>storeName</code> · <code>branch</code> · <code>taxRate</code></td></tr>
+<tr><td><code>products[]</code></td><td><code>id</code> · <code>code</code> · <code>name</code> · <code>price</code> · <code>cost</code> · <code>stock</code></td></tr>
+<tr><td><code>sales[]</code></td><td><code>id</code> · <code>no</code> · <code>at</code> · <code>shiftId</code> · <code>items[]</code> · <code>subtotal</code> · <code>total</code> · <code>method</code> · <code>paid</code> · <code>change</code></td></tr>
+<tr><td><code>shifts[]</code></td><td><code>id</code> · <code>openedAt</code> · <code>openingCash</code> · <code>expected</code> · <code>counted</code> · <code>difference</code> · <code>closedAt</code></td></tr>
+<tr><td><code>pending[]</code></td><td><code>key</code> · <code>type</code> · <code>at</code> · <code>amount</code> · <code>payload</code></td></tr>
+</tbody></table>
+<h2>5) الواجهات</h2>
+<pre>POST /api/windows/sync       { program:'cashier', device, ops:[{key,type,at,amount,payload}] }
+GET  /api/windows/summary    ← ملخص ما وصل من الأجهزة
+GET  /api/windows/programs   ← الخمسة برامج وحالة كل واحد</pre>
+<h2>6) القواعد</h2>
+<ol><li>السلة الفاضية لا تُحصَّل، والزر مقفول لا يخفي السبب.</li><li>لا بيع نقدي بلا وردية مفتوحة.</li><li>المدفوع أقل من المطلوب → زر التحصيل مقفول و«الباقي» يقول «ناقص».</li><li>الفاتورة تُحفظ على الجهاز <strong>قبل</strong> الطباعة، وتدخل طابور المزامنة بمفتاح فريد.</li><li>الخادم يتذكّر المفتاح: إعادة إرسال نفس الفاتورة تعود <code>duplicates</code> ولا تُسجَّل مرتين.</li><li>إغلاق الوردية يحسب <code>متوقع = بداية + مبيعات نقدية</code> والفرق <code>معدود − متوقع</code>.</li><li>الربح لا يُخترع: التكلفة محفوظة للصنف، ولا يُعرض ربح بلا تكلفة.</li></ol>
+<h2>7) معايير القبول</h2>
+<ul class="criteria"><li class="crit done"><span class="box">✓</span>بيعة كاملة من الشاشة: صنف → سلة → تحصيل → فاتورة في القائمة</li><li class="crit done"><span class="box">✓</span>لا تحصيل بسلة فاضية ولا بمدفوع ناقص</li><li class="crit done"><span class="box">✓</span>إيصال 80mm يحتوي بنود الفاتورة والإجمالي والباقي</li><li class="crit done"><span class="box">✓</span>الوردية تُفتح، ومبيعاتها النقدية تُحسب في المتوقع، والفرق يظهر بعد الإغلاق</li><li class="crit done"><span class="box">✓</span>البيع يعمل بعد قطع الشبكة (وضع أوفلاين حقيقي في الاختبار)</li><li class="crit done"><span class="box">✓</span>المزامنة بعد رجوع الشبكة تفرّغ الطابور، وإعادة إرسال نفس الدفعة لا تضاعف شيئاً (409/duplicates)</li><li class="crit done"><span class="box">✓</span>الخادم يرفض مفتاح جهاز غير معروف (401)</li></ul>
+<h2>8) كيف يُثبت ذلك</h2>
+<pre>sh tools/run-tests.sh windows                     # الطرف الآخر للمزامنة — 6/6
+sh tools/setup-browser.sh tools/ui-windows.js     # الخمسة برامج في متصفح حقيقي</pre>
+<p><strong>أين الإثبات:</strong> <code>tests/windows.test.js</code> (W-01…W-06) · <code>tools/ui-windows.js</code> (قسم الكاشير: بيع، إيصال، وردية، أوفلاين، مزامنة).</p>
+<h2>9) خارج النطاق الآن</h2>
+<ul><li>تغليف <code>.exe</code> وتوقيع التثبيت (يحتاج بناء على ويندوز).</li><li>طابعة حرارية عبر USB (الطباعة حالياً من المتصفح بنفس مقاس 80mm).</li><li>تعدُّد الكاشيرات على جهاز واحد.</li></ul></main>
+<footer class="foot">مُولَّد من <code>docs/product/windows/cashier.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@81a7d30</code> · كل معيار قبول معلَّم ✓ له فحص يعمل.</footer>
+</div></body></html>

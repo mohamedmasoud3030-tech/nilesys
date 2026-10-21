@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>نيل تقارير (ويندوز) · نيل سيستمز</title>
+<style>
+:root{--paper:#f3f6f5;--sheet:#fcfdfc;--ink:#13201e;--muted:#5b6c67;--rule:#cdd8d3;
+--soft:#e3eae7;--brand:#0b7a6b;--brand-ink:#064c42;--warn:#a8641a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.7 "Segoe UI","Noto Sans Arabic",Tahoma,sans-serif}
+.sheet{max-width:900px;margin:0 auto;background:var(--sheet);box-shadow:0 0 0 1px var(--rule);padding:0 0 60px}
+.head{padding:38px 44px 0}
+.kicker{font-size:13px;color:var(--muted);letter-spacing:.02em}
+h1{font-size:32px;line-height:1.25;margin:8px 0 16px;letter-spacing:-.3px}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);margin:22px 44px 0}
+.fact{background:var(--sheet);padding:12px 14px}
+.fact .k{font-size:12px;color:var(--muted)}
+.fact .v{font:700 15px/1.4 ui-monospace,Menlo,Consolas,monospace;margin-top:4px;direction:ltr;unicode-bidi:isolate}
+.fact .v.ar{direction:rtl}
+.body{padding:8px 44px 0}
+h2{font-size:20px;margin:34px 0 10px;padding-top:14px;border-top:1px solid var(--soft)}
+h3{font-size:16px;margin:22px 0 6px}
+p{margin:0 0 10px}
+ul,ol{margin:0 0 12px;padding-inline-start:22px}
+li{margin-bottom:5px}
+code{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;background:#e9efec;color:var(--brand-ink);padding:1px 5px;border-radius:3px;direction:ltr;display:inline-block;unicode-bidi:isolate}
+pre{background:#0f221e;color:#e7f2ee;padding:14px 16px;overflow:auto;font:13px/1.6 ui-monospace,Menlo,Consolas,monospace;direction:ltr;text-align:left}
+pre code{background:none;color:inherit;padding:0}
+table{width:100%;border-collapse:collapse;margin:0 0 16px;font-size:14.5px}
+th{text-align:start;font-size:12.5px;color:var(--muted);border-bottom:2px solid var(--ink);padding:6px 10px 8px 0}
+td{padding:9px 10px 9px 0;border-bottom:1px solid var(--soft);vertical-align:top}
+blockquote{margin:0 0 16px;padding:12px 16px;background:#eef4f2;border-inline-start:3px solid var(--brand);color:var(--brand-ink);font-size:15px}
+ul.criteria{list-style:none;padding:0}
+ul.criteria li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--soft);font-size:15px}
+ul.criteria .box{width:18px;height:18px;border:1.5px solid var(--brand);flex:0 0 18px;display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--brand);margin-top:3px}
+ul.criteria li.open .box{border-color:var(--muted)}
+ul.criteria li.open{color:#41524d}
+hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
+.foot{margin:40px 44px 0;padding-top:16px;border-top:2px solid var(--ink);font-size:13px;color:var(--muted)}
+.badge{display:inline-block;border:1.5px solid currentColor;padding:4px 9px;font-size:12px;font-weight:700;transform:rotate(-1deg)}
+.st-live{color:var(--brand)}.st-partial{color:var(--warn)}.st-planned{color:#a3382c}
+@media (max-width:760px){.head,.body,.foot{padding-inline:20px}.facts{margin-inline:20px;grid-template-columns:repeat(2,1fr)}}
+@media print{body{background:#fff}.sheet{box-shadow:none;max-width:none}h2{break-after:avoid}table{break-inside:avoid}}
+</style></head>
+<body><div class="sheet">
+<header class="head">
+  <div class="kicker">نيل سيستمز · مواصفة تطبيق رقم 5</div>
+  <h1>نيل تقارير (ويندوز)</h1>
+  <span class="badge st-live">يعمل ومُختبَر</span>
+</header>
+<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">win-reports</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/windows/reports/</div></div><div class="fact"><div class="k">المستخدمون</div><div class="v ar">مدير الفرع</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">7/7</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/windows.test.js</div></div><div class="fact"><div class="k">واجهات الخادم</div><div class="v">/api/windows/*</div></div></div>
+<main class="body">
+<blockquote>الحالة: <strong>يعمل ومُختبَر</strong> — يقرأ ما حفظته البرامج الأخرى على نفس الجهاز ويعرضه بلا تزييف. التغليف كـ <code>.exe</code> وتقارير متعددة الفروع لم تُبنَ بعد.</blockquote>
+<h2>1) الغرض في سطر</h2>
+<p>المدير يفتح شاشة واحدة فيرى بيع اليوم وقيمة المخزون والحضور — وكل رقم بجانبه مصدره.</p>
+<h2>2) المستخدمون</h2>
+<table><thead><tr><th>المستخدم</th><th>يدخل بـ</th><th>يقدر يعمل</th><th>لا يقدر</th></tr></thead><tbody>
+<tr><td>مدير الفرع</td><td>بلا تسجيل (جهاز المدير)</td><td>مؤشرات · تقرير A4 · CSV · قراءة ملخص الخادم</td><td>تعديل بيانات البرامج</td></tr>
+</tbody></table>
+<h2>3) الشاشات</h2>
+<table><thead><tr><th>الشاشة</th><th>ماذا فيها</th></tr></thead><tbody>
+<tr><td>لوحة المؤشرات</td><td>بيع اليوم · إجمالي المبيعات · قيمة المخزون · الحضور · المطعم</td></tr>
+<tr><td>تقرير A4</td><td>صفحة واحدة قابلة للتوقيع + CSV</td></tr>
+<tr><td>مصادر البيانات</td><td>أي برنامج موصول على الجهاز · الملخص الواصل للخادم</td></tr>
+<tr><td>المزامنة</td><td>الطابور وآخر مزامنة</td></tr>
+</tbody></table>
+<h2>4) نموذج البيانات</h2>
+<p>يقرأ من <code>nile.os.cashier.v1</code> · <code>nile.os.stock.v1</code> · <code>nile.os.kitchen.v1</code> · <code>nile.os.attendance.v1</code></p>
+<p>(نفس الجهاز/المتصفح)، ويكتب فقط عملياته: <code>report.print</code> · <code>month.export</code>.</p>
+<h2>5) الواجهات</h2>
+<pre>GET  /api/windows/summary    ← ما وصل للخادم من الأجهزة (بمفتاح الجهاز)</pre>
+<h2>6) القواعد</h2>
+<ol><li>كل رقم بجانبه برنامجه؛ البرنامج غير الموصول يُقال عنه «لا بيانات على الجهاز».</li><li>الصفر يُعرض صفراً لا شرطة ولا رقم مخترع.</li><li>التقرير A4 صفحة واحدة فيها المصدر وتوقيعان.</li><li>CSV بترميز UTF-8 BOM.</li><li>لا يعدّل بيانات البرامج الأخرى — قراءة فقط.</li><li>الطباعة والتصدير يُسجَّلان كعمليات مزامنة.</li></ol>
+<h2>7) معايير القبول</h2>
+<ul class="criteria"><li class="crit done"><span class="box">✓</span>لوحة المؤشرات تعرض أرقام البرامج الموصولة على الجهاز</li><li class="crit done"><span class="box">✓</span>برنامج غير موصول يظهر «لا بيانات» لا رقماً وهمياً</li><li class="crit done"><span class="box">✓</span>تقرير A4 يحتوي البنود الأساسية والتوقيعين والمصدر</li><li class="crit done"><span class="box">✓</span>تصدير CSV يفتح بترميز عربي سليم (BOM)</li><li class="crit done"><span class="box">✓</span>قراءة ملخص الخادم بمفتاح الجهاز، والفشل يُقال صراحةً ويعمل البرنامج بدونه</li><li class="crit done"><span class="box">✓</span>بيانات البرامج الأخرى لا تتغيّر من داخل التقارير</li><li class="crit done"><span class="box">✓</span>الطباعة تُسجَّل كمزامنة بلا تكرار</li></ul>
+<h2>8) كيف يُثبت ذلك</h2>
+<pre>sh tools/run-tests.sh windows
+sh tools/setup-browser.sh tools/ui-windows.js</pre>
+<h2>9) خارج النطاق الآن</h2>
+<ul><li>تقارير فترات طويلة وأرشيف سنين (السجل الحالي لآخر 8000 عملية على الخادم).</li><li>تعدُّد الفروع ومقارنتها.</li><li>تغليف <code>.exe</code>.</li></ul></main>
+<footer class="foot">مُولَّد من <code>docs/product/windows/reports.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@81a7d30</code> · كل معيار قبول معلَّم ✓ له فحص يعمل.</footer>
+</div></body></html>
