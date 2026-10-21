@@ -110,6 +110,9 @@
 
   function route() {
     if (!state.user) return;
+    // أي نافذة مفتوحة تنقفل مع تغيير الشاشة: نافذة قديمة فوق شاشة جديدة تحجب
+    // الضغط على أزرارها (أمسكها اختبار المتصفح على الديمو المنشور).
+    closeModal();
     state.view = (location.hash.replace('#/', '') || 'day').split('/')[0];
     $$('.side .nav-item[data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === state.view));
     render();

@@ -108,6 +108,9 @@
 
   function route() {
     if (!state.user) return;
+    // أي نافذة مفتوحة تنقفل مع تغيير الشاشة: نافذة قديمة فوق شاشة جديدة تحجب
+    // الضغط على أزرارها (أمسكها اختبار المتصفح على الديمو المنشور).
+    closeModal();
     const raw = location.hash.replace('#/', '') || 'floor';
     state.view = raw.split('/')[0];
     if (state.view === 'order') { renderOrder(raw.split('/')[1] || null); return; }
