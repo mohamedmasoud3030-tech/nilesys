@@ -200,7 +200,7 @@
     <div class="provenance">
       <b>من أين جاء هذا المستند:</b> <code>docs/plan/001-pos-implementation-ready.md</code> ·
       <code>docs/architecture/proposals/0007-payment-engine.md</code> ·
-      <code>docs/STATUS.md</code> · الكود على <code>nilesys@34d970c</code> ·
+      <code>docs/STATUS.md</code> · الكود على <code>nilesys@3b102af</code> ·
       قرارات المالك في <code>platform/docs/wiki/owner-decisions.md</code>.
       تاريخ التحرير: <b>2026-10-21</b>.
     </div>
@@ -210,7 +210,7 @@
     <div class="counts">
       <div class="count a"><span class="n">14</span><span class="l">ميزة تعمل اليوم ومعها اختبار</span></div>
       <div class="count b"><span class="n">1</span><span class="l">ميزة تعمل جزئياً</span></div>
-      <div class="count c"><span class="n">17</span><span class="l">ميزة متبقية بمواصفات كاملة</span></div>
+      <div class="count c"><span class="n">15</span><span class="l">ميزة منفَّذة باختباراتها</span></div>
       <div class="count d"><span class="n">16</span><span class="l">بند ترقية بصرية</span></div>
     </div>
   </div>
@@ -290,7 +290,7 @@
         <td class="id">C-10</td>
         <td class="feat"><span class="fname">الإيصال والطباعة</span>
           <span class="stamp st-partial">جزئي</span></td>
-        <td><ul class="props"><li>إيصال بعرض الشاشة يعرض: المتجر · رقم الفاتورة · الوقت · السطور · الخصم · الطريقة · المدفوع · الباقي</li><li>الطباعة عبر المتصفح</li></ul></td>
+        <td><ul class="props"><li>إيصال يعرض: المتجر · رقم الفاتورة · الوقت · السطور · الخصم · الضريبة · الطريقة · المدفوع · الباقي</li><li>ورقة @media print بعرض 80 مم وارتفاع تلقائي · لا يُطبع أي زر أو قائمة أو شريط جانبي</li></ul></td>
         <td class="proof">public/assets/js/pos.js · showReceipt</td>
       </tr>
       <tr>
@@ -325,7 +325,7 @@
         <td class="id">C-15</td>
         <td class="feat"><span class="fname">غطاء الاختبارات</span>
           <span class="stamp st-ok">يعمل</span></td>
-        <td><ul class="props"><li>57 اختباراً على سيرفر حي: 16 انحدار + 31 مراجعة + 10 ترقية الكاشير</li><li>كل اختبار يطبع نتيجته بنفسه — لا نجاح صامت</li></ul></td>
+        <td><ul class="props"><li>93 اختبار API على سيرفر حي: 27 سجل المزايا + 16 انحدار + 31 مراجعة + 10 ترقية الكاشير + 9 مخازن</li><li>76 فحصاً في المتصفح: 21 يوم كامل · 13 أوفلاين/طباعة · 9 مخازن · 33 مواقع</li></ul></td>
         <td class="proof">tests/*.test.js</td>
       </tr>
       </tbody>
@@ -334,7 +334,7 @@
 
   <section>
     <h2>القسم الثاني</h2>
-    <p class="h2sub">المزايا المتبقية وخصائصها</p>
+    <p class="h2sub">كل ميزة كانت متبقية — وحالتها الآن بدليلها</p>
     <p class="intro">مرتبة بقيمة صاحب المحل لا بسهولة البرمجة. «معايير القبول» هي ما سيُختبر فعلاً:
       لو لم يكن البند قابلاً للفحص بأمر، فهو ليس بنداً.</p>
 
@@ -343,6 +343,7 @@
         <span class="sid">F-01</span>
         <h3>الضريبة والفاتورة الضريبية</h3>
         <span class="size">كبير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">أكبر فرق بين «ديمو يعجب» و«نظام يتحط في محل بجد». أي بيع في مصر بلا ضريبة غير قانوني.</p>
       <div class="two">
@@ -357,7 +358,8 @@
       </div>
       <footer>
         <span>يعتمد على: C-04 · C-06 · C-08</span>
-        <span class="decide">قرار مطلوب: نسبة الضريبة الافتراضية، وهل نصدّر لصيغة ETA فعلاً أم PDF فقط</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-01 (٤ حالات) + tools/ui-flow.js</span>
+        <span class="decide">ملاحظة: الفاتورة الإلكترونية بصيغة ETA لم تُنفَّذ؛ المطبوع PDF/حرارة 80 مم.</span>
       </footer>
     </article>
     <article class="spec" id="F-02">
@@ -365,6 +367,7 @@
         <span class="sid">F-02</span>
         <h3>الخصومات المنظمة</h3>
         <span class="size">متوسط</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">الخصم الحالي مبلغ حر على الفاتورة. المحلات بتخصم بالعرض أو بكود أو على صنف معيّن.</p>
       <div class="two">
@@ -379,7 +382,8 @@
       </div>
       <footer>
         <span>يعتمد على: C-04 · C-09</span>
-        <span class="decide">قرار مطلوب: هل الأكواد داخلية أم تُطبع للعملاء؟</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-02 (سقف 30% وسقف 10% للكاشير وكود منتهٍ)</span>
+        
       </footer>
     </article>
     <article class="spec" id="F-03">
@@ -387,6 +391,7 @@
         <span class="sid">F-03</span>
         <h3>طباعة حرارية 80mm</h3>
         <span class="size">صغير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">الإيصال الحالي للشاشة. أي كاشير حقيقي بيطبع على رول 80 مم.</p>
       <div class="two">
@@ -401,7 +406,8 @@
       </div>
       <footer>
         <span>يعتمد على: C-10</span>
-        <span class="decide">قرار مطلوب: —</span>
+        <span class="proof">الدليل: tools/ui-offline-print.js · F-03 (لا قوائم ولا أشرطة على الورق)</span>
+        
       </footer>
     </article>
     <article class="spec" id="F-04">
@@ -409,6 +415,7 @@
         <span class="sid">F-04</span>
         <h3>قارئ باركود بالكاميرا</h3>
         <span class="size">متوسط</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">الكاشير على تابلت أو موبايل محتاج يقرأ الباركود بكاميرا الجهاز بدل جهاز منفصل.</p>
       <div class="two">
@@ -423,7 +430,8 @@
       </div>
       <footer>
         <span>يعتمد على: C-04</span>
-        <span class="decide">قرار مطلوب: —</span>
+        <span class="proof">الدليل: tools/ui-offline-print.js · F-04 (نافذة، بديل يدوي، منع تكرار 500ms)</span>
+        <span class="decide">ملاحظة: قراءة الباركود بالكاميرا تعمل عبر BarcodeDetector؛ في متصفح لا يدعمه يبقى الإدخال اليدوي.</span>
       </footer>
     </article>
     <article class="spec" id="F-05">
@@ -431,6 +439,7 @@
         <span class="sid">F-05</span>
         <h3>مخزون حقيقي بحركات</h3>
         <span class="size">كبير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">المخزون الآن رقم في الصنف. لازم يبقى سجل حركات: ليه قلّ وكام وإمتى.</p>
       <div class="two">
@@ -445,7 +454,8 @@
       </div>
       <footer>
         <span>يعتمد على: C-03 · C-04</span>
-        <span class="decide">قرار مطلوب: هل نبدأ بتقييم المخزون بالتكلفة (متوسط مرجح)؟</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-05 + tests/inventory.test.js</span>
+        
       </footer>
     </article>
     <article class="spec" id="F-06">
@@ -453,6 +463,7 @@
         <span class="sid">F-06</span>
         <h3>المشتريات والموردون</h3>
         <span class="size">كبير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">بدون توريد مسجّل، المخزون رقم بلا مصدر والتكلفة بلا سند.</p>
       <div class="two">
@@ -467,7 +478,8 @@
       </div>
       <footer>
         <span>يعتمد على: F-05</span>
-        <span class="decide">قرار مطلوب: هل نستورد أرصدة افتتاحية من Excel؟</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-06 + شاشة الموردين</span>
+        
       </footer>
     </article>
     <article class="spec" id="F-07">
@@ -475,6 +487,7 @@
         <span class="sid">F-07</span>
         <h3>العملاء والولاء والآجل</h3>
         <span class="size">متوسط</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">الفاتورة الآن مربوطة بالكاشير فقط. البقالة بتشتغل بالحساب الشهري.</p>
       <div class="two">
@@ -489,7 +502,8 @@
       </div>
       <footer>
         <span>يعتمد على: C-04 · C-07</span>
-        <span class="decide">قرار مطلوب: حد الآجل الافتراضي لكل عميل</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-07 (حد الآجل · الولاء · كشف الحساب)</span>
+        
       </footer>
     </article>
     <article class="spec" id="F-08">
@@ -497,6 +511,7 @@
         <span class="sid">F-08</span>
         <h3>حركة الدرج اليدوية</h3>
         <span class="size">متوسط</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">سحب نقدي للبنك أو إيداع فكّة — بيحصل كل يوم ومش موجود في الحساب.</p>
       <div class="two">
@@ -511,7 +526,8 @@
       </div>
       <footer>
         <span>يعتمد على: C-07 · C-09</span>
-        <span class="decide">قرار مطلوب: من يعتمد الحركة: مدير الفرع أم المالك؟</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-08 (كاشير يطلب ومدير يعتمد)</span>
+        
       </footer>
     </article>
     <article class="spec" id="F-09">
@@ -519,6 +535,7 @@
         <span class="sid">F-09</span>
         <h3>تقارير قابلة للتصدير</h3>
         <span class="size">صغير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">المالك محتاج ياخد الأرقام على Excel للمحاسب.</p>
       <div class="two">
@@ -533,7 +550,8 @@
       </div>
       <footer>
         <span>يعتمد على: C-08</span>
-        <span class="decide">قرار مطلوب: —</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-09 (أربعة ملفات · BOM · أعمدة)</span>
+        
       </footer>
     </article>
     <article class="spec" id="F-10">
@@ -541,6 +559,7 @@
         <span class="sid">F-10</span>
         <h3>إدارة المستخدمين</h3>
         <span class="size">متوسط</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">الحسابات الآن مزروعة في الكود. محل حقيقي بيضيف كاشير ويوقف واحد.</p>
       <div class="two">
@@ -555,7 +574,8 @@
       </div>
       <footer>
         <span>يعتمد على: C-01 · C-02</span>
-        <span class="decide">قرار مطلوب: —</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-10 (تجزئة scrypt · حماية آخر مدير)</span>
+        
       </footer>
     </article>
     <article class="spec" id="F-11">
@@ -563,6 +583,7 @@
         <span class="sid">F-11</span>
         <h3>وضع عدم الاتصال</h3>
         <span class="size">كبير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">النت بيقطع في المحلات. الكاشير مايقفش.</p>
       <div class="two">
@@ -577,7 +598,8 @@
       </div>
       <footer>
         <span>يعتمد على: C-04 (المفاتيح) · F-05</span>
-        <span class="decide">قرار مطلوب: هل نقبل البيع بلا تحقق مخزون أثناء الانقطاع؟</span>
+        <span class="proof">الدليل: tools/ui-offline-print.js · F-11 (٣ فواتير بلا شبكة → ٣ بالضبط على الخادم)</span>
+        <span class="decide">ملاحظة: البيع أثناء الانقطاع يتحقق من آخر مخزون محلي؛ التحقق النهائي على الخادم عند الإرسال.</span>
       </footer>
     </article>
     <article class="spec" id="F-12">
@@ -585,6 +607,7 @@
         <span class="sid">F-12</span>
         <h3>الدفع الجزئي والتقسيط</h3>
         <span class="size">متوسط</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">عميل يدفع 50 من 120 والباقي عند الاستلام.</p>
       <div class="two">
@@ -599,7 +622,8 @@
       </div>
       <footer>
         <span>يعتمد على: F-07 · C-07</span>
-        <span class="decide">قرار مطلوب: —</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-12 + tools/ui-flow.js (تحصيل آجل)</span>
+        
       </footer>
     </article>
     <article class="spec" id="F-13">
@@ -607,6 +631,7 @@
         <span class="sid">F-13</span>
         <h3>التنبيهات</h3>
         <span class="size">صغير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">المدير يعرف بنفسه إن المخزون خلص أو إن درج الوردية فيه فرق 200.</p>
       <div class="two">
@@ -621,7 +646,8 @@
       </div>
       <footer>
         <span>يعتمد على: F-05 · C-07</span>
-        <span class="decide">قرار مطلوب: هل تصل التنبيهات على واتساب؟</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-13 + شارة التنبيهات</span>
+        
       </footer>
     </article>
     <article class="spec" id="F-14">
@@ -629,6 +655,7 @@
         <span class="sid">F-14</span>
         <h3>النسخ الاحتياطي والاستعادة</h3>
         <span class="size">صغير</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">البيانات الآن في صف واحد. صف واحد = نقطة فشل واحدة.</p>
       <div class="two">
@@ -643,7 +670,8 @@
       </div>
       <footer>
         <span>يعتمد على: C-14</span>
-        <span class="decide">قرار مطلوب: —</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-14 (نسخة/استعادة بتأكيد RESTORE)</span>
+        
       </footer>
     </article>
     <article class="spec" id="F-15">
@@ -651,6 +679,7 @@
         <span class="sid">F-15</span>
         <h3>الأمان والتشديد</h3>
         <span class="size">متوسط</span>
+        <span class="stamp st-ok">منفَّذ ومُختبَر</span>
       </header>
       <p class="why">الديمو مقبول فيه كلام كثير؛ النظام الحقيقي لا.</p>
       <div class="two">
@@ -665,7 +694,8 @@
       </div>
       <footer>
         <span>يعتمد على: F-10</span>
-        <span class="decide">قرار مطلوب: —</span>
+        <span class="proof">الدليل: tests/backlog.test.js · F-15 (خمس محاولات → 429 · حساب موقوف → 403)</span>
+        
       </footer>
     </article>
     <article class="spec" id="F-16">
@@ -673,6 +703,7 @@
         <span class="sid">F-16</span>
         <h3>بقية الأنظمة (6 أنظمة)</h3>
         <span class="size">كبير جداً</span>
+        <span class="stamp st-partial">منفَّذ جزئياً</span>
       </header>
       <p class="why">المشروع في الأصل 7 أنظمة، والكاشير واحد منها.</p>
       <div class="two">
@@ -687,7 +718,8 @@
       </div>
       <footer>
         <span>يعتمد على: F-05 · F-10</span>
-        <span class="decide">قرار مطلوب: ترتيب الأنظمة — قرار D-G</span>
+        <span class="proof">الدليل: tests/inventory.test.js (٩ حالات) + tools/ui-inventory.js (٩ فحوص)</span>
+        <span class="decide">ملاحظة: نُفِّذ نظامان: الكاشير والمخازن. المطعم والعيادة والموارد البشرية والحجوزات ولوحة المواقع ما زالت مخططات.</span>
       </footer>
     </article>
     <article class="spec" id="F-17">
@@ -695,6 +727,7 @@
         <span class="sid">F-17</span>
         <h3>المواقع السبعة وبرامج ويندوز</h3>
         <span class="size">كبير جداً</span>
+        <span class="stamp st-partial">منفَّذ جزئياً</span>
       </header>
       <p class="why">الوعد في صفحة الهبوط: 7 أنظمة + 7 مواقع + 5 برامج.</p>
       <div class="two">
@@ -709,7 +742,8 @@
       </div>
       <footer>
         <span>يعتمد على: F-16</span>
-        <span class="decide">قرار مطلوب: أين تُستضاف المواقع السبعة — قرار موقوف</span>
+        <span class="proof">الدليل: tools/ui-sites.js (٣٣ فحصاً على الموبايل)</span>
+        <span class="decide">ملاحظة: المواقع السبعة تعمل كصفحات نشاط؛ برامج ويندوز الخمسة «قيد التخطيط» ولم تُبنَ.</span>
       </footer>
     </article>
   </section>
@@ -786,13 +820,14 @@
   </section>
 
   <footer class="foot">
-    <p><b>الأرقام في هذا المستند أُنتجت لا اختُرعت.</b> الحالي: 57 اختباراً ناجحاً على سيرفر حي
-      (<code>16 + 31 + 10</code>). المنشور: <code>https://nilesys-demo.vercel.app</code> على
-      <code>nilesys@34d970c</code>.</p>
+    <p><b>الأرقام في هذا المستند أُنتجت لا اختُرعت.</b> الحالي: 93 اختبار API ناجحاً على سيرفر حي
+      (<code>27 + 16 + 31 + 10 + 9</code>) و76 فحص واجهة في متصفح حقيقي. المنشور: <code>https://nilesys-demo.vercel.app</code> على
+      <code>nilesys@3b102af</code>.</p>
     <p>الملف مُولَّد من <code>tools/build-feature-register.py</code>. تعديله بيد ليس أسرع من تعديل
       المصدر، وسيصير كاذباً عند أول تغيير في الكود.</p>
-    <p>ما لا يذكر هذا المستند، ولا ينبغي أن يدّعيه: لا ضريبة، لا عملاء، لا وضع بلا إنترنت،
-      ولا تعدد فروع. هذه ليست تفاصيل صغيرة — هي الفرق بين ديمو ونظام.</p>
+    <p>ما لا يدّعيه هذا المستند: لا فاتورة إلكترونية بصيغة ETA (المطبوع 80 مم وPDF)، ولا خمسة
+      أنظمة لم تُبنَ (المطعم · العيادة · الموارد البشرية · الحجوزات · لوحة المواقع)، ولا برامج
+      ويندوز، ولا تعدد فروع. هذه ليست تفاصيل صغيرة — هي الفرق بين ديمو ونظام.</p>
   </footer>
 
 </div>

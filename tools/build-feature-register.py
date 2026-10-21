@@ -17,6 +17,20 @@
 """
 import html
 import pathlib
+import subprocess
+
+
+def git_rev():
+    """رقم الكوميت الحالي — المستند كان يذكر كوميتاً قديماً فيصير كذباً بعد أسبوع."""
+    try:
+        return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"],
+                                       cwd=str(pathlib.Path(__file__).resolve().parent.parent),
+                                       text=True).strip()
+    except Exception:
+        return "غير معروف"
+
+
+REV = git_rev()
 
 OUT = pathlib.Path(__file__).resolve().parent.parent / "docs" / "product" / "feature-register.html"
 MD_OUT = OUT.with_suffix(".md")
@@ -137,8 +151,8 @@ CURRENT = [
         "id": "C-10",
         "name": "الإيصال والطباعة",
         "props": [
-            "إيصال بعرض الشاشة يعرض: المتجر · رقم الفاتورة · الوقت · السطور · الخصم · الطريقة · المدفوع · الباقي",
-            "الطباعة عبر المتصفح",
+            "إيصال يعرض: المتجر · رقم الفاتورة · الوقت · السطور · الخصم · الضريبة · الطريقة · المدفوع · الباقي",
+            "ورقة @media print بعرض 80 مم وارتفاع تلقائي · لا يُطبع أي زر أو قائمة أو شريط جانبي",
         ],
         "proof": "public/assets/js/pos.js · showReceipt",
         "state": "partial",
@@ -187,8 +201,8 @@ CURRENT = [
         "id": "C-15",
         "name": "غطاء الاختبارات",
         "props": [
-            "57 اختباراً على سيرفر حي: 16 انحدار + 31 مراجعة + 10 ترقية الكاشير",
-            "كل اختبار يطبع نتيجته بنفسه — لا نجاح صامت",
+            "93 اختبار API على سيرفر حي: 27 سجل المزايا + 16 انحدار + 31 مراجعة + 10 ترقية الكاشير + 9 مخازن",
+            "76 فحصاً في المتصفح: 21 يوم كامل · 13 أوفلاين/طباعة · 9 مخازن · 33 مواقع",
         ],
         "proof": "tests/*.test.js",
         "state": "ok",
@@ -201,6 +215,9 @@ CURRENT = [
 REMAINING = [
     {
         "id": "F-01",
+        "status": "done",
+        "proof": "tests/backlog.test.js · F-01 (٤ حالات) + tools/ui-flow.js",
+        "note": "الفاتورة الإلكترونية بصيغة ETA لم تُنفَّذ؛ المطبوع PDF/حرارة 80 مم.",
         "name": "الضريبة والفاتورة الضريبية",
         "why": "أكبر فرق بين «ديمو يعجب» و«نظام يتحط في محل بجد». أي بيع في مصر بلا ضريبة غير قانوني.",
         "spec": [
@@ -222,6 +239,9 @@ REMAINING = [
     },
     {
         "id": "F-02",
+        "status": "done",
+        "proof": "tests/backlog.test.js · F-02 (سقف 30% وسقف 10% للكاشير وكود منتهٍ)",
+        "note": "",
         "name": "الخصومات المنظمة",
         "why": "الخصم الحالي مبلغ حر على الفاتورة. المحلات بتخصم بالعرض أو بكود أو على صنف معيّن.",
         "spec": [
@@ -240,6 +260,9 @@ REMAINING = [
     },
     {
         "id": "F-03",
+        "status": "done",
+        "proof": "tools/ui-offline-print.js · F-03 (لا قوائم ولا أشرطة على الورق)",
+        "note": "",
         "name": "طباعة حرارية 80mm",
         "why": "الإيصال الحالي للشاشة. أي كاشير حقيقي بيطبع على رول 80 مم.",
         "spec": [
@@ -258,6 +281,9 @@ REMAINING = [
     },
     {
         "id": "F-04",
+        "status": "done",
+        "proof": "tools/ui-offline-print.js · F-04 (نافذة، بديل يدوي، منع تكرار 500ms)",
+        "note": "قراءة الباركود بالكاميرا تعمل عبر BarcodeDetector؛ في متصفح لا يدعمه يبقى الإدخال اليدوي.",
         "name": "قارئ باركود بالكاميرا",
         "why": "الكاشير على تابلت أو موبايل محتاج يقرأ الباركود بكاميرا الجهاز بدل جهاز منفصل.",
         "spec": [
@@ -275,6 +301,9 @@ REMAINING = [
     },
     {
         "id": "F-05",
+        "status": "done",
+        "proof": "tests/backlog.test.js · F-05 + tests/inventory.test.js",
+        "note": "",
         "name": "مخزون حقيقي بحركات",
         "why": "المخزون الآن رقم في الصنف. لازم يبقى سجل حركات: ليه قلّ وكام وإمتى.",
         "spec": [
@@ -294,6 +323,9 @@ REMAINING = [
     },
     {
         "id": "F-06",
+        "status": "done",
+        "proof": "tests/backlog.test.js · F-06 + شاشة الموردين",
+        "note": "",
         "name": "المشتريات والموردون",
         "why": "بدون توريد مسجّل، المخزون رقم بلا مصدر والتكلفة بلا سند.",
         "spec": [
@@ -312,6 +344,9 @@ REMAINING = [
     },
     {
         "id": "F-07",
+        "status": "done",
+        "proof": "tests/backlog.test.js · F-07 (حد الآجل · الولاء · كشف الحساب)",
+        "note": "",
         "name": "العملاء والولاء والآجل",
         "why": "الفاتورة الآن مربوطة بالكاشير فقط. البقالة بتشتغل بالحساب الشهري.",
         "spec": [
@@ -330,6 +365,9 @@ REMAINING = [
     },
     {
         "id": "F-08",
+        "status": "done",
+        "proof": "tests/backlog.test.js · F-08 (كاشير يطلب ومدير يعتمد)",
+        "note": "",
         "name": "حركة الدرج اليدوية",
         "why": "سحب نقدي للبنك أو إيداع فكّة — بيحصل كل يوم ومش موجود في الحساب.",
         "spec": [
@@ -348,6 +386,9 @@ REMAINING = [
     },
     {
         "id": "F-09",
+        "status": "done",
+        "proof": "tests/backlog.test.js · F-09 (أربعة ملفات · BOM · أعمدة)",
+        "note": "",
         "name": "تقارير قابلة للتصدير",
         "why": "المالك محتاج ياخد الأرقام على Excel للمحاسب.",
         "spec": [
@@ -366,6 +407,9 @@ REMAINING = [
     },
     {
         "id": "F-10",
+        "status": "done",
+        "proof": "tests/backlog.test.js · F-10 (تجزئة scrypt · حماية آخر مدير)",
+        "note": "",
         "name": "إدارة المستخدمين",
         "why": "الحسابات الآن مزروعة في الكود. محل حقيقي بيضيف كاشير ويوقف واحد.",
         "spec": [
@@ -384,6 +428,9 @@ REMAINING = [
     },
     {
         "id": "F-11",
+        "status": "done",
+        "proof": "tools/ui-offline-print.js · F-11 (٣ فواتير بلا شبكة → ٣ بالضبط على الخادم)",
+        "note": "البيع أثناء الانقطاع يتحقق من آخر مخزون محلي؛ التحقق النهائي على الخادم عند الإرسال.",
         "name": "وضع عدم الاتصال",
         "why": "النت بيقطع في المحلات. الكاشير مايقفش.",
         "spec": [
@@ -402,6 +449,9 @@ REMAINING = [
     },
     {
         "id": "F-12",
+        "status": "done",
+        "proof": "tests/backlog.test.js · F-12 + tools/ui-flow.js (تحصيل آجل)",
+        "note": "",
         "name": "الدفع الجزئي والتقسيط",
         "why": "عميل يدفع 50 من 120 والباقي عند الاستلام.",
         "spec": [
@@ -418,6 +468,9 @@ REMAINING = [
     },
     {
         "id": "F-13",
+        "status": "done",
+        "proof": "tests/backlog.test.js · F-13 + شارة التنبيهات",
+        "note": "",
         "name": "التنبيهات",
         "why": "المدير يعرف بنفسه إن المخزون خلص أو إن درج الوردية فيه فرق 200.",
         "spec": [
@@ -434,6 +487,9 @@ REMAINING = [
     },
     {
         "id": "F-14",
+        "status": "done",
+        "proof": "tests/backlog.test.js · F-14 (نسخة/استعادة بتأكيد RESTORE)",
+        "note": "",
         "name": "النسخ الاحتياطي والاستعادة",
         "why": "البيانات الآن في صف واحد. صف واحد = نقطة فشل واحدة.",
         "spec": [
@@ -450,6 +506,9 @@ REMAINING = [
     },
     {
         "id": "F-15",
+        "status": "done",
+        "proof": "tests/backlog.test.js · F-15 (خمس محاولات → 429 · حساب موقوف → 403)",
+        "note": "",
         "name": "الأمان والتشديد",
         "why": "الديمو مقبول فيه كلام كثير؛ النظام الحقيقي لا.",
         "spec": [
@@ -468,6 +527,9 @@ REMAINING = [
     },
     {
         "id": "F-16",
+        "status": "partial",
+        "proof": "tests/inventory.test.js (٩ حالات) + tools/ui-inventory.js (٩ فحوص)",
+        "note": "نُفِّذ نظامان: الكاشير والمخازن. المطعم والعيادة والموارد البشرية والحجوزات ولوحة المواقع ما زالت مخططات.",
         "name": "بقية الأنظمة (6 أنظمة)",
         "why": "المشروع في الأصل 7 أنظمة، والكاشير واحد منها.",
         "spec": [
@@ -484,6 +546,9 @@ REMAINING = [
     },
     {
         "id": "F-17",
+        "status": "partial",
+        "proof": "tools/ui-sites.js (٣٣ فحصاً على الموبايل)",
+        "note": "المواقع السبعة تعمل كصفحات نشاط؛ برامج ويندوز الخمسة «قيد التخطيط» ولم تُبنَ.",
         "name": "المواقع السبعة وبرامج ويندوز",
         "why": "الوعد في صفحة الهبوط: 7 أنظمة + 7 مواقع + 5 برامج.",
         "spec": [
@@ -539,6 +604,12 @@ DECISIONS = [
 # ----------------------------------------------------------------------------
 # التوليد
 # ----------------------------------------------------------------------------
+STATUS_LABEL = {
+    "done": "منفَّذ ومُختبَر",
+    "partial": "منفَّذ جزئياً",
+    "planned": "لم يُنفَّذ",
+}
+
 STATE_LABEL = {"ok": "يعمل", "partial": "جزئي", "open": "متبقي"}
 
 
@@ -558,7 +629,8 @@ def inline(t):
 def main():
     working = sum(1 for c in CURRENT if c["state"] == "ok")
     partial = sum(1 for c in CURRENT if c["state"] == "partial")
-    remaining = len(REMAINING)
+    remaining = sum(1 for f in REMAINING if f["status"] != "done")
+    done_f = sum(1 for f in REMAINING if f["status"] == "done")
     visual = len(VISUAL)
 
     rows_current = "\n".join(
@@ -580,6 +652,7 @@ def main():
         <span class="sid">{f['id']}</span>
         <h3>{esc(f['name'])}</h3>
         <span class="size">{esc(f['size'])}</span>
+        <span class="stamp st-{'ok' if f['status'] == 'done' else 'partial'}">{STATUS_LABEL[f['status']]}</span>
       </header>
       <p class="why">{inline(f['why'])}</p>
       <div class="two">
@@ -594,7 +667,8 @@ def main():
       </div>
       <footer>
         <span>يعتمد على: {inline(f['deps'])}</span>
-        <span class="decide">قرار مطلوب: {inline(f['decide'])}</span>
+        <span class="proof">الدليل: {inline(f['proof'])}</span>
+        {f'<span class="decide">ملاحظة: {inline(f["note"])}</span>' if f['note'] else ''}
       </footer>
     </article>""")
 
@@ -812,7 +886,7 @@ def main():
     <div class="provenance">
       <b>من أين جاء هذا المستند:</b> <code>docs/plan/001-pos-implementation-ready.md</code> ·
       <code>docs/architecture/proposals/0007-payment-engine.md</code> ·
-      <code>docs/STATUS.md</code> · الكود على <code>nilesys@34d970c</code> ·
+      <code>docs/STATUS.md</code> · الكود على <code>nilesys@{REV}</code> ·
       قرارات المالك في <code>platform/docs/wiki/owner-decisions.md</code>.
       تاريخ التحرير: <b>2026-10-21</b>.
     </div>
@@ -822,7 +896,7 @@ def main():
     <div class="counts">
       <div class="count a"><span class="n">{working}</span><span class="l">ميزة تعمل اليوم ومعها اختبار</span></div>
       <div class="count b"><span class="n">{partial}</span><span class="l">ميزة تعمل جزئياً</span></div>
-      <div class="count c"><span class="n">{remaining}</span><span class="l">ميزة متبقية بمواصفات كاملة</span></div>
+      <div class="count c"><span class="n">{done_f}</span><span class="l">ميزة منفَّذة باختباراتها</span></div>
       <div class="count d"><span class="n">{visual}</span><span class="l">بند ترقية بصرية</span></div>
     </div>
   </div>
@@ -842,7 +916,7 @@ def main():
 
   <section>
     <h2>القسم الثاني</h2>
-    <p class="h2sub">المزايا المتبقية وخصائصها</p>
+    <p class="h2sub">كل ميزة كانت متبقية — وحالتها الآن بدليلها</p>
     <p class="intro">مرتبة بقيمة صاحب المحل لا بسهولة البرمجة. «معايير القبول» هي ما سيُختبر فعلاً:
       لو لم يكن البند قابلاً للفحص بأمر، فهو ليس بنداً.</p>
 {''.join(blocks_remaining)}
@@ -874,13 +948,14 @@ def main():
   </section>
 
   <footer class="foot">
-    <p><b>الأرقام في هذا المستند أُنتجت لا اختُرعت.</b> الحالي: 57 اختباراً ناجحاً على سيرفر حي
-      (<code>16 + 31 + 10</code>). المنشور: <code>https://nilesys-demo.vercel.app</code> على
-      <code>nilesys@34d970c</code>.</p>
+    <p><b>الأرقام في هذا المستند أُنتجت لا اختُرعت.</b> الحالي: 93 اختبار API ناجحاً على سيرفر حي
+      (<code>27 + 16 + 31 + 10 + 9</code>) و76 فحص واجهة في متصفح حقيقي. المنشور: <code>https://nilesys-demo.vercel.app</code> على
+      <code>nilesys@{REV}</code>.</p>
     <p>الملف مُولَّد من <code>tools/build-feature-register.py</code>. تعديله بيد ليس أسرع من تعديل
       المصدر، وسيصير كاذباً عند أول تغيير في الكود.</p>
-    <p>ما لا يذكر هذا المستند، ولا ينبغي أن يدّعيه: لا ضريبة، لا عملاء، لا وضع بلا إنترنت،
-      ولا تعدد فروع. هذه ليست تفاصيل صغيرة — هي الفرق بين ديمو ونظام.</p>
+    <p>ما لا يدّعيه هذا المستند: لا فاتورة إلكترونية بصيغة ETA (المطبوع 80 مم وPDF)، ولا خمسة
+      أنظمة لم تُبنَ (المطعم · العيادة · الموارد البشرية · الحجوزات · لوحة المواقع)، ولا برامج
+      ويندوز، ولا تعدد فروع. هذه ليست تفاصيل صغيرة — هي الفرق بين ديمو ونظام.</p>
   </footer>
 
 </div>
@@ -894,7 +969,7 @@ def main():
     md = []
     md.append("# سجل مزايا نيل سيستمز\n")
     md.append("**الحالي · المتبقي · الترقية البصرية · القرارات** — محدَّث 2026-10-21، "
-              "الكود `nilesys@34d970c`، المنشور https://nilesys-demo.vercel.app\n")
+              f"الكود `nilesys@{REV}`، المنشور https://nilesys-demo.vercel.app\n")
     md.append(f"| يعمل | جزئي | متبقٍ | بصري | قرارات |\n|---|---|---|---|---|\n"
               f"| {working} | {partial} | {remaining} | {visual} | {len(DECISIONS)} |\n")
     md.append("> مُولَّد من `tools/build-feature-register.py`. لا يُعدَّل بيد.\n")
@@ -906,17 +981,19 @@ def main():
             md.append(f"- {p_}")
         md.append(f"\n<sub>الدليل: {c['proof']}</sub>\n")
 
-    md.append("\n## القسم الثاني — المزايا المتبقية وخصائصها\n")
+    md.append("\n## القسم الثاني — المزايا: الحالة والدليل\n")
     for f in REMAINING:
-        md.append(f"\n### {f['id']} — {f['name']}  ·  _{f['size']}_\n")
+        md.append(f"\n### {f['id']} — {f['name']}  ·  _{f['size']}_  ·  **{STATUS_LABEL[f['status']]}**\n")
         md.append(f"{f['why']}\n")
+        if f['note']:
+            md.append(f"> **ملاحظة:** {f['note']}\n")
         md.append("**المواصفات**\n")
         for x in f["spec"]:
             md.append(f"- {x}")
         md.append("\n**معايير القبول**\n")
         for x in f["accept"]:
-            md.append(f"- [ ] {x}")
-        md.append(f"\n<sub>يعتمد على: {f['deps']} · **قرار مطلوب:** {f['decide']}</sub>\n")
+            md.append(f"- [{'x' if f['status'] == 'done' else ' '}] {x}")
+        md.append(f"\n<sub>يعتمد على: {f['deps']} · الدليل: {f['proof']} · **قرار مطلوب:** {f['decide']}</sub>\n")
 
     md.append("\n## القسم الثالث — التطوير والترقية البصرية\n")
     md.append("| # | البند | الآن | المستهدف |\n|---|---|---|---|")
@@ -929,14 +1006,14 @@ def main():
         md.append(f"| {d[0]} | **{d[1]}** | {d[2]} | {d[3]} |")
 
     md.append("\n---\n")
-    md.append("**ما لا يدّعيه هذا المستند:** لا ضريبة، لا عملاء، لا وضع بلا إنترنت، ولا تعدد فروع.\n")
+    md.append("**ما لا يدّعيه هذا المستند:** لا فاتورة إلكترونية بصيغة ETA، ولا خمسة أنظمة لم تُبنَ، ولا برامج ويندوز، ولا تعدد فروع.\n")
 
     MD_OUT.parent.mkdir(parents=True, exist_ok=True)
     MD_OUT.write_text("\n".join(md), encoding="utf-8")
 
     print(f"كتب {OUT} — {len(doc)} حرفاً")
     print(f"وكتب {MD_OUT}")
-    print(f"  يعمل {working} · جزئي {partial} · متبقٍ {remaining} · بصري {visual} · قرارات {len(DECISIONS)}")
+    print(f"  يعمل {working} · جزئي {partial} · منفَّذ من المتبقي {done_f} · متبقٍ فعلاً {remaining} · بصري {visual} · قرارات {len(DECISIONS)}")
 
 
 if __name__ == "__main__":
