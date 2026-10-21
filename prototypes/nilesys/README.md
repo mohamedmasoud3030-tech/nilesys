@@ -127,3 +127,38 @@ nilesys/
 |---|---|
 | `SESSION_SECRET` | أي نص عشوائي طويل — وإلا استُخدم المفتاح الافتراضي المكتوب في الكود (مقبول للديمو فقط). |
 | `DB_FILE` | اختياري على Vercel (الافتراضي `/tmp/nilesys-db.json`). |
+
+## تخزين مشترك حقيقي (Supabase/Postgres) — يعالج قيد `/tmp`
+
+بدل ما الديمو يعتمد على ملف داخل النسخة، فيه **مخزن مشترك اختياري**: نفس مستند JSON كما هو يُحفظ في
+**صف واحد** في جدول `demo_state` على Supabase. مفيش تغيير في شكل البيانات ولا في منطق التطبيق.
+
+| المتغيّر | الغرض |
+|---|---|
+| `SUPABASE_URL` | `https://<ref>.supabase.co` |
+| `SUPABASE_SERVICE_KEY` | مفتاح `service_role` — **سرّي، للسيرفر فقط، لا يُوضع في المتصفح أبداً** |
+| `DEMO_STATE_ID` | اختياري (افتراضي `nilesys-demo`) — يسمح بأكثر من مستند/بيئة على نفس الجدول |
+
+بدون المتغيّرين، السلوك كما هو تماماً (ملف محلي) — الاختبارات لا تتأثر.
+
+### الجدول (منشأ فعلاً في مشروع `nilesys-demo`)
+
+```sql
+create table public.demo_state (
+  id text primary key,
+  doc jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.demo_state enable row level security;
+revoke all on public.demo_state from anon, authenticated;
+```
+
+**RLS مفعّل ولا توجد أي policy** — مقصود: `anon` و`authenticated` لا يستطيعان قراءة أو كتابة أي شيء،
+و`service_role` فقط يتجاوز RLS. يعني البيانات مش مكشوفة حتى لو المفتاح العام (publishable) تسرّب.
+
+### الدليل (2026-10-21)
+
+```
+نسخة A على :3311  → إنشاء فاتورة رقم 1043
+نسخة B على :3312 (باردة، بدون أي ملف محلي) → الفاتورة 1043 موجودة
+```

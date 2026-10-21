@@ -21,6 +21,13 @@ const ON_SERVERLESS = Boolean(process.env.VERCEL);
 const DB_FILE = process.env.DB_FILE
   ? path.resolve(process.env.DB_FILE)
   : (ON_SERVERLESS ? '/tmp/nilesys-db.json' : path.join(ROOT, 'data', 'db.json'));
+
+// مخزن مشترك (Supabase/PostgREST): اختياري تماماً. لو المتغيرين موجودين، المستند كله
+// (نفس ملف JSON كما هو) يُقرأ ويُكتب في صف واحد — فلا تعتمد البيانات على /tmp لكل نسخة.
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
+const STATE_ID = process.env.DEMO_STATE_ID || 'nilesys-demo';
+const REMOTE_STORE = Boolean(SUPABASE_URL && SUPABASE_KEY);
 const PORT = Number(process.env.PORT || 3000);
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -169,23 +176,83 @@ function buildSeed() {
 /* ================= مخزن البيانات ================= */
 
 let db;
-try {
-  db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-} catch {
-  db = buildSeed();
-  fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+let initPromise = null;
+
+/* --- التخزين المشترك عبر PostgREST (Supabase) --- */
+function remoteHeaders() {
+  return {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+  };
 }
+async function remoteRead() {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/demo_state?id=eq.${encodeURIComponent(STATE_ID)}&select=doc`,
+    { headers: remoteHeaders() },
+  );
+  if (!res.ok) throw new Error(`remote read ${res.status}: ${await res.text()}`);
+  const rows = await res.json();
+  return rows.length ? rows[0].doc : null;
+}
+async function remoteWrite(doc) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/demo_state`, {
+    method: 'POST',
+    headers: { ...remoteHeaders(), Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify([{ id: STATE_ID, doc, updated_at: new Date().toISOString() }]),
+  });
+  if (!res.ok) throw new Error(`remote write ${res.status}: ${await res.text()}`);
+}
+
+function loadLocal() {
+  try {
+    db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+  } catch {
+    db = buildSeed();
+    fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+  }
+}
+
+// تُستدعى مرة واحدة؛ آمنة للنداء المتكرر. مطلوبة لأن القراءة المشتركة غير متزامنة.
+function initialize() {
+  if (initPromise) return initPromise;
+  if (!REMOTE_STORE) {
+    loadLocal();
+    initPromise = Promise.resolve();
+    return initPromise;
+  }
+  initPromise = (async () => {
+    const doc = await remoteRead();
+    if (doc) {
+      db = doc;
+    } else {
+      db = buildSeed();
+      await remoteWrite(db);
+    }
+  })();
+  return initPromise;
+}
+
 let saveTimer = null;
+let pendingWrite = Promise.resolve();
+function flush() {
+  if (REMOTE_STORE) {
+    pendingWrite = pendingWrite
+      .then(() => remoteWrite(db))
+      .catch((e) => console.error('remote save failed:', e.message));
+    return pendingWrite;
+  }
+  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+  return Promise.resolve();
+}
 function save() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-  }, 80);
+  saveTimer = setTimeout(flush, 80);
 }
 function resetDemo() {
   db = buildSeed();
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+  flush();
 }
 
 /* ================= الجلسات ================= */
@@ -587,6 +654,7 @@ function serveStatic(req, res, url) {
 async function requestListener(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   try {
+    await initialize();
     if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
     serveStatic(req, res, url);
   } catch (e) {
