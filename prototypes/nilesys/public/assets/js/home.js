@@ -26,7 +26,7 @@
       en: { n: 'Restaurant Management', d: 'Floor and tables, kitchen screen, delivery and takeaway, reservations and website orders.', f: ['Floor & tables', 'Live kitchen screen', 'Delivery & reservations'] },
     },
     {
-      id: 'clinic', icon: '🩺', ready: false,
+      id: 'clinic', icon: '🩺', ready: true, href: '/systems/clinic.html',
       ar: { n: 'إدارة العيادة', d: 'جدول مواعيد لكل دكتور، ملف المريض، الكشف والروشتة المطبوعة، والحجز أونلاين.', f: ['مواعيد كل دكتور', 'ملف وتاريخ مرضي', 'روشتة مطبوعة'] },
       en: { n: 'Clinic Management', d: 'Per-doctor schedules, patient files, visits and printed prescriptions, online booking.', f: ['Doctor schedules', 'Patient history', 'Printed prescriptions'] },
     },

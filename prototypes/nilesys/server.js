@@ -214,6 +214,7 @@ function migrate() {
   let changed = false;
   if (extensions && extensions.seedDefaults(db)) changed = true;
   if (typeof restaurant !== 'undefined' && restaurant.seedDefaults(db)) changed = true;
+  if (typeof clinic !== 'undefined' && clinic.seedDefaults(db)) changed = true;
   if (changed) {
     try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); } catch { /* /tmp */ }
   }
@@ -445,6 +446,16 @@ const restaurant = require('./lib/restaurant.js')({
   readBody: (req) => readBody(req),
 });
 
+// نظام العيادة — تطبيق مستقل، مساراته تحت /api/clinic وبياناته في مجموعاته.
+const clinic = require('./lib/clinic.js')({
+  getDb: () => db,
+  save: () => save(),
+  audit: (u, a, d, m) => audit(u, a, d, m),
+  sendJSON: (res, code, body, headers) => sendJSON(res, code, body, headers),
+  sendError: (res, code, msg) => sendError(res, code, msg),
+  readBody: (req) => readBody(req),
+});
+
 /* ================= منطق الـ API ================= */
 
 function publicUser(u) {
@@ -498,6 +509,9 @@ async function handleApi(req, res, url) {
 
   // تطبيق المطعم له مساراته ومحركه المستقل.
   if (await restaurant.handle(req, res, url, { route, user, isManager })) return;
+
+  // تطبيق العيادة له مساراته ومحركه المستقل.
+  if (await clinic.handle(req, res, url, { route, user, isManager })) return;
 
   /* ---- الجلسة ---- */
   if (route === 'POST /api/login') {

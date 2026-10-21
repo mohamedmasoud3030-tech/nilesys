@@ -45,11 +45,11 @@ hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
 <header class="head">
   <div class="kicker">نيل سيستمز · مواصفة تطبيق رقم 4</div>
   <h1>نظام العيادة</h1>
-  <span class="badge st-planned">لم يُبنَ بعد</span>
+  <span class="badge st-live">يعمل ومُختبَر</span>
 </header>
-<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-clinic</div></div><div class="fact"><div class="k">النظام</div><div class="v">clinic</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/clinic.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">manager, reception, doctor</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">0/8</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/clinic.test.js</div></div></div>
+<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-clinic</div></div><div class="fact"><div class="k">النظام</div><div class="v">clinic</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/clinic.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">manager, reception, doctor</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">8/8</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/clinic.test.js</div></div></div>
 <main class="body">
-<blockquote>الحالة: <strong>لم يُبنَ بعد</strong>. هذه المواصفة هي ما سيُبنى بالضبط.</blockquote>
+<blockquote>الحالة: <strong>مبني ويعمل</strong>. المحرك <code>lib/clinic.js</code> (11/11 اختبار API) والشاشة <code>public/systems/clinic.html</code> (16/16 اختبار متصفح).</blockquote>
 <h2>1) الغرض في سطر</h2>
 <p>الاستقبال يحجز، الطبيب يكتب الروشتة، والحساب يُحصَّل — وملف المريض واحد لا يتكرر.</p>
 <h2>2) المستخدمون</h2>
@@ -89,11 +89,12 @@ GET  /api/clinic/summary?range=today</pre>
 <h2>6) القواعد</h2>
 <ol><li>موعدان لنفس الطبيب متعارضان زمنياً → 409.</li><li>لا كشف بلا موعد «وصل» — البدء يتطلب <code>arrived</code>.</li><li>الروشتة تُكتب مرة واحدة لكل زيارة، والزيارة لا تُعدَّل بعد التحصيل إلا بمدير.</li><li>التحصيل النقدي يدخل درج وردية العيادة؛ البطاقة لا تمسّ الدرج.</li><li>موبايل المريض فريد — تسجيل مريض موجود يعيد ملفه لا يكرره (409 مع المعرّف).</li><li>عدم الحضور يُسجَّل ولا يُحصَّل.</li></ol>
 <h2>7) معايير القبول</h2>
-<ul class="criteria"><li class="crit open"><span class="box"></span>موعدان متعارضان لنفس الطبيب → 409</li><li class="crit open"><span class="box"></span>بدء كشف قبل وصول المريض → 400</li><li class="crit open"><span class="box"></span>تسجيل موبايل مكرر → 409 يحمل معرّف المريض الموجود</li><li class="crit open"><span class="box"></span>روشتة بحبتين تُحفظ وتُقرأ كاملة في ملف المريض</li><li class="crit open"><span class="box"></span>تحصيل كاش 300 يظهر في درج وردية العيادة</li><li class="crit open"><span class="box"></span>طبيب يحاول التحصيل → 403</li><li class="crit open"><span class="box"></span>عدم الحضور لا يزيد الإيراد</li><li class="crit open"><span class="box"></span>إعادة جدولة موعد لا تفقد ملف المريض</li></ul>
+<ul class="criteria"><li class="crit done"><span class="box">✓</span>موعدان متعارضان لنفس الطبيب → 409</li><li class="crit done"><span class="box">✓</span>بدء كشف قبل وصول المريض → 400</li><li class="crit done"><span class="box">✓</span>تسجيل موبايل مكرر → 409 يحمل معرّف المريض الموجود</li><li class="crit done"><span class="box">✓</span>روشتة بحبتين تُحفظ وتُقرأ كاملة في ملف المريض</li><li class="crit done"><span class="box">✓</span>تحصيل كاش 300 يظهر في درج وردية العيادة</li><li class="crit done"><span class="box">✓</span>طبيب يحاول التحصيل → 403</li><li class="crit done"><span class="box">✓</span>عدم الحضور لا يزيد الإيراد</li><li class="crit done"><span class="box">✓</span>إعادة جدولة موعد لا تفقد ملف المريض</li></ul>
 <h2>8) كيف يُثبت ذلك</h2>
-<pre>npm test -- clinic
-node tools/ui-clinic.js</pre>
+<pre>BASE=http://localhost:4000 node --test tests/clinic.test.js                   # 11/11
+BASE=http://localhost:4000 sh tools/setup-browser.sh tools/ui-clinic.js      # 16/16</pre>
+<p>نتيجة آخر تشغيل: <strong>11/11</strong> للـ API و<strong>16/16</strong> للمتصفح، وصفر أخطاء JavaScript.</p>
 <h2>9) خارج النطاق الآن</h2>
 <ul><li>التأمين الطبي والمطالبات.</li><li>ربط بالمعمل والأشعة.</li><li>تطبيق حجز للمرضى.</li></ul></main>
-<footer class="foot">مُولَّد من <code>docs/product/systems/clinic.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@5a71b2d</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
+<footer class="foot">مُولَّد من <code>docs/product/systems/clinic.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@d626c9b</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
 </div></body></html>
