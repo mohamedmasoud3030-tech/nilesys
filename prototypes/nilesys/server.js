@@ -16,7 +16,11 @@ const crypto = require('crypto');
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 // DB_FILE قابل للتغيير عبر متغير بيئة (للاختبارات المعزولة خارج المستودع)
-const DB_FILE = process.env.DB_FILE ? path.resolve(process.env.DB_FILE) : path.join(ROOT, 'data', 'db.json');
+// على Vercel نظام الملفات للقراءة فقط إلا /tmp — والـ /tmp لكل نسخة (instance) وليس مشتركاً.
+const ON_SERVERLESS = Boolean(process.env.VERCEL);
+const DB_FILE = process.env.DB_FILE
+  ? path.resolve(process.env.DB_FILE)
+  : (ON_SERVERLESS ? '/tmp/nilesys-db.json' : path.join(ROOT, 'data', 'db.json'));
 const PORT = Number(process.env.PORT || 3000);
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -186,19 +190,47 @@ function resetDemo() {
 
 /* ================= الجلسات ================= */
 
-const sessions = new Map(); // token -> { userId, system, expires }
+// التوكن موقَّع ووافٍ بذاته (لا يعتمد على ذاكرة العملية) — ضروري على Vercel حيث كل طلب قد يصل لنسخة أخرى.
+// الإبطال (تسجيل خروج) عبر قائمة jti ملغاة داخل العملية الواحدة.
 const COOKIE = 'nile_sid';
+// مفتاح التوقيع: للديمو فقط. على Vercel لازم يكون ثابتاً بين النسخ (انظر README).
+const SESSION_SECRET = process.env.SESSION_SECRET || 'nilesys-demo-session-secret';
+const SESSION_TTL = 12 * 60 * 60 * 1000;
+const revoked = new Set(); // jti ملغاة (تسجيل خروج) داخل هذه العملية
+
+function sign(payload) {
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const mac = crypto.createHmac('sha256', SESSION_SECRET).update(body).digest('base64url');
+  return `${body}.${mac}`;
+}
+function verify(token) {
+  const parts = String(token).split('.');
+  if (parts.length !== 2) return null;
+  const expect = crypto.createHmac('sha256', SESSION_SECRET).update(parts[0]).digest('base64url');
+  const a = Buffer.from(parts[1]);
+  const b = Buffer.from(expect);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  try {
+    const s = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    if (!s || !s.expires || s.expires < Date.now()) return null;
+    return s;
+  } catch { return null; }
+}
 function newSession(user) {
-  const token = crypto.randomBytes(24).toString('hex');
-  sessions.set(token, { userId: user.id, system: user.system, expires: Date.now() + 12 * 60 * 60 * 1000 });
-  return token;
+  return sign({
+    userId: user.id,
+    system: user.system,
+    expires: Date.now() + SESSION_TTL,
+    jti: crypto.randomBytes(9).toString('hex'),
+  });
 }
 function getSession(req) {
   const raw = req.headers.cookie || '';
   const m = raw.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]+)`));
   if (!m) return null;
-  const s = sessions.get(m[1]);
-  if (!s || s.expires < Date.now()) return null;
+  const s = verify(m[1]);
+  if (!s) return null;
+  if (revoked.has(s.jti)) return null;
   return s;
 }
 function currentUser(req) {
@@ -289,7 +321,7 @@ async function handleApi(req, res, url) {
   }
   if (route === 'POST /api/logout') {
     const m = (req.headers.cookie || '').match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]+)`));
-    if (m) sessions.delete(m[1]);
+    if (m) { const s = verify(m[1]); if (s && s.jti) revoked.add(s.jti); }
     return sendJSON(res, 200, { ok: true }, { 'Set-Cookie': `${COOKIE}=; Path=/; HttpOnly; Max-Age=0` });
   }
   if (route === 'GET /api/session') {
@@ -552,7 +584,7 @@ function serveStatic(req, res, url) {
 
 /* ================= التشغيل ================= */
 
-const server = http.createServer(async (req, res) => {
+async function requestListener(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   try {
     if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
@@ -560,8 +592,15 @@ const server = http.createServer(async (req, res) => {
   } catch (e) {
     sendError(res, e.status || 500, e.message || 'خطأ في السيرفر');
   }
-});
+}
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Nile Systems demo platform → http://localhost:${PORT}`);
-});
+function start() {
+  return http.createServer(requestListener).listen(PORT, '0.0.0.0', () => {
+    console.log(`Nile Systems demo platform → http://localhost:${PORT}`);
+  });
+}
+
+module.exports = { requestListener, start };
+
+// التشغيل المباشر فقط (`node server.js`) يفتح البورت — الاستيراد من Vercel لا يفتح شيئاً.
+if (require.main === module) start();
