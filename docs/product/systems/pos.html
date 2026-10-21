@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>نظام الكاشير · نيل سيستمز</title>
+<style>
+:root{--paper:#f3f6f5;--sheet:#fcfdfc;--ink:#13201e;--muted:#5b6c67;--rule:#cdd8d3;
+--soft:#e3eae7;--brand:#0b7a6b;--brand-ink:#064c42;--warn:#a8641a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.7 "Segoe UI","Noto Sans Arabic",Tahoma,sans-serif}
+.sheet{max-width:900px;margin:0 auto;background:var(--sheet);box-shadow:0 0 0 1px var(--rule);padding:0 0 60px}
+.head{padding:38px 44px 0}
+.kicker{font-size:13px;color:var(--muted);letter-spacing:.02em}
+h1{font-size:32px;line-height:1.25;margin:8px 0 16px;letter-spacing:-.3px}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);margin:22px 44px 0}
+.fact{background:var(--sheet);padding:12px 14px}
+.fact .k{font-size:12px;color:var(--muted)}
+.fact .v{font:700 15px/1.4 ui-monospace,Menlo,Consolas,monospace;margin-top:4px;direction:ltr;unicode-bidi:isolate}
+.fact .v.ar{direction:rtl}
+.body{padding:8px 44px 0}
+h2{font-size:20px;margin:34px 0 10px;padding-top:14px;border-top:1px solid var(--soft)}
+h3{font-size:16px;margin:22px 0 6px}
+p{margin:0 0 10px}
+ul,ol{margin:0 0 12px;padding-inline-start:22px}
+li{margin-bottom:5px}
+code{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;background:#e9efec;color:var(--brand-ink);padding:1px 5px;border-radius:3px;direction:ltr;display:inline-block;unicode-bidi:isolate}
+pre{background:#0f221e;color:#e7f2ee;padding:14px 16px;overflow:auto;font:13px/1.6 ui-monospace,Menlo,Consolas,monospace;direction:ltr;text-align:left}
+pre code{background:none;color:inherit;padding:0}
+table{width:100%;border-collapse:collapse;margin:0 0 16px;font-size:14.5px}
+th{text-align:start;font-size:12.5px;color:var(--muted);border-bottom:2px solid var(--ink);padding:6px 10px 8px 0}
+td{padding:9px 10px 9px 0;border-bottom:1px solid var(--soft);vertical-align:top}
+blockquote{margin:0 0 16px;padding:12px 16px;background:#eef4f2;border-inline-start:3px solid var(--brand);color:var(--brand-ink);font-size:15px}
+ul.criteria{list-style:none;padding:0}
+ul.criteria li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--soft);font-size:15px}
+ul.criteria .box{width:18px;height:18px;border:1.5px solid var(--brand);flex:0 0 18px;display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--brand);margin-top:3px}
+ul.criteria li.open .box{border-color:var(--muted)}
+ul.criteria li.open{color:#41524d}
+hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
+.foot{margin:40px 44px 0;padding-top:16px;border-top:2px solid var(--ink);font-size:13px;color:var(--muted)}
+.badge{display:inline-block;border:1.5px solid currentColor;padding:4px 9px;font-size:12px;font-weight:700;transform:rotate(-1deg)}
+.st-live{color:var(--brand)}.st-partial{color:var(--warn)}.st-planned{color:#a3382c}
+@media (max-width:760px){.head,.body,.foot{padding-inline:20px}.facts{margin-inline:20px;grid-template-columns:repeat(2,1fr)}}
+@media print{body{background:#fff}.sheet{box-shadow:none;max-width:none}h2{break-after:avoid}table{break-inside:avoid}}
+</style></head>
+<body><div class="sheet">
+<header class="head">
+  <div class="kicker">نيل سيستمز · مواصفة تطبيق رقم 1</div>
+  <h1>نظام الكاشير</h1>
+  <span class="badge st-live">يعمل ومُختبَر</span>
+</header>
+<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-pos</div></div><div class="fact"><div class="k">النظام</div><div class="v">pos</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/pos.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">manager, cashier</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">9/9</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/backlog.test.js</div></div></div>
+<main class="body">
+<h2>1) الغرض في سطر</h2>
+<p>يبيع، ويحصّل، ويطبع، ويعرف في آخر اليوم قد إيه في الدرج — بلا ورق ولا حسابات على الآلة الحاسبة.</p>
+<h2>2) المستخدمون</h2>
+<table><thead><tr><th>المستخدم</th><th>يدخل بـ</th><th>يقدر يعمل</th><th>لا يقدر</th></tr></thead><tbody>
+<tr><td>مدير</td><td><code>manager</code></td><td>كل شيء: بيع · مرتجع · إعدادات · مستخدمون · نسخ · تقارير · تصدير</td><td>—</td></tr>
+<tr><td>كاشير</td><td><code>cashier</code></td><td>بيع · تعليق سلة · دفع</td><td>مرتجع · إعدادات · تصدير · تقارير مالية</td></tr>
+<tr><td>مدير مخزن</td><td><code>manager</code> في نظام المخازن</td><td>يقرأ الأصناف ويعدّل المخزون</td><td>البيع أو فتح وردية كاشير</td></tr>
+</tbody></table>
+<p>الدخول بنظام محدَّد: مستخدم الكاشير لا يدخل نظام المخازن، والعكس. المخزون نفسه مشترك.</p>
+<h2>3) الشاشات</h2>
+<table><thead><tr><th>الشاشة</th><th>ماذا فيها</th></tr></thead><tbody>
+<tr><td>نقطة البيع</td><td>شبكة أصناف · بحث/باركود · كاميرا · سلة · خصم · طرق دفع خمسة (منها آجل) · كوبون</td></tr>
+<tr><td>الفواتير</td><td>آخر 50 فاتورة · طريقة الدفع · حالة السداد · طباعة · تحصيل آجل</td></tr>
+<tr><td>المرتجعات</td><td>مرتجع جزئي بالسطر، لا يتجاوز المتبقي</td></tr>
+<tr><td>الورديات</td><td>فتح برصيد · إغلاق بعدّ فعلي · فرق محسوب</td></tr>
+<tr><td>التقارير</td><td>صافي · مرتجعات · ضريبة · أفضل الأصناف · بالساعة · حسب طريقة الدفع · تصدير</td></tr>
+<tr><td>الأصناف</td><td>إضافة/تعديل · ضريبة خاصة أو إعفاء · حد إعادة الطلب</td></tr>
+<tr><td>العملاء</td><td>حد آجل · رصيد · نقاط · كشف حساب · سداد</td></tr>
+<tr><td>الموردون</td><td>توريد يزيد المخزون ويحدّث متوسط التكلفة</td></tr>
+<tr><td>أكواد الخصم</td><td>نسبة أو مبلغ · حد أدنى · إبطال</td></tr>
+<tr><td>حركة الدرج</td><td>إيداع/سحب بطلب الكاشير واعتماد المدير</td></tr>
+<tr><td>المخزون</td><td>تحت حد الطلب · تسويات · حركات</td></tr>
+<tr><td>المستخدمون</td><td>إضافة · تعطيل · كلمة مرور</td></tr>
+<tr><td>الإعدادات</td><td>نسبة الضريبة · الهوية الضريبية · حدود التنبيه</td></tr>
+<tr><td>النسخ الاحتياطي</td><td>تصدير/استعادة · تصدير CSV</td></tr>
+<tr><td>التنبيهات</td><td>نقص مخزون · فرق درج · آجل متأخر · مرتجعات مرتفعة</td></tr>
+</tbody></table>
+<h2>4) نموذج البيانات</h2>
+<table><thead><tr><th>المجموعة</th><th>الحقول المهمة</th></tr></thead><tbody>
+<tr><td><code>products</code></td><td><code>id</code> · <code>name</code> · <code>barcode</code> (فريد) · <code>category</code> · <code>cost</code> · <code>price</code> · <code>stock</code> · <code>taxRate</code> · <code>taxExempt</code> · <code>reorderLevel</code></td></tr>
+<tr><td><code>sales</code></td><td><code>id</code> · <code>no</code> (تسلسلي) · <code>items[]</code> · <code>subtotal</code> · <code>discount</code> · <code>couponCode</code> · <code>taxRate</code> · <code>tax</code> · <code>total</code> · <code>method</code> · <code>paid</code> · <code>change</code> · <code>customerId</code> · <code>payments[]</code> · <code>paymentStatus</code> · <code>refunds[]</code> · <code>idempotencyKey</code></td></tr>
+<tr><td><code>shifts</code></td><td><code>id</code> · <code>system</code> · <code>openedAt</code> · <code>openingCash</code> · <code>closedAt</code> · <code>countedCash</code> · <code>difference</code></td></tr>
+<tr><td><code>customers</code></td><td><code>id</code> · <code>name</code> · <code>phone</code> (فريد) · <code>creditLimit</code> · <code>balance</code> · <code>points</code></td></tr>
+<tr><td><code>stockMovements</code></td><td><code>productId</code> · <code>qty</code> · <code>reason</code> · <code>kind</code> · <code>after</code> · <code>userId</code></td></tr>
+<tr><td><code>cashMovements</code></td><td><code>type</code> · <code>amount</code> · <code>reason</code> · <code>origin</code> · <code>status</code> · <code>approvedBy</code></td></tr>
+<tr><td><code>audit</code></td><td><code>at</code> · <code>userId</code> · <code>action</code> · <code>detail</code></td></tr>
+</tbody></table>
+<h2>5) الواجهات</h2>
+<pre>POST /api/login                { system, username, password }
+POST /api/sales                { items, method, paid, discount, couponCode, customerId, idempotencyKey }
+POST /api/returns              { saleId, items[] }
+POST /api/sales/:id/payments   { amount, method }
+GET  /api/reports/summary      ?range=today|week
+GET  /api/export/{sales|returns|shifts|stock}.csv
+GET  /api/invoice?id=          ← فاتورة ضريبية INV-000123
+POST /api/backup · POST /api/restore { confirm: "RESTORE" }</pre>
+<h2>6) القواعد المالية</h2>
+<ol><li><code>total = subtotal − discount + tax</code>؛ الضريبة على الأساس بعد الخصم، لكل سطر بنسبته.</li><li>سقف خصم السطر 30%؛ سقف الكاشير 10% من الفاتورة → 403.</li><li>الباقي من الكاش فقط، ويُخزَّن؛ الطرق الأخرى تُسجَّل بالمبلغ بالضبط.</li><li>درج الوردية = افتتاحي + كاش البيع − كاش المرتجع + الحركات المعتمدة (مرة واحدة فقط).</li><li>الصافي للتقرير = إجمالي − مرتجع، والضريبة سطر منفصل لا إيراد.</li></ol>
+<h2>7) معايير القبول</h2>
+<ul class="criteria"><li class="crit done"><span class="box">✓</span>بيع 100 + 14% → الإيصال 114 والدرج يتوقع 114</li><li class="crit done"><span class="box">✓</span>كاشير بخصم 20% → 403، ومدير → يمر</li><li class="crit done"><span class="box">✓</span>فاتورة نقدية لا تُحسب مرتين في الدرج</li><li class="crit done"><span class="box">✓</span>صنف معفى لا يضيف ضريبة ولو كانت النسبة مفعّلة</li><li class="crit done"><span class="box">✓</span>مرتجع جزئي يرجع المخزون ويخصم من الدرج بنفس طريقة الدفع</li><li class="crit done"><span class="box">✓</span>نفس مفتاح التكرار مرتين → فاتورة واحدة</li><li class="crit done"><span class="box">✓</span>خمس محاولات دخول خاطئة → 429</li><li class="crit done"><span class="box">✓</span>تصدير CSV يفتح في Excel بعربي سليم (BOM)</li><li class="crit done"><span class="box">✓</span>بيع بلا شبكة يُحفظ ويُرسل مرة واحدة فقط</li></ul>
+<h2>8) كيف يُثبت ذلك</h2>
+<pre>cd nilesys/prototypes/nilesys
+npm test                    # 93 اختبار API
+npm run test:ui             # 76 فحصاً في متصفح حقيقي</pre>
+<h2>9) خارج النطاق الآن</h2>
+<ul><li>الفاتورة الإلكترونية بصيغة ETA (المطبوع 80 مم وPDF).</li><li>تعدد الفروع.</li><li>الترقية البصرية V-01…V-16.</li></ul></main>
+<footer class="foot">مُولَّد من <code>docs/product/systems/pos.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@09e88de</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
+</div></body></html>

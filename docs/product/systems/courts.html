@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>نظام حجز الملاعب · نيل سيستمز</title>
+<style>
+:root{--paper:#f3f6f5;--sheet:#fcfdfc;--ink:#13201e;--muted:#5b6c67;--rule:#cdd8d3;
+--soft:#e3eae7;--brand:#0b7a6b;--brand-ink:#064c42;--warn:#a8641a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.7 "Segoe UI","Noto Sans Arabic",Tahoma,sans-serif}
+.sheet{max-width:900px;margin:0 auto;background:var(--sheet);box-shadow:0 0 0 1px var(--rule);padding:0 0 60px}
+.head{padding:38px 44px 0}
+.kicker{font-size:13px;color:var(--muted);letter-spacing:.02em}
+h1{font-size:32px;line-height:1.25;margin:8px 0 16px;letter-spacing:-.3px}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);margin:22px 44px 0}
+.fact{background:var(--sheet);padding:12px 14px}
+.fact .k{font-size:12px;color:var(--muted)}
+.fact .v{font:700 15px/1.4 ui-monospace,Menlo,Consolas,monospace;margin-top:4px;direction:ltr;unicode-bidi:isolate}
+.fact .v.ar{direction:rtl}
+.body{padding:8px 44px 0}
+h2{font-size:20px;margin:34px 0 10px;padding-top:14px;border-top:1px solid var(--soft)}
+h3{font-size:16px;margin:22px 0 6px}
+p{margin:0 0 10px}
+ul,ol{margin:0 0 12px;padding-inline-start:22px}
+li{margin-bottom:5px}
+code{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;background:#e9efec;color:var(--brand-ink);padding:1px 5px;border-radius:3px;direction:ltr;display:inline-block;unicode-bidi:isolate}
+pre{background:#0f221e;color:#e7f2ee;padding:14px 16px;overflow:auto;font:13px/1.6 ui-monospace,Menlo,Consolas,monospace;direction:ltr;text-align:left}
+pre code{background:none;color:inherit;padding:0}
+table{width:100%;border-collapse:collapse;margin:0 0 16px;font-size:14.5px}
+th{text-align:start;font-size:12.5px;color:var(--muted);border-bottom:2px solid var(--ink);padding:6px 10px 8px 0}
+td{padding:9px 10px 9px 0;border-bottom:1px solid var(--soft);vertical-align:top}
+blockquote{margin:0 0 16px;padding:12px 16px;background:#eef4f2;border-inline-start:3px solid var(--brand);color:var(--brand-ink);font-size:15px}
+ul.criteria{list-style:none;padding:0}
+ul.criteria li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--soft);font-size:15px}
+ul.criteria .box{width:18px;height:18px;border:1.5px solid var(--brand);flex:0 0 18px;display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--brand);margin-top:3px}
+ul.criteria li.open .box{border-color:var(--muted)}
+ul.criteria li.open{color:#41524d}
+hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
+.foot{margin:40px 44px 0;padding-top:16px;border-top:2px solid var(--ink);font-size:13px;color:var(--muted)}
+.badge{display:inline-block;border:1.5px solid currentColor;padding:4px 9px;font-size:12px;font-weight:700;transform:rotate(-1deg)}
+.st-live{color:var(--brand)}.st-partial{color:var(--warn)}.st-planned{color:#a3382c}
+@media (max-width:760px){.head,.body,.foot{padding-inline:20px}.facts{margin-inline:20px;grid-template-columns:repeat(2,1fr)}}
+@media print{body{background:#fff}.sheet{box-shadow:none;max-width:none}h2{break-after:avoid}table{break-inside:avoid}}
+</style></head>
+<body><div class="sheet">
+<header class="head">
+  <div class="kicker">نيل سيستمز · مواصفة تطبيق رقم 5</div>
+  <h1>نظام حجز الملاعب</h1>
+  <span class="badge st-planned">لم يُبنَ بعد</span>
+</header>
+<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-courts</div></div><div class="fact"><div class="k">النظام</div><div class="v">courts</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/courts.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">manager, reception</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">0/7</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/courts.test.js</div></div></div>
+<main class="body">
+<blockquote>الحالة: <strong>لم يُبنَ بعد</strong>. هذه المواصفة هي ما سيُبنى بالضبط.</blockquote>
+<h2>1) الغرض في سطر</h2>
+<p>تعرف الملعب فاضي ولا محجوز في الساعة دي قبل ما ترد على التليفون — والعربون محسوب.</p>
+<h2>2) المستخدمون</h2>
+<table><thead><tr><th>المستخدم</th><th>يدخل بـ</th><th>يقدر يعمل</th><th>لا يقدر</th></tr></thead><tbody>
+<tr><td>مدير</td><td><code>manager</code></td><td>كل شيء: ملاعب · أسعار · إلغاء · تقارير</td><td>—</td></tr>
+<tr><td>استقبال</td><td><code>reception</code></td><td>حجز · تأكيد · تحصيل عربون · إلغاء بالسياسة</td><td>تغيير الأسعار</td></tr>
+</tbody></table>
+<h2>3) الشاشات</h2>
+<table><thead><tr><th>الشاشة</th><th>ماذا فيها</th></tr></thead><tbody>
+<tr><td>جدول اليوم</td><td>كل ملعب × كل ساعة: فاضي · محجوز · مدفوع · ملغي</td></tr>
+<tr><td>الحجز</td><td>ملعب · تاريخ · من/إلى · اسم وموبايل · عربون · طريقة الدفع</td></tr>
+<tr><td>الملاعب</td><td>اسم · نوع (خماسي/بادل) · سعر الساعة · مواعيد العمل</td></tr>
+<tr><td>الحجوزات</td><td>بحث بالتاريخ أو الموبايل · تأكيد · إلغاء بسبب</td></tr>
+<tr><td>التقارير</td><td>إشغال كل ملعب · إيراد · عربونات · أكثر الأوقات طلباً</td></tr>
+</tbody></table>
+<h2>4) نموذج البيانات</h2>
+<table><thead><tr><th>المجموعة</th><th>الحقول</th></tr></thead><tbody>
+<tr><td><code>courts</code></td><td><code>id</code> · <code>name</code> · <code>kind</code> (<code>football</code>/<code>padel</code>) · <code>pricePerHour</code> · <code>openFrom</code> · <code>openTo</code> · <code>active</code></td></tr>
+<tr><td><code>bookings</code></td><td><code>id</code> · <code>no</code> · <code>courtId</code> · <code>date</code> · <code>from</code> · <code>to</code> · <code>customerName</code> · <code>phone</code> · <code>amount</code> · <code>deposit</code> · <code>method</code> · <code>status</code> (<code>held</code>/<code>confirmed</code>/<code>played</code>/<code>cancelled</code>) · <code>note</code></td></tr>
+</tbody></table>
+<h2>5) الواجهات</h2>
+<pre>GET|POST /api/courts                     { name, kind, pricePerHour, openFrom, openTo }
+GET  /api/courts/grid?date=YYYY-MM-DD    ← الملاعب × الساعات
+GET|POST /api/courts/bookings            { courtId, date, from, to, customerName, phone, deposit, method }
+POST /api/courts/bookings/:id/confirm
+POST /api/courts/bookings/:id/cancel     { reason }
+POST /api/courts/bookings/:id/play       ← تسجيل أن الحجز لُعب
+GET  /api/courts/summary?range=today</pre>
+<h2>6) القواعد</h2>
+<ol><li>لا تعارض: أي تقاطع زمني على نفس الملعب ونفس اليوم → 409.</li><li>الحجز داخل مواعيد عمل الملعب فقط، ومدة لا تقل عن ساعة وبمضاعفات النصف ساعة.</li><li>العربون لا يتجاوز قيمة الحجز، والحجز بلا عربون يبقى <code>held</code> وينتهي تلقائياً بعد ساعة إن لم يُؤكَّد.</li><li>الإلغاء قبل 12 ساعة يعيد العربون (حركة درج سالبة معتمدة)، وبعدها لا.</li><li>السعر يُحسب من سعر الملعب في الساعة × المدة، ولا يُقبل سعر من المتصفح.</li><li>العربون النقدي يدخل درج وردية الملاعب.</li></ol>
+<h2>7) معايير القبول</h2>
+<ul class="criteria"><li class="crit open"><span class="box"></span>حجز متقاطع → 409</li><li class="crit open"><span class="box"></span>حجز خارج مواعيد العمل → 400</li><li class="crit open"><span class="box"></span>مدة 25 دقيقة → 400</li><li class="crit open"><span class="box"></span>الإلغاء داخل 12 ساعة لا يعيد العربون، وخارجها يعيده بحركة درج</li><li class="crit open"><span class="box"></span>السعر يتغير بتغيير سعر الملعب، ولا يُقبل من المتصفح</li><li class="crit open"><span class="box"></span>حجز <code>held</code> لم يُؤكَّد يظهر منتهياً في الجدول</li><li class="crit open"><span class="box"></span>الإشغال في التقرير = دقائق محجوزة ÷ دقائق متاحة</li></ul>
+<h2>8) كيف يُثبت ذلك</h2>
+<pre>npm test -- courts
+node tools/ui-courts.js</pre>
+<h2>9) خارج النطاق الآن</h2>
+<ul><li>الحجز الذاتي من الموقع للعملاء.</li><li>الاشتراكات الشهرية للفرق.</li><li>ربط بإضاءة الملعب أو بوابته.</li></ul></main>
+<footer class="foot">مُولَّد من <code>docs/product/systems/courts.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@09e88de</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
+</div></body></html>

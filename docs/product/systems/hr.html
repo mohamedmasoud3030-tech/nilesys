@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>نظام الموارد البشرية · نيل سيستمز</title>
+<style>
+:root{--paper:#f3f6f5;--sheet:#fcfdfc;--ink:#13201e;--muted:#5b6c67;--rule:#cdd8d3;
+--soft:#e3eae7;--brand:#0b7a6b;--brand-ink:#064c42;--warn:#a8641a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.7 "Segoe UI","Noto Sans Arabic",Tahoma,sans-serif}
+.sheet{max-width:900px;margin:0 auto;background:var(--sheet);box-shadow:0 0 0 1px var(--rule);padding:0 0 60px}
+.head{padding:38px 44px 0}
+.kicker{font-size:13px;color:var(--muted);letter-spacing:.02em}
+h1{font-size:32px;line-height:1.25;margin:8px 0 16px;letter-spacing:-.3px}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);margin:22px 44px 0}
+.fact{background:var(--sheet);padding:12px 14px}
+.fact .k{font-size:12px;color:var(--muted)}
+.fact .v{font:700 15px/1.4 ui-monospace,Menlo,Consolas,monospace;margin-top:4px;direction:ltr;unicode-bidi:isolate}
+.fact .v.ar{direction:rtl}
+.body{padding:8px 44px 0}
+h2{font-size:20px;margin:34px 0 10px;padding-top:14px;border-top:1px solid var(--soft)}
+h3{font-size:16px;margin:22px 0 6px}
+p{margin:0 0 10px}
+ul,ol{margin:0 0 12px;padding-inline-start:22px}
+li{margin-bottom:5px}
+code{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;background:#e9efec;color:var(--brand-ink);padding:1px 5px;border-radius:3px;direction:ltr;display:inline-block;unicode-bidi:isolate}
+pre{background:#0f221e;color:#e7f2ee;padding:14px 16px;overflow:auto;font:13px/1.6 ui-monospace,Menlo,Consolas,monospace;direction:ltr;text-align:left}
+pre code{background:none;color:inherit;padding:0}
+table{width:100%;border-collapse:collapse;margin:0 0 16px;font-size:14.5px}
+th{text-align:start;font-size:12.5px;color:var(--muted);border-bottom:2px solid var(--ink);padding:6px 10px 8px 0}
+td{padding:9px 10px 9px 0;border-bottom:1px solid var(--soft);vertical-align:top}
+blockquote{margin:0 0 16px;padding:12px 16px;background:#eef4f2;border-inline-start:3px solid var(--brand);color:var(--brand-ink);font-size:15px}
+ul.criteria{list-style:none;padding:0}
+ul.criteria li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--soft);font-size:15px}
+ul.criteria .box{width:18px;height:18px;border:1.5px solid var(--brand);flex:0 0 18px;display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--brand);margin-top:3px}
+ul.criteria li.open .box{border-color:var(--muted)}
+ul.criteria li.open{color:#41524d}
+hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
+.foot{margin:40px 44px 0;padding-top:16px;border-top:2px solid var(--ink);font-size:13px;color:var(--muted)}
+.badge{display:inline-block;border:1.5px solid currentColor;padding:4px 9px;font-size:12px;font-weight:700;transform:rotate(-1deg)}
+.st-live{color:var(--brand)}.st-partial{color:var(--warn)}.st-planned{color:#a3382c}
+@media (max-width:760px){.head,.body,.foot{padding-inline:20px}.facts{margin-inline:20px;grid-template-columns:repeat(2,1fr)}}
+@media print{body{background:#fff}.sheet{box-shadow:none;max-width:none}h2{break-after:avoid}table{break-inside:avoid}}
+</style></head>
+<body><div class="sheet">
+<header class="head">
+  <div class="kicker">نيل سيستمز · مواصفة تطبيق رقم 6</div>
+  <h1>نظام الموارد البشرية</h1>
+  <span class="badge st-planned">لم يُبنَ بعد</span>
+</header>
+<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-hr</div></div><div class="fact"><div class="k">النظام</div><div class="v">hr</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/hr.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">manager, hr, employee</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">0/8</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/hr.test.js</div></div></div>
+<main class="body">
+<blockquote>الحالة: <strong>لم يُبنَ بعد</strong>. هذه المواصفة هي ما سيُبنى بالضبط.</blockquote>
+<h2>1) الغرض في سطر</h2>
+<p>حضور الموظف وانصرافه، وأجر الشهر محسوب بالنقص والزيادة قبل يوم الصرف لا بعده.</p>
+<h2>2) المستخدمون</h2>
+<table><thead><tr><th>المستخدم</th><th>يدخل بـ</th><th>يقدر يعمل</th><th>لا يقدر</th></tr></thead><tbody>
+<tr><td>مدير</td><td><code>manager</code></td><td>كل شيء: موظفون · مرتبات · اعتماد · صرف</td><td>—</td></tr>
+<tr><td>موظف موارد بشرية</td><td><code>hr</code></td><td>تسجيل حضور · إجازات · تجهيز مرتب · اعتماد</td><td>صرف المرتب أو تعديل الراتب الأساسي</td></tr>
+<tr><td>موظف</td><td><code>employee</code></td><td>يرى حضوره ومسيّره الخاص</td><td>يرى بيانات غيره</td></tr>
+</tbody></table>
+<h2>3) الشاشات</h2>
+<table><thead><tr><th>الشاشة</th><th>ماذا فيها</th></tr></thead><tbody>
+<tr><td>لوحة اليوم</td><td>حاضر · متأخر · غائب · في إجازة · من لم يسجّل انصرافاً</td></tr>
+<tr><td>الحضور</td><td>تسجيل دخول/خروج · تصحيح بسبب (بموافقة)</td></tr>
+<tr><td>الموظفون</td><td>كود · اسم · وظيفة · راتب أساسي · بدلات · تاريخ تعيين · نشط</td></tr>
+<tr><td>الإجازات</td><td>طلب · نوع (سنوية/مرضية/بدون أجر) · رصيد · موافقة/رفض</td></tr>
+<tr><td>المرتبات</td><td>شهر · أساسي + بدلات + إضافي − غياب − تأخير − سلف = الصافي</td></tr>
+<tr><td>المسيّر</td><td>كشف راتب مفرد قابل للطباعة</td></tr>
+</tbody></table>
+<h2>4) نموذج البيانات</h2>
+<table><thead><tr><th>المجموعة</th><th>الحقول</th></tr></thead><tbody>
+<tr><td><code>employees</code></td><td><code>id</code> · <code>code</code> · <code>name</code> · <code>phone</code> · <code>jobTitle</code> · <code>baseSalary</code> · <code>allowances</code> · <code>hireDate</code> · <code>active</code></td></tr>
+<tr><td><code>attendance</code></td><td><code>id</code> · <code>employeeId</code> · <code>date</code> · <code>in</code> · <code>out</code> · <code>status</code> (<code>present</code>/<code>late</code>/<code>absent</code>/<code>leave</code>) · <code>note</code></td></tr>
+<tr><td><code>leaves</code></td><td><code>id</code> · <code>employeeId</code> · <code>from</code> · <code>to</code> · <code>kind</code> · <code>status</code> (<code>pending</code>/<code>approved</code>/<code>rejected</code>) · <code>reason</code></td></tr>
+<tr><td><code>payroll</code></td><td><code>id</code> · <code>month</code> · <code>employeeId</code> · <code>base</code> · <code>allowances</code> · <code>bonus</code> · <code>absenceDeduction</code> · <code>lateDeduction</code> · <code>advance</code> · <code>net</code> · <code>status</code> (<code>draft</code>/<code>approved</code>/<code>paid</code>)</td></tr>
+</tbody></table>
+<h2>5) الواجهات</h2>
+<pre>GET|POST /api/hr/employees            { code, name, jobTitle, baseSalary, allowances }
+PUT  /api/hr/employees/:id            { active, baseSalary, ... }        (manager)
+POST /api/hr/attendance               { employeeId, date, in, out }
+POST /api/hr/attendance/:id/fix       { in, out, reason }                (hr/manager)
+GET  /api/hr/attendance?date=
+POST /api/hr/leaves                   { employeeId, from, to, kind }
+POST /api/hr/leaves/:id/decide        { approve: true|false }
+POST /api/hr/payroll/run              { month }                          (hr/manager)
+POST /api/hr/payroll/:month/approve
+POST /api/hr/payroll/:month/pay       ← يكتب مصروفاً في الخزينة         (manager)
+GET  /api/hr/payroll/:month
+GET  /api/hr/me                       ← حضور ومسيّر الموظف نفسه</pre>
+<h2>6) القواعد</h2>
+<ol><li>تسجيل حضور مرتين لنفس الموظف ونفس اليوم → 409.</li><li>يوم بلا انصراف يُحسب «نصف يوم» حتى يُصحَّح بسبب موثّق.</li><li>الإجازة المعتمدة لا تُحسب غياباً، والمرفوضة تُحسب.</li><li>المرتب = أساسي + بدلات + إضافي − (غياب × قيمة اليوم) − تأخير − سلف.</li><li>مرتب مُعتمد لا يُعاد حسابه؛ ومرتب مصروف لا يُعدَّل إطلاقاً.</li><li>الموظف يرى سجله فقط — طلب سجل غيره → 403.</li><li>صرف المرتب يخصم من الخزينة مرة واحدة (مفتاح شهر).</li></ol>
+<h2>7) معايير القبول</h2>
+<ul class="criteria"><li class="crit open"><span class="box"></span>حضور مكرر في نفس اليوم → 409</li><li class="crit open"><span class="box"></span>يوم بلا انصراف يُحسب نصف يوم</li><li class="crit open"><span class="box"></span>إجازة معتمدة لا تُخصم، ومرفوضة تُخصم</li><li class="crit open"><span class="box"></span>مرتب شهر: أساسي 6000 + بدل 500 − غياب يومين (400) = 6100</li><li class="crit open"><span class="box"></span>مرتب معتمد لا يُعاد حسابه؛ ومصروف لا يُعدَّل → 409</li><li class="crit open"><span class="box"></span>الموظف يطلب سجل زميله → 403</li><li class="crit open"><span class="box"></span>صرف شهر مرتين → 409 والخزينة لا تتأثر مرتين</li><li class="crit open"><span class="box"></span>المسيّر المطبوع يحمل كل بنود الحساب</li></ul>
+<h2>8) كيف يُثبت ذلك</h2>
+<pre>npm test -- hr
+node tools/ui-hr.js</pre>
+<h2>9) خارج النطاق الآن</h2>
+<ul><li>بصمة أو كارت (التسجيل يدوي في هذه المرحلة).</li><li>التأمينات والضرائب على المرتب.</li><li>تقييم الأداء.</li></ul></main>
+<footer class="foot">مُولَّد من <code>docs/product/systems/hr.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@09e88de</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
+</div></body></html>

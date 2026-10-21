@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>نظام المخازن · نيل سيستمز</title>
+<style>
+:root{--paper:#f3f6f5;--sheet:#fcfdfc;--ink:#13201e;--muted:#5b6c67;--rule:#cdd8d3;
+--soft:#e3eae7;--brand:#0b7a6b;--brand-ink:#064c42;--warn:#a8641a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.7 "Segoe UI","Noto Sans Arabic",Tahoma,sans-serif}
+.sheet{max-width:900px;margin:0 auto;background:var(--sheet);box-shadow:0 0 0 1px var(--rule);padding:0 0 60px}
+.head{padding:38px 44px 0}
+.kicker{font-size:13px;color:var(--muted);letter-spacing:.02em}
+h1{font-size:32px;line-height:1.25;margin:8px 0 16px;letter-spacing:-.3px}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);margin:22px 44px 0}
+.fact{background:var(--sheet);padding:12px 14px}
+.fact .k{font-size:12px;color:var(--muted)}
+.fact .v{font:700 15px/1.4 ui-monospace,Menlo,Consolas,monospace;margin-top:4px;direction:ltr;unicode-bidi:isolate}
+.fact .v.ar{direction:rtl}
+.body{padding:8px 44px 0}
+h2{font-size:20px;margin:34px 0 10px;padding-top:14px;border-top:1px solid var(--soft)}
+h3{font-size:16px;margin:22px 0 6px}
+p{margin:0 0 10px}
+ul,ol{margin:0 0 12px;padding-inline-start:22px}
+li{margin-bottom:5px}
+code{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;background:#e9efec;color:var(--brand-ink);padding:1px 5px;border-radius:3px;direction:ltr;display:inline-block;unicode-bidi:isolate}
+pre{background:#0f221e;color:#e7f2ee;padding:14px 16px;overflow:auto;font:13px/1.6 ui-monospace,Menlo,Consolas,monospace;direction:ltr;text-align:left}
+pre code{background:none;color:inherit;padding:0}
+table{width:100%;border-collapse:collapse;margin:0 0 16px;font-size:14.5px}
+th{text-align:start;font-size:12.5px;color:var(--muted);border-bottom:2px solid var(--ink);padding:6px 10px 8px 0}
+td{padding:9px 10px 9px 0;border-bottom:1px solid var(--soft);vertical-align:top}
+blockquote{margin:0 0 16px;padding:12px 16px;background:#eef4f2;border-inline-start:3px solid var(--brand);color:var(--brand-ink);font-size:15px}
+ul.criteria{list-style:none;padding:0}
+ul.criteria li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--soft);font-size:15px}
+ul.criteria .box{width:18px;height:18px;border:1.5px solid var(--brand);flex:0 0 18px;display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--brand);margin-top:3px}
+ul.criteria li.open .box{border-color:var(--muted)}
+ul.criteria li.open{color:#41524d}
+hr{border:0;border-top:1px solid var(--soft);margin:26px 0}
+.foot{margin:40px 44px 0;padding-top:16px;border-top:2px solid var(--ink);font-size:13px;color:var(--muted)}
+.badge{display:inline-block;border:1.5px solid currentColor;padding:4px 9px;font-size:12px;font-weight:700;transform:rotate(-1deg)}
+.st-live{color:var(--brand)}.st-partial{color:var(--warn)}.st-planned{color:#a3382c}
+@media (max-width:760px){.head,.body,.foot{padding-inline:20px}.facts{margin-inline:20px;grid-template-columns:repeat(2,1fr)}}
+@media print{body{background:#fff}.sheet{box-shadow:none;max-width:none}h2{break-after:avoid}table{break-inside:avoid}}
+</style></head>
+<body><div class="sheet">
+<header class="head">
+  <div class="kicker">نيل سيستمز · مواصفة تطبيق رقم 2</div>
+  <h1>نظام المخازن</h1>
+  <span class="badge st-live">يعمل ومُختبَر</span>
+</header>
+<div class="facts"><div class="fact"><div class="k">المُعرِّف</div><div class="v">app-inventory</div></div><div class="fact"><div class="k">النظام</div><div class="v">inventory</div></div><div class="fact"><div class="k">الصفحة</div><div class="v">/systems/inventory.html</div></div><div class="fact"><div class="k">الحسابات</div><div class="v ar">manager, store</div></div><div class="fact"><div class="k">معايير القبول</div><div class="v">7/7</div></div><div class="fact"><div class="k">ملف الاختبار</div><div class="v">tests/inventory.test.js</div></div></div>
+<main class="body">
+<h2>1) الغرض في سطر</h2>
+<p>الرصيد الصح في اللحظة الصح: كل وحدة دخلت أو خرجت لها سطر وسبب، والقيمة على الرف معروفة.</p>
+<h2>2) المستخدمون</h2>
+<table><thead><tr><th>المستخدم</th><th>يدخل بـ</th><th>يقدر يعمل</th><th>لا يقدر</th></tr></thead><tbody>
+<tr><td>مدير مخزن</td><td><code>manager</code> (نظام المخازن)</td><td>تسوية · توريد · موردون · قراءة الأصناف</td><td>البيع أو فتح وردية كاشير</td></tr>
+<tr><td>أمين مخزن</td><td><code>store</code></td><td>قراءة · توريد · طلب تسوية</td><td>التسوية بدون مدير</td></tr>
+<tr><td>الكاشير</td><td>—</td><td>لا يدخل هذا النظام</td><td>كل الشاشات</td></tr>
+</tbody></table>
+<h2>3) الشاشات</h2>
+<table><thead><tr><th>الشاشة</th><th>ماذا فيها</th></tr></thead><tbody>
+<tr><td>لوحة المخزن</td><td>عدد الأصناف · قيمة المخزون بالتكلفة · تحت حد الطلب · آخر الحركات</td></tr>
+<tr><td>الأصناف</td><td>الرصيد · حد الطلب · التكلفة · قيمة الرصيد · تصدير</td></tr>
+<tr><td>تحت حد الطلب</td><td>ما يجب توريده والكمية المقترحة</td></tr>
+<tr><td>حركات المخزون</td><td>كل حركة: الوقت · الصنف · الفرق · الرصيد بعدها · النوع · من فعلها</td></tr>
+<tr><td>الموردون والتوريد</td><td>موردون · مستحقات · توريد يحدّث متوسط التكلفة</td></tr>
+</tbody></table>
+<h2>4) نموذج البيانات</h2>
+<table><thead><tr><th>المجموعة</th><th>الحقول</th></tr></thead><tbody>
+<tr><td><code>products</code></td><td>نفس كتالوج الكاشير — مخزون واحد لا اثنان</td></tr>
+<tr><td><code>stockMovements</code></td><td><code>productId</code> · <code>qty</code> · <code>reason</code> · <code>kind</code> · <code>after</code> · <code>note</code> · <code>userId</code></td></tr>
+<tr><td><code>suppliers</code></td><td><code>id</code> · <code>name</code> · <code>phone</code> · <code>note</code></td></tr>
+<tr><td><code>purchases</code></td><td><code>supplierId</code> · <code>items[{productId, qty, cost}]</code> · <code>total</code> · <code>paid</code></td></tr>
+</tbody></table>
+<h2>5) الواجهات</h2>
+<pre>GET  /api/products                 ← قراءة فقط لمستخدم المخزن
+GET  /api/stock/low
+GET  /api/stock/movements?productId=&amp;limit=
+POST /api/stock/adjust             { productId, qty, reason }
+GET|POST /api/suppliers
+GET|POST /api/purchases            { supplierId, items[], paid }
+GET  /api/export/stock.csv</pre>
+<h2>6) القواعد</h2>
+<ol><li>المخزون لا يصبح سالباً أبداً → 409 مع رسالة مفهومة.</li><li>كل تعديل يكتب حركة تحمل السبب والرصيد بعده.</li><li>التوريد يحدّث متوسط التكلفة المرجح: <code>(رصيد×تكلفة + كمية×سعر) ÷ الرصيد الجديد</code>.</li><li>مستخدم نظام آخر لا يقرأ مسارات الكاشير، ومستخدم الكاشير لا يعدّل مخزوناً من هنا.</li></ol>
+<h2>7) معايير القبول</h2>
+<ul class="criteria"><li class="crit done"><span class="box">✓</span>تسوية +7 تظهر فوراً في الكاشير</li><li class="crit done"><span class="box">✓</span>تسوية −999999 تُرفض 409 والرصيد لا ينزل تحت الصفر</li><li class="crit done"><span class="box">✓</span>أمين مخزن لا يستطيع التسوية (403) والمدير يستطيع</li><li class="crit done"><span class="box">✓</span>التوريد يزيد الرصيد ويحرّك التكلفة نحو السعر الجديد بلا تجاوزه</li><li class="crit done"><span class="box">✓</span>كل حركة تحمل نوعاً وسبباً ورصيداً بعدها</li><li class="crit done"><span class="box">✓</span>تصدير المخزون CSV بـ BOM</li><li class="crit done"><span class="box">✓</span>كاشير الكاشير مرفوض في نظام المخازن</li></ul>
+<h2>8) كيف يُثبت ذلك</h2>
+<pre>npm test -- inventory       # 9 حالات
+node tools/ui-inventory.js  # 9 فحوص في المتصفح</pre>
+<h2>9) خارج النطاق الآن</h2>
+<ul><li>مخازن متعددة بتحويل بينها.</li><li>جرد بجلسة معدودة (count sheets) وتجميد الرصيد أثناء الجرد.</li><li>باركود ملصقات للطباعة.</li></ul></main>
+<footer class="foot">مُولَّد من <code>docs/product/systems/inventory.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@09e88de</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
+</div></body></html>
