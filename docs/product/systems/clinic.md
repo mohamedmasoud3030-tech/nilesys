@@ -12,7 +12,7 @@ api: /api/clinic/*
 ---
 # نظام العيادة — مواصفة مستقلة
 
-> الحالة: **مبني ويعمل**. المحرك `lib/clinic.js` (11/11 اختبار API) والشاشة `public/systems/clinic.html` (16/16 اختبار متصفح).
+> الحالة: **مبني ويعمل**. المحرك `lib/clinic.js` (11/11 اختبار API) والشاشة `public/systems/clinic.html` (17/17 اختبار متصفح).
 
 ## 1) الغرض في سطر
 
@@ -86,10 +86,10 @@ GET  /api/clinic/summary?range=today
 
 ```sh
 BASE=http://localhost:4000 node --test tests/clinic.test.js                   # 11/11
-BASE=http://localhost:4000 sh tools/setup-browser.sh tools/ui-clinic.js      # 16/16
+BASE=http://localhost:4000 sh tools/setup-browser.sh tools/ui-clinic.js      # 17/17
 ```
 
-نتيجة آخر تشغيل: **11/11** للـ API و**16/16** للمتصفح، وصفر أخطاء JavaScript.
+نتيجة آخر تشغيل: **11/11** للـ API و**17/17** للمتصفح، وصفر أخطاء JavaScript.
 
 ## 9) خارج النطاق الآن
 

@@ -21,7 +21,7 @@ const DAY = `${MONTH}-13`;
   page.on('console', (m) => {
     const txt = m.text();
     if (m.type() !== 'error') return;
-    if (/Failed to load resource/.test(txt) && /(401|403|409|400|404)/.test(txt)) return; // رفض متعمّد
+    if (/Failed to load resource/.test(txt) && /(401|403|409|400|404|429)/.test(txt)) return; // رفض متعمّد (429 = حد محاولات الدخول)
     errors.push(txt);
   });
   const waitText = (sel, txt, timeout = 25000) => page.waitForFunction(

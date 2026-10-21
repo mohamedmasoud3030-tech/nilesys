@@ -90,8 +90,14 @@
   }
 
   const views = { overview: renderOverview, items: renderItems, low: renderLow, moves: renderMoves, purchases: renderPurchases };
+  // رسم متسلسل — لا شاشة قديمة ترسم فوق الشاشة المطلوبة (نفس عيب pos/clinic).
+  let renderChain = Promise.resolve();
   function render() {
-    Promise.resolve((views[state.view] || renderOverview)()).catch((err) => toast(err.message, 'bad'));
+    const view = views[state.view] || renderOverview;
+    renderChain = renderChain
+      .then(() => view())
+      .catch((err) => toast(err.message, 'bad'));
+    return renderChain;
   }
 
   const head = (title, sub, actions = '') => `

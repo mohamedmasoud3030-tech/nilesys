@@ -111,7 +111,7 @@ const check = (name, ok, extra = '') => {
 
   /* ---------- F-05: تسوية مخزون ---------- */
   await page.goto(BASE + '/systems/pos.html#/stock', { waitUntil: 'networkidle' });
-  await page.waitForTimeout(400);
+  await page.waitForSelector('#doAdj', { timeout: 25000 });
   await page.click('#doAdj');
   await page.waitForTimeout(300);
   const firstProd = await page.locator('#ajProd option').first().getAttribute('value');
@@ -123,7 +123,7 @@ const check = (name, ok, extra = '') => {
 
   /* ---------- F-08: حركة درج كاشير تحتاج اعتماد ---------- */
   await page.goto(BASE + '/systems/pos.html#/cash', { waitUntil: 'networkidle' });
-  await page.waitForTimeout(400);
+  await page.waitForSelector('#addM', { timeout: 25000 });
   await page.click('#addM');
   await page.waitForTimeout(300);
   await page.fill('#mAmt', '75');

@@ -22,7 +22,7 @@ const localDT = (ms) => new Date(ms - new Date().getTimezoneOffset() * 60000).to
     pg.on('console', (m) => {
       const txt = m.text();
       if (m.type() !== 'error') return;
-      if (/Failed to load resource/.test(txt) && /(401|409|403|400)/.test(txt)) return; // رفض متعمّد
+      if (/Failed to load resource/.test(txt) && /(401|409|403|400|429)/.test(txt)) return; // رفض متعمّد (429 = حد محاولات الدخول)
       errors.push(txt);
     });
   };
@@ -63,11 +63,20 @@ const localDT = (ms) => new Date(ms - new Date().getTimezoneOffset() * 60000).to
   await page.fill('#pName', 'اسم مكرر');
   await page.fill('#pPhone', phone);
   await page.click('#pSave');
-  await page.waitForSelector('.modal', { timeout: 25000 }).catch(() => {});
+  // ننتظر نافذة الملف بعينه: نموذج الإدخال يظل مفتوحاً لحظة بينما يرد الخادم
+  // بـ 409 ويجلب الملف الموجود، والانتظار لأي نافذة كان يقرأ النموذج نفسه.
+  await page.waitForFunction((n) => {
+    const m = document.querySelector('.modal');
+    return Boolean(m) && m.textContent.includes(n);
+  }, patientName, { timeout: 25000 }).catch(() => {});
   const modalTxt = (await page.textContent('.modal').catch(() => '')) || '';
-  check('C-UI · موبايل مكرر يفتح الملف الموجود', modalTxt.includes(patientName) && !modalTxt.includes('اسم مكرر'));
+  check('C-UI · موبايل مكرر يفتح الملف الموجود', modalTxt.includes(patientName) && !modalTxt.includes('اسم مكرر'),
+    modalTxt.slice(0, 60).replace(/\s+/g, ' '));
+  // نقفل من زر الإغلاق (مسار المستخدم)، والهروب بديل
+  if (await page.locator('.modal .x-btn').count()) await page.locator('.modal .x-btn').first().click();
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(400);
+  await page.waitForFunction(() => !document.querySelector('.modal-back'), null, { timeout: 10000 }).catch(() => {});
+  check('C-UI · نافذة الملف تنقفل قبل تغيير الشاشة', (await page.locator('.modal-back').count()) === 0);
 
   // حجز من الشاشة (طبيب بلا تعارض: نختار آخر طبيب في القائمة — د. كريم منصور)
   await page.goto(`${BASE}/systems/clinic.html#/book`, { waitUntil: 'networkidle' });
@@ -102,17 +111,25 @@ const localDT = (ms) => new Date(ms - new Date().getTimezoneOffset() * 60000).to
     const r = await fetch('/api/clinic/doctors');
     return (await r.json()).doctors.map((d) => d.id);
   });
+  // المواعيد تتراكم على قاعدة الديمو المشتركة، فالوقت الثابت يصطدم بموعد سابق
+  // (409). نجرّب أوقاتاً لاحقة حتى ينجح الحجز — الهدف إتمام الدورة لا الوقت نفسه.
   const appt = await page.evaluate(async ({ doctorId, phone }) => {
     const pats = await (await fetch('/api/clinic/patients')).json();
     const p = (pats.patients || []).find((x) => x.phone === phone) || (pats.patients || [])[0];
-    const at = new Date(Date.now() + 2 * 3600e3).toISOString();
-    const r = await fetch('/api/clinic/appointments', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ patientId: p.id, doctorId, at, minutes: 20 }),
-    });
-    return { status: r.status, body: await r.json() };
+    let last = { status: 0, body: {} };
+    for (let i = 1; i <= 8; i += 1) {
+      const at = new Date(Date.now() + (i * 3600e3) + (i * 7 * 60e3)).toISOString();
+      const r = await fetch('/api/clinic/appointments', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patientId: p.id, doctorId, at, minutes: 20 }),
+      });
+      const body = await r.json();
+      last = { status: r.status, body };
+      if (r.status === 201) return last;
+    }
+    return last;
   }, { doctorId: token[token.length - 1], phone });
-  check('C-UI · حجز موعد اليوم للاختبار', appt.status === 201 || appt.status === 409, String(appt.status));
+  check('C-UI · حجز موعد اليوم للاختبار', appt.status === 201, String(appt.status));
 
   if (appt.status === 201) {
     const id = appt.body.appointment.id;

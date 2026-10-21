@@ -131,14 +131,20 @@
     $$('.side .nav-item[data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === state.view));
     renderCurrent();
   }
+  // رسم متسلسل: تغيير الشاشة أثناء جلب بيانات الشاشة السابقة كان يترك الجلب
+  // القديم يرسم فوق الجديدة (تظهر شاشة «المخزون» والعنوان «حركة الدرج»،
+  // فلا يوجد زر الشاشة المطلوبة — أمسكه اختبار المتصفح على الديمو المنشور).
+  let renderChain = Promise.resolve();
   function renderCurrent() {
     const local = { sell: renderSell, sales: renderSales, returns: renderReturns, shifts: renderShifts, reports: renderReports, products: renderProducts, branding: renderBranding, audit: renderAudit };
-    const fn = local[state.view] || (window.NSAdmin && NSAdmin.views[state.view]);
+    const fn = local[state.view] || (window.NSAdmin && NSAdmin.views[state.view]) || renderSell;
     // شاشات الإدارة async؛ فشلها لا يجوز أن يترك الشاشة بيضاء.
     // applyI18n بعد كل رسم: الشاشات تُبنى بعد الترجمة الأولى، فالعنوان يبقى فارغاً بدونها.
-    Promise.resolve((fn || renderSell).call(null))
+    renderChain = renderChain
+      .then(() => fn())
       .then(() => { try { applyI18n(); } catch { /* */ } })
       .catch((err) => toast(err.message, 'bad'));
+    return renderChain;
   }
 
   /* ================= العمل بلا شبكة — F-11 =================

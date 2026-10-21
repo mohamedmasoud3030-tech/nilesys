@@ -18,7 +18,7 @@ const check = (n, ok, extra = '') => { results.push({ n, ok }); console.log(`${o
   page.on('console', (m) => {
     const txt = m.text();
     if (m.type() !== 'error') return;
-    if (/Failed to load resource/.test(txt) && /401/.test(txt)) return;
+    if (/Failed to load resource/.test(txt) && /(401|429)/.test(txt)) return; // رفض متعمّد (429 = حد محاولات الدخول)
     errors.push(txt);
   });
 
@@ -76,27 +76,39 @@ const check = (n, ok, extra = '') => { results.push({ n, ok }); console.log(`${o
   await page.screenshot({ path: `${OUT}/restaurant-order.png` });
 
   await page.click('#sendBtn');
-  await page.waitForTimeout(1200);
+  await page.waitForFunction(() => ((document.querySelector('#lines') || {}).textContent || '').includes('اتبعت'),
+    null, { timeout: 25000 }).catch(() => {});
   const sentTxt = (await page.textContent('#lines')).includes('اتبعت');
   check('R-UI · الإرسال يعلّم السطر «اتبعت»', sentTxt);
+  await page.waitForFunction(() => {
+    const b = document.querySelector('#payBtn');
+    return b && !b.disabled;
+  }, null, { timeout: 25000 }).catch(() => {});
   check('R-UI · زر التحصيل يفتح بعد الإرسال', !(await page.locator('#payBtn').isDisabled()));
 
   // المطبخ يستلم التذكرة ويحرّكها
   await page.goto(`${BASE}/systems/restaurant.html#/kitchen`, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(800);
+  await page.waitForFunction(() => document.querySelectorAll('#board [data-ticket]').length > 0,
+    null, { timeout: 25000 }).catch(() => {});
   const tickets = await page.locator('#board [data-ticket]').count();
   check('R-UI · المطبخ يستقبل تذكرة', tickets >= 1, `${tickets} تذكرة`);
   await page.screenshot({ path: `${OUT}/restaurant-kitchen.png` });
 
-  await page.locator('#board [data-cook]').first().click();
-  await page.waitForSelector('#board [data-ready]', { timeout: 10000 }).catch(() => {});
-  check('R-UI · الصنف يبدأ التحضير من الشاشة', (await page.locator('#board [data-ready]').count()) === 1);
-  await page.locator('#board [data-ready]').first().click();
-  await page.waitForSelector('#board [data-served]', { timeout: 10000 }).catch(() => {});
-  check('R-UI · الصنف يتحوّل «جاهز» ثم «قدّمني»', (await page.locator('#board [data-served]').count()) === 1);
-  await page.locator('#board [data-served]').first().click();
-  await page.waitForTimeout(1200);
-  check('R-UI · التقديم يخرج التذكرة من شاشة المطبخ', (await page.locator('#board [data-ticket]').count()) === 0);
+  // تذكرة واحدة بعينها: الديمو المشترك قد يحمل تذاكر من تشغيل سابق،
+  // فانتظار «لوحة فاضية» كان يفشل بسببها لا بسبب الشاشة.
+  const ticket = await page.locator('#board [data-ticket]').first().getAttribute('data-ticket');
+  const T = `#board [data-ticket="${ticket}"]`;
+  await page.locator(`${T} [data-cook]`).first().click();
+  await page.waitForSelector(`${T} [data-ready]`, { timeout: 25000 }).catch(() => {});
+  check('R-UI · الصنف يبدأ التحضير من الشاشة', (await page.locator(`${T} [data-ready]`).count()) === 1);
+  await page.locator(`${T} [data-ready]`).first().click();
+  await page.waitForSelector(`${T} [data-served]`, { timeout: 25000 }).catch(() => {});
+  check('R-UI · الصنف يتحوّل «جاهز» ثم «قدّمني»', (await page.locator(`${T} [data-served]`).count()) === 1);
+  await page.locator(`${T} [data-served]`).first().click();
+  // ننتظر اختفاء تذكرتنا بدل مهلة ثابتة: على الديمو المنشور الطلب أبطأ من 1.2ث
+  await page.waitForFunction((id) => !document.querySelector(`#board [data-ticket="${id}"]`),
+    ticket, { timeout: 25000 }).catch(() => {});
+  check('R-UI · التقديم يخرج التذكرة من شاشة المطبخ', (await page.locator(T).count()) === 0);
   await page.screenshot({ path: `${OUT}/restaurant-kitchen-empty.png` });
 
   // تحصيل

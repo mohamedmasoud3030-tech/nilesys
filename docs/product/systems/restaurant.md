@@ -12,7 +12,7 @@ api: /api/restaurant/*
 ---
 # نظام المطعم — مواصفة مستقلة
 
-> الحالة: **مبني ويعمل**. المحرك `lib/restaurant.js` (14/14 اختبار API) والشاشة `public/systems/restaurant.html` (19/19 اختبار متصفح) — وكل معيار قبول تحته دليل يُعاد تشغيله بأمر واحد.
+> الحالة: **مبني ويعمل**. المحرك `lib/restaurant.js` (14/14 اختبار API) والشاشة `public/systems/restaurant.html` (21/21 اختبار متصفح) — وكل معيار قبول تحته دليل يُعاد تشغيله بأمر واحد.
 
 ## 1) الغرض في سطر
 
@@ -102,7 +102,7 @@ BASE=http://localhost:4000 node --test tests/restaurant.test.js   # 14/14
 BASE=http://localhost:4000 sh tools/setup-browser.sh tools/ui-restaurant.js   # 19/19
 ```
 
-نتيجة آخر تشغيل: **14/14** للـ API و**19/19** للمتصفح، وصفر أخطاء JavaScript.
+نتيجة آخر تشغيل: **14/14** للـ API و**21/21** للمتصفح، وصفر أخطاء JavaScript.
 
 ## 9) خارج النطاق الآن
 
