@@ -30,6 +30,11 @@
     window.addEventListener('hashchange', route);
     window.addEventListener('nile:lang', () => { applyI18n(); if (state.user) { renderUser(); renderCurrent(); } });
     window.addEventListener('resize', checkMobile);
+    // F-11: رجوع الشبكة يفرّغ الطابور من نفسه؛ ولا ننتظر ضغطة.
+    window.addEventListener('online', () => { paintOfflineBar(); flushQueue(); });
+    window.addEventListener('offline', () => paintOfflineBar());
+    setInterval(() => { if (isOnline() && readQueue().length) flushQueue(); }, 20000);
+    paintOfflineBar();
     checkMobile();
     bindShortcuts();
   }
@@ -109,6 +114,8 @@
       setInterval(() => NSAdmin.refreshBadge(), 60000);
     }
     if (!location.hash) location.hash = '#/sell';
+    paintOfflineBar();
+    if (isOnline() && readQueue().length) flushQueue();
     route();
   }
 
@@ -133,6 +140,170 @@
       .then(() => { try { applyI18n(); } catch { /* */ } })
       .catch((err) => toast(err.message, 'bad'));
   }
+
+  /* ================= العمل بلا شبكة — F-11 =================
+   *
+   * النت في المحلات بيقطع. القرار: البيع لا يتوقف، ويُحفظ محلياً بمفتاح
+   * تكرار، ويُرسل عند رجوع الشبكة. الخادم يعرف المفتاح، فالإرسال المتأخر
+   * لا يصنع فاتورة ثانية أبداً (replay ⇒ 409 ويُعتبر نجاحاً هنا).
+   *
+   * حدود صادقة: البيع بلا شبكة لا يتحقق من المخزون على الخادم؛ نتشبث بآخر
+   * نسخة محلية ونرفض البيع لو نفدت. هذا قرار المالك في السجل، لا اجتهاد.
+   */
+  var QUEUE_KEY = 'nile_pos_queue_v1';
+
+  function readQueue() {
+    try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
+  }
+  function writeQueue(q) {
+    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch { /* ممتلئ أو ممنوع */ }
+    paintOfflineBar();
+  }
+  // دوال لا ثوابت: init() ينادي paintOfflineBar قبل أن تُهيَّأ الثوابت،
+  // وconst في منطقة الوفاة المؤقتة تكسر الصفحة كلها (حدث فعلاً).
+  function isOnline() { return navigator.onLine !== false; }
+
+  function paintOfflineBar() {
+    const q = readQueue();
+    let bar = $('#offlineBar');
+    if (!q.length && isOnline()) { if (bar) bar.remove(); return; }
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'offlineBar';
+      bar.className = 'offline-bar';
+      document.body.appendChild(bar);
+    }
+    // لون التحذير يمشي على وجود طابور لا على navigator.onLine: الشبكة قد
+    // تكون «متصلة» والطلب يفشل، والمهم أن الكاشير يشوف إن فيه فواتير معلّقة.
+    const pending = readQueue().length;
+    bar.className = `offline-bar${isOnline() && !pending ? ' ok' : ''}`;
+    const wait = q.filter((x) => !x.sending).length;
+    bar.innerHTML = isOnline()
+      ? `<span class="dot"></span> ${t('pos.online') || 'متصل'} · ${wait ? `${wait} ${t('pos.queued') || 'فاتورة في الطابور'}` : (t('pos.synced') || 'تمت المزامنة')}`
+        + (wait ? ` <button class="btn btn-ghost btn-sm" id="flushNow">${t('pos.syncNow') || 'مزامنة الآن'}</button>` : '')
+      : `<span class="dot"></span> ${t('pos.offline') || 'بلا شبكة'} — ${wait} ${t('pos.queued') || 'فاتورة محفوظة محلياً'}`;
+    const btn = $('#flushNow');
+    if (btn) btn.onclick = flushQueue;
+  }
+
+  // كل بيع يعدّل المخزون المحلي فوراً حتى لا نبيع صنفاً نفد أثناء الانقطاع.
+  function consumeLocalStock(items) {
+    for (const it of items) {
+      const p = state.products.find((x) => x.id === it.productId);
+      if (p) p.stock = Math.max(0, p.stock - it.qty);
+    }
+  }
+
+  async function postSale(body) {
+    try {
+      const r = await api('/api/sales', { method: 'POST', body });
+      return { sale: r.sale, queued: false };
+    } catch (err) {
+      // فشل الشبكة = نحفظ ونكمل. رفض الخادم (400/403/409) يظهر للمستخدم.
+      if (!(err instanceof TypeError) && navigator.onLine !== false) throw err;
+      const q = readQueue();
+      q.push({ body, at: new Date().toISOString() });
+      writeQueue(q);
+      return { sale: { ...body, total: body.paid, offline: true, no: '—', createdAt: new Date().toISOString(), items: [] }, queued: true };
+    }
+  }
+
+  let flushing = false;
+  async function flushQueue() {
+    if (flushing) return;
+    const q = readQueue();
+    if (!q.length) return paintOfflineBar();
+    flushing = true;
+    const left = [];
+    for (const item of q) {
+      try {
+        await api('/api/sales', { method: 'POST', body: item.body });
+      } catch (err) {
+        // 409 = الخادم رآها قبل كذا (نفس مفتاح التكرار) ⇒ ليست فاتورة ناقصة.
+        const dup = /مكرر|duplicate|idempot/i.test(err.message);
+        if (!dup) left.push(item);
+      }
+    }
+    flushing = false;
+    writeQueue(left);
+    if (!left.length) {
+      toast(t('pos.synced') || 'تمت المزامنة', 'ok');
+      try { state.products = (await api('/api/products')).products; renderSell(); } catch { /* */ }
+    }
+  }
+
+  /* ================= كاميرا الباركود — F-04 =================
+   * BarcodeDetector مدعوم في كروم على أندرويد وفيه بدائل. لو مش موجود
+   * أو الإذن مرفوض، الإدخال اليدوي يفضل شغالاً — الكاميرا إضافة لا شرط.
+   */
+  // منع القراءة المكررة في أقل من 500ms — الكاميرا تقرأ نفس الباركود عشرين مرة.
+  // في مستوى الوحدة حتى يستخدمها الخطاف الاختباري بنفس المنطق تماماً.
+  var scanState = { code: '', at: 0 };
+  function scanHit(code) {
+    const now = Date.now();
+    if (!code) return false;
+    if (code === scanState.code && now - scanState.at < 500) return true;
+    scanState.code = code; scanState.at = now;
+    const p = state.products.find((x) => x.barcode === code);
+    if (!p) { toast(`${t('pos.barcodeUnknown') || 'باركود غير معروف'}: ${code}`, 'bad'); return false; }
+    addToCart(p.id);
+    closeModal();
+    return true;
+  }
+
+  function openScanner() {
+    const supported = 'BarcodeDetector' in window && navigator.mediaDevices?.getUserMedia;
+    openModal({
+      title: t('pos.scan') || 'قراءة باركود بالكاميرا',
+      body: `<div class="scan-box" id="scanBox">
+          <video id="scanVideo" playsinline muted></video>
+          <div class="frame"></div>
+          <div class="hint" id="scanHint">${supported ? (t('pos.scanHint') || 'وجّه الكاميرا على الباركود') : (t('pos.scanUnsupported') || 'المتصفح لا يدعم القراءة — استخدم الإدخال اليدوي')}</div>
+        </div>
+        <div class="field mt-2"><label class="label">${t('pos.barcode') || 'باركود'}</label>
+          <input class="input mono" id="scanManual" placeholder="6221000000000" autocomplete="off" /></div>`,
+      footer: `<button class="btn btn-ghost" id="mCancel">${t('common.close')}</button>
+        <button class="btn btn-primary" id="scanAdd">${t('pos.addToCart') || 'أضف'}</button>`,
+    });
+    const cancelBtn = $('#mCancel');
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+    let stream = null;
+    let timer = null;
+
+    const hit = (code) => scanHit(code);
+
+    $('#scanManual').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); hit($('#scanManual').value.trim()); } };
+    $('#scanAdd').onclick = () => hit($('#scanManual').value.trim());
+
+    if (!supported) return;
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      .then(async (s) => {
+        stream = s;
+        const v = $('#scanVideo');
+        v.srcObject = s;
+        await v.play().catch(() => {});
+        const detector = new window.BarcodeDetector();
+        timer = setInterval(async () => {
+          if (!v.videoWidth) return;
+          try {
+            const codes = await detector.detect(v);
+            if (codes && codes.length) hit(String(codes[0].rawValue || '').trim());
+          } catch { /* إطار فاشل لا يوقف الحلقة */ }
+        }, 300);
+      })
+      .catch(() => {
+        $('#scanHint').textContent = t('pos.scanDenied') || 'الكاميرا مرفوضة — الإدخال اليدوي يعمل';
+      });
+
+    const back = document.querySelector('.modal-back');
+    if (back) {
+      const stop = back._close;
+      back._close = () => { clearInterval(timer); if (stream) stream.getTracks().forEach((x) => x.stop()); stop(); };
+    }
+  }
+
+  // خطاف اختباري: يسمح لاختبار الواجهة بتجربة قراءة باركود دون كاميرا حقيقية.
+  window.__nileScan = (code) => scanHit(code);
 
   /* ================= نقطة البيع ================= */
   // أسماء طرق الدفع في مكان واحد — تُستخدم في الشاشة والإيصال والفواتير والتقارير.
@@ -163,7 +334,10 @@
       <div class="pos-layout">
         <div>
           <div class="card card-pad mb-2">
-            <input class="input input-lg" id="searchBox" placeholder="${esc(t('pos.barcodePh'))}" value="${esc(state.q)}" />
+            <div class="row" style="gap:8px">
+              <input class="input input-lg" id="searchBox" placeholder="${esc(t('pos.barcodePh'))}" value="${esc(state.q)}" style="flex:1" />
+              <button class="btn btn-ghost btn-sm" id="scanBtn" title="${t('pos.scan') || 'كاميرا الباركود'}">📷</button>
+            </div>
             <div class="row mt-2" id="catChips">
               <button class="chip ${state.cat === 'all' ? 'active' : ''}" data-cat="all">${t('common.all')}</button>
               ${cats.map((c) => `<button class="chip ${state.cat === c ? 'active' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
@@ -212,6 +386,7 @@
       $$('#tenderRow .chip').forEach((x) => x.classList.toggle('active', x === b));
     }));
     $('#holdBtn').onclick = holdCart;
+    const sb = $('#scanBtn'); if (sb) sb.onclick = openScanner;
     const ob = $('#openShiftBtn'); if (ob) ob.onclick = openShiftModal;
     renderCart();
     renderHeld();
@@ -284,10 +459,10 @@
       renderCart();
     }));
     const { subtotal, discount, total } = cartTotals();
-    $('#tSub').textContent = money(subtotal);
+    $('#tSub').textContent = exact(subtotal);
     const taxEl = $('#tTax');
-    if (taxEl) taxEl.textContent = money(taxOf(subtotal - discount));
-    $('#tGrand').textContent = money(total + taxOf(subtotal - discount));
+    if (taxEl) taxEl.textContent = exact(taxOf(subtotal - discount));
+    $('#tGrand').textContent = exact(total + taxOf(subtotal - discount));
     $('#cartCount').textContent = state.cart.reduce((s, l) => s + l.qty, 0);
   }
 
@@ -333,7 +508,7 @@
           </div>
           <div class="small muted mt-1" id="couponMsg">${state.coupon ? `✓ ${esc(state.coupon.code)}` : ''}</div>
         </div>
-        ${cash ? `<div class="field"><label class="label">${t('pos.paid')}</label><input class="input input-lg mono" id="paidInput" type="number" min="0" value="${Math.round(subtotal - discount + tax)}" /></div>
+        ${cash ? `<div class="field"><label class="label">${t('pos.paid')}</label><input class="input input-lg mono" id="paidInput" type="number" min="0" value="${Math.ceil(grand - 1e-9)}" step="0.01" /></div>
         <div class="field"><label class="label">${t('pos.change')}</label><div class="mono" id="changeOut" style="font-size:22px;font-weight:800;color:var(--ok)">${money(0)}</div></div>`
           : `<div class="small muted">${t('pos.exactOnly') || 'المبلغ يُسجَّل بالضبط — لا باقي خارج الكاش.'}</div>`}`,
       footer: `<button class="btn btn-ghost" id="cCancel">${t('common.cancel')}</button><button class="btn btn-success" id="cOk">${t('common.confirm')}</button>`,
@@ -385,26 +560,32 @@
       busy = true;
       $('#cOk').disabled = true;
       try {
-        const { sale } = await api('/api/sales', {
-          method: 'POST',
-          body: {
-            items: state.cart.map((l) => ({ productId: l.id, qty: l.qty })),
-            discount, method, paid: paidVal,
-            couponCode: state.coupon ? state.coupon.code : undefined,
-            customerId: customerId || undefined,
-            idempotencyKey: idemKey,
-            heldId: state.heldId || undefined,
-          },
-        });
+        const body = {
+          items: state.cart.map((l) => ({ productId: l.id, qty: l.qty })),
+          discount, method, paid: paidVal,
+          couponCode: state.coupon ? state.coupon.code : undefined,
+          customerId: customerId || undefined,
+          idempotencyKey: idemKey,
+          heldId: state.heldId || undefined,
+        };
+        const { sale, queued } = await postSale(body);
+        const soldItems = state.cart.map((l) => ({ productId: l.id, qty: l.qty }));
         state.cart = [];
         state.heldId = null;
         state.q = '';
         state.coupon = null;
         state.customerId = null;
-        state.products = (await api('/api/products')).products;
-        renderSell();
-        toast(t('pos.done'), 'ok');
-        showReceipt(sale);
+        if (queued) {
+          closeModal();
+          consumeLocalStock(soldItems);
+          renderSell();
+          toast(t('pos.savedOffline') || 'انحفظت محلياً — هتترفع لما الشبكة ترجع', '');
+        } else {
+          state.products = (await api('/api/products')).products;
+          renderSell();
+          toast(t('pos.done'), 'ok');
+          showReceipt(sale);
+        }
         if (window.NSAdmin) NSAdmin.refreshBadge();
       } catch (err) {
         toast(err.message, 'bad');
