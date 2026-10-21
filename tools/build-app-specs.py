@@ -4,7 +4,7 @@
 
 لماذا مولَّد: المواصفة فيها حقول تتغير مع الكود (الحالة، الاختبارات، عدد معايير
 القبول المنجزة). لو كانت مكتوبة بيد في مكانين، سيكذب أحدهما. هنا المصدر واحد
-(`docs/product/systems/*.md`) والباني يتحقق منه قبل أن يصدّقه:
+(`docs/specs/systems/*.md`) والباني يتحقق منه قبل أن يصدّقه:
 
   • إن قال الملف `status: live` فلابد أن يوجد ملف اختباره فعلاً.
   • إن قال `entry:` فلابد أن توجد الصفحة.
@@ -18,7 +18,7 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SRC = ROOT / "docs" / "product" / "systems"
+SRC = ROOT / "docs" / "specs" / "systems"
 PROTO = ROOT / "prototypes" / "nilesys"
 
 ORDER_LABEL = {"live": "يعمل ومُختبَر", "partial": "يعمل جزئياً", "planned": "لم يُبنَ بعد"}
@@ -187,7 +187,7 @@ def render(meta, body_html, facts, footer):
 </div></body></html>"""
 
 
-WIN_SRC = ROOT / "docs" / "product" / "windows"
+WIN_SRC = ROOT / "docs" / "specs" / "windows"
 WIN_OUT = PROTO / "public" / "docs" / "windows"
 
 
@@ -317,9 +317,7 @@ def main():
         body_html = md_to_html(body)
         body_html = re.sub(r"^\s*<h1>.*?</h1>", "", body_html, count=1)
         html = render(meta, body_html, facts, footer)
-        (SRC / f"{slug}.html").write_text(html, encoding="utf-8")
-        # نسخة داخل الموقع: صفحات الديمو تربط /docs/<slug>.html، وكتابتها في
-        # docs/product فقط كانت تعطي 404 على الديمو المنشور.
+        # صفحات الديمو تربط /docs/<slug>.html — تُكتب داخل الموقع فقط، بلا توأم HTML في مصدر المواصفات.
         (PROTO / "public" / "docs").mkdir(parents=True, exist_ok=True)
         (PROTO / "public" / "docs" / f"{slug}.html").write_text(html, encoding="utf-8")
         specs.append((meta, body, checked, total))
@@ -335,7 +333,7 @@ def main():
     idx = ("# مواصفات التطبيقات السبعة\n\n"
            f"محدَّث 2026-10-21 · الكود `nilesys@{git_rev()}`\n\n"
            "كل تطبيق له ملف مستقل: الغرض، المستخدمون، الشاشات، نموذج البيانات، الواجهات، القواعد، "
-           "ومعايير قبول قابلة للتشغيل. الملفات مولَّدة من `docs/product/systems/*.md`.\n\n"
+           "ومعايير قبول قابلة للتشغيل. الملفات مولَّدة من `docs/specs/systems/*.md`.\n\n"
            "| # | التطبيق | الحالة | معايير القبول | الصفحة |\n|---|---|---|---|---|\n" + rows + "\n\n"
            "## الترتيب ولماذا\n\n"
            "1. **الكاشير** ثم **المخازن** — الأساس المالي والمخزني الذي يخدم كل ما بعده.\n"
@@ -344,7 +342,8 @@ def main():
            "4. **حجز الملاعب** — جدول زمني ودفع عربون؛ أبسط من العيادة بعد وجود نمط المواعيد.\n"
            "5. **الموارد البشرية** — يحتاج الموظفين الموجودين في الأنظمة السابقة.\n"
            "6. **لوحة المواقع** — تحتاج كل الأنظمة والمواقع قائمة لتقيسها.\n")
-    (SRC / "index.md").write_text(idx, encoding="utf-8")
+    # فهرس المواصفات القانوني هو docs/specs/README.md — لا يُولَّد فهرس موازٍ هنا.
+    (PROTO / "public" / "docs" / "index.html").write_text(render({"name": "مواصفات التطبيقات السبعة", "status": "live", "order": "—"}, md_to_html(idx.split("\n", 4)[4]), [("التطبيقات", str(len(specs)), False)], f"مُولَّد بواسطة <code>tools/build-app-specs.py</code>"), encoding="utf-8")
 
     idx_html = render(
         {"name": "مواصفات التطبيقات السبعة", "status": "live", "order": "—"},
@@ -355,7 +354,6 @@ def main():
          ("معايير القبول", f"{sum(s[2] for s in specs)}/{sum(s[3] for s in specs)}", False)],
         f"مُولَّد بواسطة <code>tools/build-app-specs.py</code> · <code>nilesys@{git_rev()}</code>",
     )
-    (SRC / "index.html").write_text(idx_html, encoding="utf-8")
 
     # سجل الأنظمة كبيانات: لوحة المواقع تقرأ منه عدد الأنظمة العاملة
     # بدل رقم مكتوب في الكود، فيبقى الرقم صادقاً بعد كل تحديث.

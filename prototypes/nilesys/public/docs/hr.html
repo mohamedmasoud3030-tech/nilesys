@@ -107,7 +107,18 @@ sh tools/setup-browser.sh tools/ui-hr.js # الشاشة في متصفح حقيق
 <tr><td>المسيّر بكل البنود</td><td><code>ui-hr</code>: نافذة المسيّر تعرض الأساسي والبدلات والغياب والتأخير والسلف والصافي</td></tr>
 </tbody></table>
 <p><strong>تغطية الواجهة (29 فحصاً):</strong> الدخول ورفض حساب نظام آخر · لوحة اليوم بحالاتها الأربع · تسجيل حضور متأخر · النصف يوم «ناقص» · تصحيح بلا سبب مرفوض والنافذة تبقى مفتوحة · التصحيح يثبت وقت الخروج · طلب إجازة واعتمادها · قائمة الموظفين وقيمة اليوم · حساب الشهر (4 صفوف مسودة) · المسيّر · الموارد البشرية لا ترى زر الصرف · الاعتماد يغلق إعادة الحساب · المدير يصرف مرة واحدة ثم يختفي الزر · الموظف لا يرى شاشات الغير ولا لوحة اليوم ويُعاد إلى سجله عند الرابط المباشر · صفر أخطاء JavaScript.</p>
+<hr>
+<h2>حالة التنفيذ والصدق المهني (قانوني — يُحدَّث مع أي تغيير)</h2>
+<table><thead><tr><th>البند</th><th>القيمة</th></tr></thead><tbody>
+<tr><td>رابط حي</td><td><code>https://nilesys-seven.vercel.app/systems/hr.html</code> (وعلى مشروع الديمو <code>nilesys-demo.vercel.app</code>)</td></tr>
+<tr><td>تنفيذ العرض الحالي</td><td><code>prototypes/nilesys</code> — خادم Node خام (<code>server.js</code> + <code>lib/</code>)، تخزين ملفي/Supabase demo_state</td></tr>
+<tr><td>محرك الإنتاج المقابل</td><td>people (حضور/إجازات/مرتبات) + platform</td></tr>
+<tr><td>واجهة إنتاجية فوق المحرك</td><td><strong>ليست مبنية بعد</strong> — هذا هو مسار التقارب المعتمد في <code>PRODUCT_PLAN.md</code></td></tr>
+<tr><td>معايير القبول المُختبَرة</td><td>8/8 (قسم «معايير القبول» في هذه المواصفة)</td></tr>
+<tr><td>آخر تحقق</td><td>2026-10-21 — اختبارات 156/156 + فحص حي 200</td></tr>
+</tbody></table>
+<blockquote><strong>قاعدة:</strong> هذه المواصفة تصف السلوك المطلوب والمُثبَت في العرض. لا تُقرأ على أنها ادعاء منتج إنتاجي؛ حالة الإنتاج الحقيقية لكل نظام مسجلة في <code>../../STATUS.md</code> فقط.</blockquote>
 <h2>9) خارج النطاق الآن</h2>
 <ul><li>بصمة أو كارت (التسجيل يدوي في هذه المرحلة).</li><li>التأمينات والضرائب على المرتب.</li><li>تقييم الأداء.</li></ul></main>
-<footer class="foot">مُولَّد من <code>docs/product/systems/hr.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@81a7d30</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
+<footer class="foot">مُولَّد من <code>docs/specs/systems/hr.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@f3fd73d</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
 </div></body></html>

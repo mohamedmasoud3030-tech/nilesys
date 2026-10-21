@@ -105,7 +105,18 @@ sh tools/setup-browser.sh tools/ui-sites-dash.js   # اللوحة في متصف�
 <p><strong>كيف يعمل العدّاد والنموذج على الصفحات العامة:</strong> <code>public/assets/js/site-lead.js</code> يُحقن في كل صفحة تحمل</p>
 <p><code>&lt;body data-site="slug"&gt;</code>، ويسجّل زيارة واحدة لكل جلسة (<code>nile_vid</code>) في اليوم، ويرسل الرسالة إلى</p>
 <p><code>POST /api/sites/:slug/lead</code> — بلا تسجيل دخول وبلا مكتبات.</p>
+<hr>
+<h2>حالة التنفيذ والصدق المهني (قانوني — يُحدَّث مع أي تغيير)</h2>
+<table><thead><tr><th>البند</th><th>القيمة</th></tr></thead><tbody>
+<tr><td>رابط حي</td><td><code>https://nilesys-seven.vercel.app/sites/</code> (وعلى مشروع الديمو <code>nilesys-demo.vercel.app</code>)</td></tr>
+<tr><td>تنفيذ العرض الحالي</td><td><code>prototypes/nilesys</code> — خادم Node خام (<code>server.js</code> + <code>lib/</code>)، تخزين ملفي/Supabase demo_state</td></tr>
+<tr><td>محرك الإنتاج المقابل</td><td>catalog/lead-service (صندوق طلبات موحد)</td></tr>
+<tr><td>واجهة إنتاجية فوق المحرك</td><td><strong>ليست مبنية بعد</strong> — هذا هو مسار التقارب المعتمد في <code>PRODUCT_PLAN.md</code></td></tr>
+<tr><td>معايير القبول المُختبَرة</td><td>7/7 (قسم «معايير القبول» في هذه المواصفة)</td></tr>
+<tr><td>آخر تحقق</td><td>2026-10-21 — اختبارات 156/156 + فحص حي 200</td></tr>
+</tbody></table>
+<blockquote><strong>قاعدة:</strong> هذه المواصفة تصف السلوك المطلوب والمُثبَت في العرض. لا تُقرأ على أنها ادعاء منتج إنتاجي؛ حالة الإنتاج الحقيقية لكل نظام مسجلة في <code>../../STATUS.md</code> فقط.</blockquote>
 <h2>9) خارج النطاق الآن</h2>
 <ul><li>محرّر صفحات مرئي (drag &amp; drop).</li><li>تحليلات تفصيلية (مصادر الزيارة، مسارات).</li><li>إشعار واتساب تلقائي على الرسالة.</li></ul></main>
-<footer class="foot">مُولَّد من <code>docs/product/systems/sites.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@81a7d30</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
+<footer class="foot">مُولَّد من <code>docs/specs/systems/sites.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@f3fd73d</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
 </div></body></html>

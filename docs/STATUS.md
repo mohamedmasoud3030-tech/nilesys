@@ -3,7 +3,7 @@
 **Status:** canonical (tier 4 in `AGENTS.md`). This is the **only** live status and handoff document.
 Update it in the same change as anything that alters what is below. Do not create per-agent status files.
 
-- **Last verified:** 2026-10-19, by the LENA integration agent (Arena Agent Mode), using
+- **Last verified:** 2026-10-21 — `main` عند `f3fd73d`، CI أخضر (156 فحص بروتوتايب)، إنتاج Vercel مشروع `nilesys` حي، ودمج كل الفروع/الـPRs مكتمل. الأقسام التاريخية تحت هذا السطر أرشيف مقروء فقط وتُلخَّص في الأعلى, by the LENA integration agent (Arena Agent Mode), using
   `git ls-remote https://github.com/mohamedmasoud3030-tech/nilesys.git` and the GitHub REST API.
   Earlier editions of this file referred to the repository by its old name `Mohamed-App-Factory`.
 - **Re-verify before acting:** run `git ls-remote origin` and list the PRs. If the remote differs from this
@@ -11,8 +11,8 @@ Update it in the same change as anything that alters what is below. Do not creat
 - **What to build and in which order:** [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) holds the catalogue, the
   phases 0–5, feature IDs (`F0-n`, `MKT-n`, `POS-n`, …) and acceptance criteria. It is PROPOSED until the
   owner approves it. This file says **what is allowed right now**.
-- **Agents working in an Arena sandbox:** read [`agent-system/ARENA_SANDBOX.md`](agent-system/ARENA_SANDBOX.md)
-  first. The owner's guide is [`owner/AGENT_PLAYBOOK_ar.md`](owner/AGENT_PLAYBOOK_ar.md).
+- **Agents working in an Arena sandbox:** read ``agent-system/ARENA_SANDBOX.md``
+  first. The owner's guide is ``owner/AGENT_PLAYBOOK_ar.md``.
 
 ## 1. Repository state (2026-10-19)
 
@@ -23,7 +23,7 @@ Update it in the same change as anything that alters what is below. Do not creat
 | CI | **None on GitHub.** There is no `.github/workflows` file. A reviewed draft exists on branch `rescue/2026-10-19-workspace-archive`, at `deliverables/ci/nilesys-ci.yml` | repository tree |
 | Hosting | **UNRESOLVED (D5).** The Vercel project builds previews on every push, but `https://nilesys.vercel.app` returns 404 (there is no web app) | `curl` 2026-10-19 |
 | Production database | Not chosen. The target candidate is Supabase PostgreSQL 17 (conditionally viable, **not chosen**) | `docs/reviews/2026-10-14-supabase-feasibility.md` (branch `handoff/2026-10-14-evidence`) |
-| Toolchain | npm with `package-lock.json` v3, Node `>=20`. **npm only ([ADR-0011](adr/0011-repository-tooling-npm.md), 2026-10-19).** `pnpm-lock.yaml` is git-ignored and is never committed or used. Copies on disk are not deleted | `package.json`; ADR-0011 |
+| Toolchain | npm with `package-lock.json` v3, Node `>=20`. **npm only (`ADR-0011`, 2026-10-19).** `pnpm-lock.yaml` is git-ignored and is never committed or used. Copies on disk are not deleted | `package.json`; ADR-0011 |
 
 ### Verification evidence (local sandboxes only, never CI)
 
@@ -102,11 +102,11 @@ USB scanner support, and ETA e-invoicing, remain out of scope. Nothing on any pa
 - **PROPOSED:** ADR-0008; proposals 0002–0007; `PRODUCT_PLAN.md`.
 - **ACCEPTED (technical, 2026-10-19).** The owner delegated technical decisions ("make the technical
   decisions, without creating new repositories"):
-  - **D-H → npm** ([ADR-0011](adr/0011-repository-tooling-npm.md)). `pnpm-lock.yaml` is git-ignored, not deleted.
+  - **D-H → npm** (`ADR-0011`). `pnpm-lock.yaml` is git-ignored, not deleted.
   - **No new repositories.** Archives stay in this repository as `archive/<branch>` tags plus
     `rescue/2026-10-19-workspace-archive`. The proposed private `nilesys-archive` repository is dropped.
   - **`platform` planning documents stay in `platform`.** They are not copied into this public
-    repository, which only indexes them ([`REUSE.md`](REUSE.md), "Related material outside this repository").
+    repository, which only indexes them (``REUSE.md``, "Related material outside this repository").
   - **PR #5 is not merged** (superseded; see §2). The same recommendation applies to its `platform` twin, PR #95.
   - **Kayyal reference rules are pinned to v1.0**, the version the code was extracted from. Kayyal v1.1 is
     not imported (reasons in the `FINANCIAL_RULES.md` banner). Kayyal's boundary-hardening tests are
@@ -117,11 +117,11 @@ USB scanner support, and ETA e-invoicing, remain out of scope. Nothing on any pa
     owner approval.
   - ~~D-F → Nile sites live here (ADR-0012)~~ **corrected by the owner the same day.** See the next bullet.
 - **ACCEPTED (owner, 2026-10-19): D-F → the marketing site is part of the LENA Digital site in `platform`**
-  ([ADR-0013](adr/0013-marketing-site-in-lena-platform.md), which supersedes ADR-0012). This repository
+  (`ADR-0013`, which supersedes ADR-0012). This repository
   serves it over HTTP: a public readiness endpoint, lead intake and demo links. **Where the seven system
   sites (phase 4) live is still OPEN (owner).**
 - **DECIDED 2026-10-19: D-E → money collected is the sales total**, refunds as their own line
-  ([ADR-0014](adr/0014-collected-is-the-sales-total.md)). The owner delegated the choice; `getDailyReport`
+  (`ADR-0014`). The owner delegated the choice; `getDailyReport`
   now returns `collectedMinor`, `netCollectedMinor` and `outstandingMinor` alongside the billed figure.
 - **OPEN (owner, business):** D-A, D-B, D-C, D-D, D-G, D5 and the location of the seven system sites, listed with options in [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) §10:
   - D-A: payment model and the list of payment methods.
@@ -130,7 +130,7 @@ USB scanner support, and ETA e-invoicing, remain out of scope. Nothing on any pa
   - D-D: who may read the daily report.
   - D-G: product order.
   - D5: hosting.
-  - Where the seven system sites (phase 4) live ([ADR-0013](adr/0013-marketing-site-in-lena-platform.md) §4).
+  - Where the seven system sites (phase 4) live (`ADR-0013` §4).
 
   D2–D4 (ledger provider) remain open and block nothing in phases 0–2.
 - **ADR-vs-code gaps** (ADR-0001 Nx/pnpm/Next.js/CI, ADR-0002 per-vertical apps, ADR-0003 Milestone 1 scope):
@@ -184,17 +184,17 @@ recorded in its PR description. Nothing is merged without the owner.
 
 | # | Task | Status | Gate |
 | --- | --- | --- | --- |
-| 1 | **Owner decisions D-A…D-D** (payment methods, cash correction, shift close, who reads the report). **D-E is decided** — [ADR-0014](adr/0014-collected-is-the-sales-total.md) | PARTLY DONE: D-E decided and implemented; D-A…D-D WAITING ON OWNER | — |
+| 1 | **Owner decisions D-A…D-D** (payment methods, cash correction, shift close, who reads the report). **D-E is decided** — `ADR-0014` | PARTLY DONE: D-E decided and implemented; D-A…D-D WAITING ON OWNER | — |
 | 2 | F0-2: implement the money decisions on a branch from `integration/nile-2026-10-18` (migration `0005`, the method list, permissions), failing-test-first; full suite on real PostgreSQL | **PARTLY DONE** on `feat/plt-0005-payment-db-constraints`: D-E done (`reports.ts`), migration `0005` done. The rest waits on D-A…D-D | **Full suite now runs on real PostgreSQL: 296/296, 0 skipped** |
 | 3 | F0-3: add the CI workflow from the draft; first green run on GitHub Actions | PROPOSED, unblocked | The owner approves pushing a workflow file |
 | 4 | F0-9: update `tools/nile-offerings/offerings.ts`, whose POS `mustNotClaim` still says payments live on an unmerged branch | **DONE** on `feat/plt-0005-payment-db-constraints` — POS entry lists nine engine files and no longer claims payments are unbuilt; `offerings.test.ts` 17/17 | — |
 | 5 | F0-4: open a PR from the integration branch (after #2 and #3) and request review | BLOCKED BY #2, #3 | The owner alone merges |
 | 6 | F0-5: N-1 pool `error` listener | **DONE** on `feat/plt-0005-payment-db-constraints` (`attachPoolErrorHandler`, 4 tests). Still open: the live kill-a-backend test on a real server | — |
 | 7 | F0-6: G-7a redesign (closed-world allow-list) and its adversarial real-PostgreSQL matrix | WAITING ON OWNER (approve the redesign) | — |
-| 8 | F0-10 / D-H: Nx + pnpm or npm | **DONE 2026-10-19: npm ([ADR-0011](adr/0011-repository-tooling-npm.md))** | — |
+| 8 | F0-10 / D-H: Nx + pnpm or npm | **DONE 2026-10-19: npm (`ADR-0011`)** | — |
 | 9 | F0-7 / D5: disposable Supabase PG 17 project; read-only hosted checks; then staging | WAITING ON OWNER | Creating cloud resources needs approval |
 | 10 | Phase 1 APIs: POS-04 receipt, POS-05 sales list, POS-08 profit/top/hourly, POS-09 product writes, POS-10 branding, MKT-09 lead endpoint (accepting the LENA site origin), a public read-only readiness/catalogue endpoint for the LENA site (ADR-0013), POS-11 demo reset | BLOCKED BY #5 merged | One feature per PR, tests first |
-| 11 | Phase 1 UI: cashier (POS-*) on Next.js here, in an npm workspace. Marketing site (MKT-*) inside the LENA site in `platform` per [ADR-0013](adr/0013-marketing-site-in-lena-platform.md); that needs the owner's approval for work in `platform` | BLOCKED BY #10 and the UI blockers in §6 | — |
+| 11 | Phase 1 UI: cashier (POS-*) on Next.js here, in an npm workspace. Marketing site (MKT-*) inside the LENA site in `platform` per `ADR-0013`; that needs the owner's approval for work in `platform` | BLOCKED BY #10 and the UI blockers in §6 | — |
 | 12 | Phase 1 acceptance (`PRODUCT_PLAN.md` §5.3) on staging; the owner tests it personally | BLOCKED BY #9, #11 | Owner sign-off |
 | 13 | Phase 2 design: purchase receipt contract over the shared stock-movement path; restaurant tables and kitchen domain | PROPOSED (design only; no code before Phase 1 acceptance) | — |
 | 14 | P4-1: tests for the remaining locked demo paths (change-email, delete-user) | PROPOSED, unblocked | — |
@@ -202,9 +202,9 @@ recorded in its PR description. Nothing is merged without the owner.
 ## 6. Open findings register
 
 IDs:
-- **G-n** = [post-merge security gate](reviews/2026-10-14-post-merge-security-gate.md).
-- **H-n** = [review 0001](reviews/0001-nile-engines-db-auth-review.md).
-- **P4-n** = [PR #4 review](reviews/2026-10-14-pr4-review.md) §3.
+- **G-n** = `post-merge security gate`.
+- **H-n** = `review 0001`.
+- **P4-n** = `PR #4 review` §3.
 - **N-n** = found later and recorded only here.
 - **C-n** = integration-branch review findings, 2026-10-18 (reports on the rescue branch under `deliverables/`).
 

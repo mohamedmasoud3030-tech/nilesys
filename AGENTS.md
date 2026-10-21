@@ -32,8 +32,8 @@ and evidence behind them (`docs/`), and evaluation probes (`tools/spikes/`).
    Then [`docs/PRODUCT_PLAN.md`](docs/PRODUCT_PLAN.md) for the catalogue, phases,
    feature IDs and acceptance criteria (PROPOSED until the owner approves it).
    In an Arena sandbox, also read
-   [`docs/agent-system/ARENA_SANDBOX.md`](docs/agent-system/ARENA_SANDBOX.md).
-3. [`docs/DECISIONS.md`](docs/DECISIONS.md), then every ADR under `docs/adr/`
+   `docs/README.md` (مصدر المستندات الوحيد).
+3. [`docs/DECISIONS.md`](docs/DECISIONS.md) (سجل القرارات الوحيد)
    that touches your task.
 4. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): current architecture,
    decision status, and known gaps between ADRs and code.
@@ -50,7 +50,7 @@ When sources disagree, the higher-precedence source wins.
 
 1. **Mechanical enforcement** — CI, lint, type checking, Nx dependency
    boundaries, database constraints, RLS, tests. Never overridable by prose.
-2. **Accepted ADRs** — `docs/DECISIONS.md` + `docs/adr/*`.
+2. **Accepted decisions** — `docs/DECISIONS.md` only.
 3. **This file** (AGENTS.md).
 4. **Activated skills** — `.agents/skills/*`.
 5. **Other repository documentation.**
@@ -61,16 +61,16 @@ When sources disagree, the higher-precedence source wins.
 | Tier | Documents | Binding? |
 |---|---|---|
 | 1 | `AGENTS.md` | Yes: process and safety rules for every agent |
-| 2 | Accepted ADRs (`docs/DECISIONS.md`, `docs/adr/*`) | Yes: architecture. Outranks tier 1 on architectural questions |
+| 2 | Accepted decisions (`docs/DECISIONS.md`) | Yes: architecture. Outranks tier 1 on architectural questions |
 | 3 | `docs/ARCHITECTURE.md`, `engines/README.md`, `docs/REUSE.md`, code contracts | Yes, while consistent with tiers 1–2 |
 | 4 | `docs/STATUS.md` (current state, roadmap, task tracker) | Yes, for what is allowed or blocked right now |
-| 5 | Proposals, Proposed ADRs, reviews and evaluation reports (`docs/architecture/`, `docs/reviews/`, `tools/spikes/`) | **No.** Evidence and recommendations only |
-| 6 | Archived and historical material (`docs/archive/`, `prototypes/`) | **No.** Never overrides anything above |
+| 5 | (أُلغيت 2026-10-21) المقترحات والمراجعات لا تعيش في مستندات؛ أدلتها في `STATUS.md` وتاريخ Git | **No.** |
+| 6 | (أُلغيت 2026-10-21) لا أرشيف؛ تاريخ Git فقط | **No.** |
 
 A Proposed ADR or proposal never authorises work by itself. Citations inside
 code extracted from other repositories (for example `docs/adr/0009-…` in
 `engines/transactions/src/cash.ts`) refer to the source repository, not to
-this one (see `docs/REUSE.md`).
+this one (provenance summary: `docs/ARCHITECTURE.md`, appendix 2026-10-21).
 
 ### Status labels
 
@@ -90,11 +90,10 @@ silently breaking the architecture.
 
 ## Architectural truth
 
-- Architectural decisions live in `docs/DECISIONS.md` (index) and
-  `docs/adr/*` (records). These are the source of truth for accepted
-  decisions.
-- An accepted ADR is immutable: never silently contradict it, and never edit
-  an accepted ADR to change its meaning — including not editing it to add a
+- Architectural decisions live in `docs/DECISIONS.md` only (single register).
+  These are the source of truth for accepted decisions.
+- An accepted decision is immutable: never silently contradict it, and never edit
+  an accepted decision to change its meaning — including not editing it to add a
   status marker. A consequential change requires a new, superseding ADR that
   links to the one it replaces.
 - Unresolved consequential choices must be surfaced for a decision — never
@@ -173,8 +172,8 @@ each gate is in `docs/STATUS.md`.
   credentials or private keys. Local throwaway test credentials stay out of
   the repository.
 - Never force-push, reset shared branches, delete branches, or overwrite
-  another agent's commits. Never discard evidence; archive it instead
-  (`docs/archive/README.md`).
+  another agent's commits. Evidence is recorded in `docs/STATUS.md`;
+  Git history is the only archive (owner rule 2026-10-21).
 - Do not change security-sensitive settings (auth configuration, trusted
   origins, roles and grants, RLS) without a reviewed PR that states the
   change.
@@ -208,11 +207,11 @@ each gate is in `docs/STATUS.md`.
 
 | What | Where |
 |---|---|
-| A new or changed architectural decision | A new ADR in `docs/adr/` plus a row in `docs/DECISIONS.md` (accepted ADRs are superseded, never edited) |
+| A new or changed architectural decision | A row in `docs/DECISIONS.md` (decisions are superseded by newer rows, never silently edited) |
 | An option analysis or evaluation | `docs/architecture/proposals/NNNN-*.md`, labelled PROPOSED |
-| A review or verification | `docs/reviews/YYYY-MM-DD-*.md` |
+| A review or verification | A dated entry in `docs/STATUS.md` |
 | Current state, next task, blockers, findings | Update `docs/STATUS.md` in the same PR. Do **not** create a new status or handoff file per agent |
-| Superseded documents | `git mv` to `docs/archive/` with a status banner |
+| Superseded documents | Delete in the same change; Git history is the only archive |
 
 ## Portable process, repository-specific policy
 
@@ -225,10 +224,4 @@ each gate is in `docs/STATUS.md`.
 
 ## Supplemental autonomous execution protocol
 
-Read [AUTONOMOUS EXECUTION PROTOCOL — FULL POWER MODE 2026](docs/agent-system/AUTONOMOUS_EXECUTION_PROTOCOL.md) as supplemental execution guidance.
-
-- This protocol does not replace this repository's existing instruction precedence, accepted architecture/product decisions, skills, or verification gates. Surface consequential conflicts rather than silently overriding them.
-- It grants no additional tools, credentials, permissions, budget, or authorization. Platform/tool safety requirements and the owner's current task-specific restrictions remain binding.
-- Scope capability discovery to the task; reuse verified findings. Prefer targeted remote file reads for cross-repository assessment. Do not bulk-clone repositories, install dependencies, or provision resources merely to inventory capabilities. Obtain task-appropriate authorization first.
-- Keep discovery read-only by default. Preserve secrets; detect credential availability without printing values. Use bounded, evidence-based retries and report genuine blockers.
-- Creating this guidance does not approve moving Nile into Platform, combining their runtimes, changing either stack, or merging branches. Such choices require separate evidence and owner approval.
+The owner-provided autonomous execution protocol is supplemental guidance only; it grants no tools, permissions or budget, and never overrides this file. Its canonical copy lives with the LENA platform documentation set.

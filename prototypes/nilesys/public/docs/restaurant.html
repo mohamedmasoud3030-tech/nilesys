@@ -103,7 +103,18 @@ GET  /api/restaurant/summary?range=today</pre>
 <pre>BASE=http://localhost:4000 node --test tests/restaurant.test.js   # 14/14
 BASE=http://localhost:4000 sh tools/setup-browser.sh tools/ui-restaurant.js   # 19/19</pre>
 <p>نتيجة آخر تشغيل: <strong>14/14</strong> للـ API و<strong>21/21</strong> للمتصفح، وصفر أخطاء JavaScript.</p>
+<hr>
+<h2>حالة التنفيذ والصدق المهني (قانوني — يُحدَّث مع أي تغيير)</h2>
+<table><thead><tr><th>البند</th><th>القيمة</th></tr></thead><tbody>
+<tr><td>رابط حي</td><td><code>https://nilesys-seven.vercel.app/systems/restaurant.html</code> (وعلى مشروع الديمو <code>nilesys-demo.vercel.app</code>)</td></tr>
+<tr><td>تنفيذ العرض الحالي</td><td><code>prototypes/nilesys</code> — خادم Node خام (<code>server.js</code> + <code>lib/</code>)، تخزين ملفي/Supabase demo_state</td></tr>
+<tr><td>محرك الإنتاج المقابل</td><td>booking (حجوزات) + transactions (بيع/درج)</td></tr>
+<tr><td>واجهة إنتاجية فوق المحرك</td><td><strong>ليست مبنية بعد</strong> — هذا هو مسار التقارب المعتمد في <code>PRODUCT_PLAN.md</code></td></tr>
+<tr><td>معايير القبول المُختبَرة</td><td>10/10 (قسم «معايير القبول» في هذه المواصفة)</td></tr>
+<tr><td>آخر تحقق</td><td>2026-10-21 — اختبارات 156/156 + فحص حي 200</td></tr>
+</tbody></table>
+<blockquote><strong>قاعدة:</strong> هذه المواصفة تصف السلوك المطلوب والمُثبَت في العرض. لا تُقرأ على أنها ادعاء منتج إنتاجي؛ حالة الإنتاج الحقيقية لكل نظام مسجلة في <code>../../STATUS.md</code> فقط.</blockquote>
 <h2>9) خارج النطاق الآن</h2>
 <ul><li>التطبيق الخارجي للتوصيل (ت Aggregator).</li><li>شاشة مطبخ على طابعة حرارية.</li><li>حساب البقشيش وتوزيعه.</li></ul></main>
-<footer class="foot">مُولَّد من <code>docs/product/systems/restaurant.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@81a7d30</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
+<footer class="foot">مُولَّد من <code>docs/specs/systems/restaurant.md</code> بواسطة <code>tools/build-app-specs.py</code> · الكود <code>nilesys@f3fd73d</code> · كل معيار قبول معلَّم ✓ له اختبار يشغّله.</footer>
 </div></body></html>
