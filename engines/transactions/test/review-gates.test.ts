@@ -260,13 +260,14 @@ describe('Gate 6 — Reporting', () => {
     const { sale } = await checkout(db, { tenantId: freshTenant, userId: freshTenant }, { idempotencyKey: 'rep-cross-chk-'+Date.now(), shiftId, lines:[{ variantId: vfid, quantity:'1' }], tenders:[{ method:'cash', amountMinor:750 }] });
     const pays = await withTenant(db, freshTenant, async (tx:any)=> tx.select().from(payments).where(eq(payments.transactionId, sale.id)));
     const pid = pays[0].id as string;
-    const tomorrow = new Date(); tomorrow.setUTCDate(tomorrow.getUTCDate()+1);
-    const tomorrowStr = `${tomorrow.getUTCFullYear().toString().padStart(4,'0')}-${(tomorrow.getUTCMonth()+1).toString().padStart(2,'0')}-${tomorrow.getUTCDate().toString().padStart(2,'0')}`;
+    // «غدًا» بيوم القاهرة لا UTC — حدود تقارير المحرك قاهرية
+    const tomorrow = new Date(Date.now() + 24*3600*1000);
+    const tomorrowStr = tomorrow.toLocaleDateString('en-CA', { timeZone: 'Africa/Cairo' });
     await withTenant(db, freshTenant, async (tx:any)=>{
       const { refunds } = await import('../src/db/schema.js');
       await tx.insert(refunds).values({ tenantId: freshTenant, paymentId: pid, transactionId: sale.id, amountMinor:750, shiftId, approvedBy: freshTenant, idempotencyKey:'rep-cross-ref-'+Date.now(), requestHash:'h2', createdAt: tomorrow });
     });
-    const todayStr = `${new Date().getUTCFullYear().toString().padStart(4,'0')}-${(new Date().getUTCMonth()+1).toString().padStart(2,'0')}-${new Date().getUTCDate().toString().padStart(2,'0')}`;
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Cairo' });
     const todayReport = await getDailyReport(db, freshTenant, { from: todayStr, to: todayStr });
     const tomReport = await getDailyReport(db, freshTenant, { from: tomorrowStr, to: tomorrowStr });
     expect(todayReport.grossMinor).toBe(750);

@@ -56,11 +56,29 @@ export interface CreatedApp {
   openapi: OpenAPIObject;
 }
 
-export async function createApp(deps: Deps, opts: { logger?: boolean } = {}): Promise<CreatedApp> {
+export async function createApp(deps: Deps, opts: { logger?: boolean; serveWeb?: boolean } = {}): Promise<CreatedApp> {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule.register(deps), new FastifyAdapter({ trustProxy: true }), {
     logger: opts.logger === false ? false : ['error', 'warn', 'log'],
   });
   mountAuth(app, deps);
+  // واجهة كاشير R1 (apps/web): تُسجَّل قبل init لأن Fastify يرفض مسارات بعده.
+  // ملفات ثابتة فقط على /pos — لا منطق بيزنس؛ كل شيء عبر /api/v1.
+  if (opts.serveWeb) {
+    const { readFile } = await import('node:fs/promises');
+    const webDir = new URL('../../web/', import.meta.url);
+    const files: Array<[string, string, string]> = [
+      ['/pos', 'index.html', 'text/html; charset=utf-8'],
+      ['/pos/app.js', 'app.js', 'text/javascript; charset=utf-8'],
+      ['/pos/styles.css', 'styles.css', 'text/css; charset=utf-8'],
+    ];
+    const fastify = app.getHttpAdapter().getInstance();
+    for (const [route, file, type] of files) {
+      fastify.get(route, async (_req, reply) => {
+        reply.type(type);
+        return readFile(new URL(file, webDir), 'utf8');
+      });
+    }
+  }
   const openapi = SwaggerModule.createDocument(
     app,
     new DocumentBuilder().setTitle('Nile API').setVersion('0.1.0').addCookieAuth('better-auth.session_token').build(),
