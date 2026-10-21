@@ -33,8 +33,8 @@ const check = (n, ok, extra = '') => { results.push({ n, ok }); console.log(`${o
   check('R-UI · كاشير نقاط البيع مرفوض في المطعم', (await page.locator('#loginView:not(.hidden)').count()) === 1);
 
   await page.click('.demo-user[data-u="manager"]');
-  await page.waitForSelector('#appView:not(.hidden)', { timeout: 15000 });
-  await page.waitForSelector('#floor .tcard', { timeout: 15000 });
+  await page.waitForSelector('#appView:not(.hidden)', { timeout: 25000 });
+  await page.waitForSelector('#floor .tcard', { timeout: 25000 });
 
   const tables = await page.locator('#floor .tcard').count();
   check('R-UI · الصالة ترسم ترابيزاتها', tables >= 6, `${tables} ترابيزة`);
@@ -46,27 +46,28 @@ const check = (n, ok, extra = '') => { results.push({ n, ok }); console.log(`${o
   if (await page.locator('#openShift').count()) {
     await page.fill('#opening', '300');
     await page.click('#openShift');
-    await page.waitForTimeout(900);
+    // الخادم المنشور أبطأ من المحلي (Serverless) — ننتظر العنصر نفسه لا زمناً ثابتاً.
+    await page.waitForSelector('#closeShift', { timeout: 25000 }).catch(() => {});
   }
   check('R-UI · شاشة الوردية تعرض درجاً مفتوحاً', (await page.locator('#closeShift').count()) === 1);
 
   // ترابيزة فاضية → طلب
   await page.goto(`${BASE}/systems/restaurant.html#/floor`, { waitUntil: 'networkidle' });
-  await page.waitForSelector('#floor .tcard', { timeout: 15000 });
+  await page.waitForSelector('#floor .tcard', { timeout: 25000 });
   let free = page.locator('#floor .tcard[data-status="free"]').first();
   if (!(await free.count())) {
     const dirty = page.locator('#floor .tcard[data-status="dirty"]').first();
     if (await dirty.count()) { await dirty.click(); await page.waitForTimeout(900); }
     await page.goto(`${BASE}/systems/restaurant.html#/floor`, { waitUntil: 'networkidle' });
-    await page.waitForSelector('#floor .tcard', { timeout: 15000 });
+    await page.waitForSelector('#floor .tcard', { timeout: 25000 });
     free = page.locator('#floor .tcard[data-status="free"]').first();
   }
   const tableId = await free.getAttribute('data-table');
   await free.click();
-  await page.waitForSelector('#menuGrid .menu-item', { timeout: 15000 });
+  await page.waitForSelector('#menuGrid .menu-item', { timeout: 25000 });
 
   await page.locator('#menuGrid .menu-item:not([disabled])').first().click();
-  await page.waitForSelector('#lines .line', { timeout: 15000 });
+  await page.waitForSelector('#lines .line', { timeout: 25000 });
   const lines1 = await page.locator('#lines .line').count();
   check('R-UI · إضافة صنف تفتح طلباً وتظهر سطراً', lines1 === 1);
 
@@ -100,9 +101,9 @@ const check = (n, ok, extra = '') => { results.push({ n, ok }); console.log(`${o
 
   // تحصيل
   await page.goto(`${BASE}/systems/restaurant.html#/floor`, { waitUntil: 'networkidle' });
-  await page.waitForSelector('#floor .tcard', { timeout: 15000 });
+  await page.waitForSelector('#floor .tcard', { timeout: 25000 });
   await page.locator(`#floor .tcard[data-table="${tableId}"]`).click();
-  await page.waitForSelector('#payBtn', { timeout: 15000 });
+  await page.waitForSelector('#payBtn', { timeout: 25000 });
   await page.click('#payBtn');
   await page.waitForSelector('#payGo', { timeout: 10000 });
   await page.click('#payGo');
@@ -111,11 +112,15 @@ const check = (n, ok, extra = '') => { results.push({ n, ok }); console.log(`${o
   check('R-UI · الحساب يتقفل بعد التحصيل', /مدفوع/.test(paidBadge || ''), paidBadge);
 
   await page.goto(`${BASE}/systems/restaurant.html#/floor`, { waitUntil: 'networkidle' });
-  await page.waitForSelector('#floor .tcard', { timeout: 15000 });
+  await page.waitForSelector('#floor .tcard', { timeout: 25000 });
   const st = await page.locator(`#floor .tcard[data-table="${tableId}"]`).getAttribute('data-status');
   check('R-UI · الترابيزة تتحول «للتنضيف» بعد الدفع', st === 'dirty', st);
   await page.locator(`#floor .tcard[data-table="${tableId}"]`).click();
-  await page.waitForTimeout(1000);
+  // ننتظر تغيّر الحالة نفسها لا مدة ثابتة — الشاشة المنشورة أبطأ.
+  await page.waitForFunction((id) => {
+    const el = document.querySelector(`#floor .tcard[data-table="${id}"]`);
+    return el && el.dataset.status === 'free';
+  }, tableId, { timeout: 25000 }).catch(() => {});
   const st2 = await page.locator(`#floor .tcard[data-table="${tableId}"]`).getAttribute('data-status');
   check('R-UI · ضغطة التنضيف ترجّعها «فاضية»', st2 === 'free', st2);
   await page.screenshot({ path: `${OUT}/restaurant-floor-after.png` });
@@ -124,13 +129,53 @@ const check = (n, ok, extra = '') => { results.push({ n, ok }); console.log(`${o
   await page.goto(`${BASE}/systems/restaurant.html#/reservations`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(700);
   await page.click('#newRes');
-  await page.waitForSelector('#rName', { timeout: 10000 });
-  await page.fill('#rName', 'مها عبد الرحمن');
+  await page.waitForSelector('#rName', { timeout: 15000 });
+
+  // الحجوزات في الديمو المنشور تتراكم من تشغيل لآخر، والتعارض مرفوض بحق (409).
+  // فنبحث عن فتحة حقيقية: ترابيزة + وقت لا يزاحمه حجز قائم.
+  const [{ reservations: existing }, { tables: tlist }] = await Promise.all([
+    (await page.request.get(BASE + '/api/restaurant/reservations')).json(),
+    (await page.request.get(BASE + '/api/restaurant/tables')).json(),
+  ]);
+  const now = Date.now();
+  const dayEnd = new Date(); dayEnd.setHours(23, 30, 0, 0);
+  const isoLocal = (ms) => new Date(ms - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  let slot = null;
+  for (const tb of tlist) {
+    for (let m = 120; m <= 600 && !slot; m += 30) {
+      const at = now + m * 60000;
+      if (at > dayEnd.getTime()) break;
+      const busy = existing.some((r) => r.tableId === tb.id && r.status !== 'cancelled'
+        && Math.abs(new Date(r.at).getTime() - at) < 100 * 60000);
+      if (!busy) slot = { tableId: tb.id, at };
+    }
+    if (slot) break;
+  }
+  check('R-UI · فيه فتحة حجز متاحة للاختبار', Boolean(slot), slot ? new Date(slot.at).toISOString().slice(11, 16) : 'لا فتحة');
+
+  const guest = 'مها ' + String(now).slice(-5);
+  await page.fill('#rName', guest);
   await page.fill('#rPhone', '01001234567');
+  await page.selectOption('#rTable', slot.tableId);
+  await page.fill('#rAt', isoLocal(slot.at));
   await page.click('#rSave');
-  await page.waitForTimeout(1200);
+  await page.waitForFunction((n) => (document.querySelector('#rows') || {}).textContent?.includes(n), guest, { timeout: 25000 }).catch(() => {});
   const resTxt = (await page.textContent('#rows').catch(() => '')) || '';
-  check('R-UI · الحجز الجديد يظهر في الجدول', resTxt.includes('مها عبد الرحمن'));
+  check('R-UI · الحجز الجديد يظهر في الجدول', resTxt.includes(guest), guest);
+
+  // إلغاء الحجز من نفس الشاشة
+  const row = page.locator('#rows tr', { hasText: guest }).first();
+  if (await row.locator('[data-cancel]').count()) {
+    await row.locator('[data-cancel]').click();
+    await page.waitForFunction((n) => {
+      const tr = [...document.querySelectorAll('#rows tr')].find((x) => x.textContent.includes(n));
+      return !tr || tr.textContent.includes('ملغي');
+    }, guest, { timeout: 25000 }).catch(() => {});
+    const after = (await page.textContent('#rows').catch(() => '')) || '';
+    check('R-UI · إلغاء الحجز يعمل من الشاشة', after.includes('ملغي'));
+  } else {
+    check('R-UI · إلغاء الحجز يعمل من الشاشة', false, 'زر الإلغاء غير موجود');
+  }
 
   // ملخص
   await page.goto(`${BASE}/systems/restaurant.html#/summary`, { waitUntil: 'networkidle' });
