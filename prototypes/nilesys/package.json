@@ -2,5 +2,11 @@
   "name": "nilesys-prototype",
   "private": true,
   "description": "HISTORICAL plain-Node prototype. CommonJS scope so `node server.js` and its node:test suite run under the repository root's \"type\": \"module\".",
-  "type": "commonjs"
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "test": "./tools/run-tests.sh",
+    "test:api": "./tools/run-tests.sh backlog",
+    "test:ui": "node tools/ui-tour.js && node tools/ui-flow.js"
+  }
 }

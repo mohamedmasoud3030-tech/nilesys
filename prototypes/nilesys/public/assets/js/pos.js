@@ -7,6 +7,7 @@
   const state = {
     user: null, branding: null, products: [], cart: [],
     openShift: null, cat: 'all', q: '', reportRange: 'today', view: 'sell',
+    settings: { taxRate: 0 }, customers: [], coupon: null,
   };
 
   init();
@@ -83,14 +84,30 @@
     state.openShift = b.openShift;
     applyBranding(b.branding);
     state.products = (await api('/api/products')).products;
+    try { state.settings = (await api('/api/settings')).settings; } catch { /* الكاشير قد لا يملك الصلاحية */ }
+    try { state.customers = (await api('/api/customers')).customers; } catch { /* */ }
     $('#loginView').classList.add('hidden');
     $('#appView').classList.remove('hidden');
     renderUser();
     const mgr = state.user.role === 'manager';
     $$('.side .nav-item[data-view]').forEach((b) => {
-      b.classList.toggle('hidden', ['products', 'branding', 'returns'].includes(b.dataset.view) && !mgr);
+      const managersOnly = b.dataset.mgr === '1' || ['products', 'branding', 'returns'].includes(b.dataset.view);
+      b.classList.toggle('hidden', managersOnly && !mgr);
       b.onclick = () => { location.hash = '#/' + b.dataset.view; $('#side').classList.remove('open'); };
     });
+    // شاشات الإدارة تحتاج المستخدم الحالي وقائمة الأصناف — نمررها مرة واحدة.
+    if (window.NSAdmin) {
+      NSAdmin.attach({
+        user: state.user,
+        getProducts: () => state.products,
+        refreshProducts: async () => { state.products = (await api('/api/products')).products; return state.products; },
+      });
+      NSAdmin.refreshBadge();
+      const bell = $('#alertsBtn');
+      if (bell) bell.onclick = () => { location.hash = '#/alerts'; $('#side').classList.remove('open'); };
+      // نحدّث الشارة كل دقيقة: التنبيهات تتغير بالبيع والتوريد، لا بالضغط.
+      setInterval(() => NSAdmin.refreshBadge(), 60000);
+    }
     if (!location.hash) location.hash = '#/sell';
     route();
   }
@@ -108,7 +125,13 @@
     renderCurrent();
   }
   function renderCurrent() {
-    ({ sell: renderSell, sales: renderSales, returns: renderReturns, shifts: renderShifts, reports: renderReports, products: renderProducts, branding: renderBranding, audit: renderAudit }[state.view] || renderSell)();
+    const local = { sell: renderSell, sales: renderSales, returns: renderReturns, shifts: renderShifts, reports: renderReports, products: renderProducts, branding: renderBranding, audit: renderAudit };
+    const fn = local[state.view] || (window.NSAdmin && NSAdmin.views[state.view]);
+    // شاشات الإدارة async؛ فشلها لا يجوز أن يترك الشاشة بيضاء.
+    // applyI18n بعد كل رسم: الشاشات تُبنى بعد الترجمة الأولى، فالعنوان يبقى فارغاً بدونها.
+    Promise.resolve((fn || renderSell).call(null))
+      .then(() => { try { applyI18n(); } catch { /* */ } })
+      .catch((err) => toast(err.message, 'bad'));
   }
 
   /* ================= نقطة البيع ================= */
@@ -156,10 +179,12 @@
           <div class="totals">
             <div class="line"><span>${t('common.total')}</span><b class="mono" id="tSub">0</b></div>
             <div class="line"><span>${t('pos.discount')}</span><input class="input" style="width:90px;text-align:center" type="number" min="0" value="0" id="cartDiscount" /></div>
+            ${(state.settings.taxRate || 0) > 0 ? `<div class="line"><span>${t('pos.tax') || 'ض.ق.م'} ${state.settings.taxRate}%</span><span class="mono" id="tTax">0</span></div>` : ''}
             <div class="line grand"><span>${t('common.total')}</span><span class="mono" id="tGrand">0</span></div>
+            ${state.coupon ? `<div class="small muted">🎟️ ${esc(state.coupon.code)}</div>` : ''}
           </div>
           <div class="row mt-2" style="gap:6px" id="tenderRow">
-            ${['cash', 'card', 'wallet', 'transfer'].map((m) => `<button class="chip ${(state.method || 'cash') === m ? 'active' : ''}" data-tender="${m}" style="flex:1">${tenderLabel(m)}</button>`).join('')}
+            ${['cash', 'card', 'wallet', 'transfer', 'credit'].map((m) => `<button class="chip ${(state.method || 'cash') === m ? 'active' : ''}" data-tender="${m}" style="flex:1">${m === 'credit' ? `🧾 ${t('pos.credit') || 'آجل'}` : tenderLabel(m)}</button>`).join('')}
           </div>
           <div class="row mt-2" style="gap:8px">
             <button class="btn btn-ghost" style="flex:1" id="holdBtn" title="F9">⏸ ${t('pos.hold') || 'تعليق'}</button>
@@ -193,7 +218,8 @@
   }
 
   function productCard(p) {
-    const low = p.stock <= 5;
+    // حد التنبيه لكل صنف على حدة إن حُدِّد، وإلا الافتراضي من الإعدادات.
+    const low = p.stock <= (p.reorderLevel ?? state.settings.lowStockDefault ?? 5);
     return `<div class="pcard ${low ? 'low' : ''}" data-id="${p.id}">
       <span class="st mono">${p.stock <= 0 ? t('pos.outStock') : num(p.stock)}</span>
       <div class="emo">${p.emoji}</div>
@@ -212,6 +238,22 @@
     else state.cart.push({ id, name: p.name, emoji: p.emoji, price: p.price, qty: 1 });
     toast(`${p.name} — ${t('pos.addToCart')}`, 'ok');
     renderCart();
+  }
+
+  // معاينة فقط: السيرفر هو من يحسب الضريبة والكوبون فعلياً عند البيع،
+  // وهذه الدالة تجعل الرقم على الشاشة قريباً من الحقيقة لا مفاجأة بعده.
+  // المبالغ قد تحتوي كسوراً بعد الضريبة (10 ج.م + 14% = 11.40). تقريب العرض
+  // إلى جنيه كامل كان يجعل الكاشير يظن الفاتورة 11 ويُرفض الدفع لأنها 11.40.
+  function exact(n) {
+    const v = Math.round((Number(n) || 0) * 100) / 100;
+    const txt = Number.isInteger(v) ? String(v) : v.toFixed(2);
+    return `${txt} ${t('common.currency')}`;
+  }
+
+  function taxOf(net) {
+    const rate = Number(state.settings.taxRate) || 0;
+    if (!rate) return 0;
+    return Math.round(net * rate) / 100;
   }
 
   function cartTotals() {
@@ -243,42 +285,103 @@
     }));
     const { subtotal, discount, total } = cartTotals();
     $('#tSub').textContent = money(subtotal);
-    $('#tGrand').textContent = money(total);
+    const taxEl = $('#tTax');
+    if (taxEl) taxEl.textContent = money(taxOf(subtotal - discount));
+    $('#tGrand').textContent = money(total + taxOf(subtotal - discount));
     $('#cartCount').textContent = state.cart.reduce((s, l) => s + l.qty, 0);
   }
 
   async function checkout() {
     if (!state.cart.length) return toast(t('pos.cartEmpty'), 'bad');
     if (!state.openShift) return toast(t('pos.shiftNeeded'), 'bad');
-    const { discount, total } = cartTotals();
+    const { subtotal, discount } = cartTotals();
+    // معاينة الكود بنفس منطق الخادم: نسبة أو مبلغ على (الإجمالي − خصم الفاتورة).
+    const couponBase = Math.max(0, subtotal - discount);
+    const couponAmt = state.coupon
+      ? Math.min(couponBase, state.coupon.type === 'amount'
+        ? Number(state.coupon.value) || 0
+        : Math.round(couponBase * (Number(state.coupon.value) || 0)) / 100)
+      : 0;
+    const netAfter = Math.max(0, couponBase - couponAmt);
+    const tax = taxOf(netAfter);
+    const grand = Math.round((netAfter + tax) * 100) / 100;
     const method = state.method || 'cash';
     const cash = method === 'cash';
+    const credit = method === 'credit';
     // مفتاح تكرار واحد لكل محاولة دفع: ضغطتان على «تأكيد» لا تصنعان فاتورتين.
     const idemKey = `pos-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    try { state.customers = (await api('/api/customers')).customers; } catch { /* */ }
 
     openModal({
       title: t('pos.checkout'),
-      body: `<div class="field"><label class="label">${t('common.total')}</label><div class="mono" style="font-size:30px;font-weight:900">${money(total)}</div></div>
-        <div class="field"><label class="label">${t('pos.method')}</label><div class="mono" style="font-size:18px;font-weight:800">${tenderLabel(method)}</div></div>
-        ${cash ? `<div class="field"><label class="label">${t('pos.paid')}</label><input class="input input-lg mono" id="paidInput" type="number" min="0" value="${total}" /></div>
+      body: `<div class="row between mb-2">
+          <div><div class="small muted">${t('common.total')}</div><div class="mono" style="font-size:28px;font-weight:900">${exact(grand)}</div></div>
+          <div class="small muted mono" style="text-align:end">${exact(subtotal)}${discount ? ` − ${exact(discount)}` : ''}${couponAmt ? ` − ${exact(couponAmt)}` : ''}${tax ? `<br>+ ${t('pos.tax') || 'ض.ق.م'} ${exact(tax)}` : ''}</div>
+        </div>
+        <div class="field"><label class="label">${t('pos.method')}</label><div class="mono" style="font-size:16px;font-weight:800">${credit ? `🧾 ${t('pos.credit') || 'آجل'}` : tenderLabel(method)}</div></div>
+        ${credit || state.customers.length ? `<div class="field"><label class="label">${t('pos.customer') || 'العميل'}${credit ? ' *' : ` <span class="small muted">(${t('pos.optional') || 'اختياري'})</span>`}</label>
+          <select class="input" id="ckCustomer">
+            <option value="">${t('pos.walkIn') || 'عميل نقدي'}</option>
+            ${state.customers.map((c) => `<option value="${c.id}" ${state.customerId === c.id ? 'selected' : ''}>${esc(c.name)} — ${esc(c.phone)}${c.creditLimit ? ` · ${money(c.balance || 0)}/${money(c.creditLimit)}` : ''}</option>`).join('')}
+          </select>
+          ${credit ? `<div class="small muted mt-1" id="creditHint">${t('pos.creditHint') || 'الآجل يحتاج عميلاً له حد آجل، والرصيد لا يتعداه.'}</div>` : ''}
+        </div>` : ''}
+        <div class="field"><label class="label">${t('pos.coupon') || 'كود خصم'}</label>
+          <div class="row" style="gap:6px">
+            <input class="input mono" id="ckCoupon" placeholder="NILE10" value="${esc(state.coupon?.code || '')}" style="flex:1" />
+            <button class="btn btn-ghost btn-sm" id="ckCouponApply">${t('pos.apply') || 'تطبيق'}</button>
+          </div>
+          <div class="small muted mt-1" id="couponMsg">${state.coupon ? `✓ ${esc(state.coupon.code)}` : ''}</div>
+        </div>
+        ${cash ? `<div class="field"><label class="label">${t('pos.paid')}</label><input class="input input-lg mono" id="paidInput" type="number" min="0" value="${Math.round(subtotal - discount + tax)}" /></div>
         <div class="field"><label class="label">${t('pos.change')}</label><div class="mono" id="changeOut" style="font-size:22px;font-weight:800;color:var(--ok)">${money(0)}</div></div>`
           : `<div class="small muted">${t('pos.exactOnly') || 'المبلغ يُسجَّل بالضبط — لا باقي خارج الكاش.'}</div>`}`,
       footer: `<button class="btn btn-ghost" id="cCancel">${t('common.cancel')}</button><button class="btn btn-success" id="cOk">${t('common.confirm')}</button>`,
     });
+
+    const totalNow = () => grand;
     if (cash) {
       const paid = $('#paidInput');
       paid.oninput = () => {
-        const chg = (Number(paid.value) || 0) - total;
+        const chg = (Number(paid.value) || 0) - totalNow();
         $('#changeOut').textContent = money(Math.max(0, chg));
         $('#changeOut').style.color = chg < 0 ? 'var(--bad)' : 'var(--ok)';
       };
+      paid.oninput();
     }
+    // الكود يُفحص هنا للعرض فقط؛ الخادم يعيد الفحص ويرفض إن انتهى أو نقص الحد.
+    $('#ckCouponApply').onclick = async () => {
+      const code = $('#ckCoupon').value.trim();
+      if (!code) { state.coupon = null; $('#couponMsg').textContent = ''; return; }
+      try {
+        const { coupons } = await api('/api/coupons').catch(() => ({ coupons: [] }));
+        const c = (coupons || []).find((x) => x.code === code.toUpperCase());
+        if (!c || !c.active) { state.coupon = null; $('#couponMsg').textContent = `✗ ${t('pos.couponBad') || 'كود غير ساري'}`; return; }
+        if (c.minSubtotal && subtotal < c.minSubtotal) {
+          state.coupon = null;
+          $('#couponMsg').textContent = `✗ ${t('pos.couponMin') || 'أقل من حد الكود'} ${money(c.minSubtotal)}`;
+          return;
+        }
+        state.coupon = c;
+        $('#couponMsg').textContent = `✓ ${c.code}${c.type === 'percent' ? ` · ${c.value}%` : ` · ${money(c.value)}`}`;
+        // نعيد رسم النافذة بالخصم الجديد حتى يرى الكاشير الإجمالي الحقيقي قبل الدفع.
+        closeModal();
+        return checkout();
+      } catch {
+        // الكاشير لا يقرأ قائمة الأكواد (للمدير فقط) — نترك الخادم يحكم.
+        state.coupon = { code: code.toUpperCase() };
+        $('#couponMsg').textContent = `✓ ${code.toUpperCase()}`;
+      }
+    };
+
     $('#cCancel').onclick = closeModal;
     let busy = false;
     $('#cOk').onclick = async () => {
       if (busy) return;
-      const paidVal = cash ? Number($('#paidInput')?.value) || 0 : total;
-      if (cash && paidVal < total) return toast(t('pos.short'), 'bad');
+      const customerId = $('#ckCustomer') ? $('#ckCustomer').value : '';
+      if (credit && !customerId) return toast(t('pos.creditNeedsCustomer') || 'الآجل يحتاج عميلاً', 'bad');
+      const paidVal = cash ? Number($('#paidInput')?.value) || 0 : grand;
+      if (cash && paidVal < totalNow()) return toast(t('pos.short'), 'bad');
       busy = true;
       $('#cOk').disabled = true;
       try {
@@ -287,6 +390,8 @@
           body: {
             items: state.cart.map((l) => ({ productId: l.id, qty: l.qty })),
             discount, method, paid: paidVal,
+            couponCode: state.coupon ? state.coupon.code : undefined,
+            customerId: customerId || undefined,
             idempotencyKey: idemKey,
             heldId: state.heldId || undefined,
           },
@@ -294,10 +399,13 @@
         state.cart = [];
         state.heldId = null;
         state.q = '';
+        state.coupon = null;
+        state.customerId = null;
         state.products = (await api('/api/products')).products;
         renderSell();
         toast(t('pos.done'), 'ok');
         showReceipt(sale);
+        if (window.NSAdmin) NSAdmin.refreshBadge();
       } catch (err) {
         toast(err.message, 'bad');
       } finally {
@@ -365,19 +473,29 @@
         </table>
         <div class="r-total">
           <table>
-            <tr><td>${t('common.total')}</td><td style="text-align:end" class="mono">${money(sale.subtotal)}</td></tr>
-            <tr><td>${t('pos.discount')}</td><td style="text-align:end" class="mono">${money(sale.discount)}</td></tr>
-            <tr><td><b>${t('common.total')}</b></td><td style="text-align:end"><b class="mono">${money(sale.total)}</b></td></tr>
-            <tr><td>${t('pos.method')}</td><td style="text-align:end">${tenderLabel(sale.method)}</td></tr>
-            <tr><td>${t('pos.paid')}</td><td style="text-align:end" class="mono">${money(sale.paid)}</td></tr>
-            <tr><td>${t('pos.change')}</td><td style="text-align:end" class="mono">${money(sale.change ?? Math.max(0, sale.paid - sale.total))}</td></tr>
+            <tr><td>${t('pos.subtotal') || 'الإجمالي'}</td><td style="text-align:end" class="mono">${exact(sale.subtotal)}</td></tr>
+            ${sale.discount ? `<tr><td>${t('pos.discount')}${sale.couponCode ? ` (${esc(sale.couponCode)})` : ''}</td><td style="text-align:end" class="mono">− ${exact(sale.discount)}</td></tr>` : ''}
+            ${sale.tax ? `<tr><td>${t('pos.tax') || 'ض.ق.م'} ${sale.taxRate || 0}%</td><td style="text-align:end" class="mono">${exact(sale.tax)}</td></tr>` : ''}
+            <tr><td><b>${t('common.total')}</b></td><td style="text-align:end"><b class="mono">${exact(sale.total)}</b></td></tr>
+            <tr><td>${t('pos.method')}</td><td style="text-align:end">${sale.method === 'credit' ? `🧾 ${t('pos.credit') || 'آجل'}` : tenderLabel(sale.method)}</td></tr>
+            ${sale.method === 'cash' ? `<tr><td>${t('pos.paid')}</td><td style="text-align:end" class="mono">${money(sale.paid)}</td></tr>
+            <tr><td>${t('pos.change')}</td><td style="text-align:end" class="mono">${money(sale.change ?? Math.max(0, sale.paid - sale.total))}</td></tr>` : ''}
+            ${sale.method === 'credit' ? `<tr><td>${t('pos.creditDue') || 'المتبقي آجل'}</td><td style="text-align:end" class="mono">${money(sale.total - (sale.payments || []).reduce((a, x) => a + x.amount, 0))}</td></tr>` : ''}
           </table>
         </div>
         <div class="center small muted mt-2">${t('pos.thanks')} ★</div>
       </div>`,
-      footer: `<button class="btn btn-ghost" onclick="window.print()">🖨 ${t('common.print')}</button><button class="btn btn-primary" onclick="document.querySelector('.modal-back')._close()">${t('common.close')}</button>`,
+      footer: `<button class="btn btn-ghost" id="rcptInv" data-sale="${sale.id}">🧾 ${t('pos.printInvoice') || 'فاتورة ضريبية'}</button>
+        <button class="btn btn-ghost" onclick="window.print()">🖨 ${t('common.print')}</button>
+        <button class="btn btn-primary" onclick="document.querySelector('.modal-back')._close()">${t('common.close')}</button>`,
     });
   }
+
+  // الفاتورة الضريبية المطبوعة — نفس البيانات من الخادم، لا من الشاشة.
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest && e.target.closest('#rcptInv');
+    if (b && window.NSAdmin) NSAdmin.printInvoice(b.dataset.sale);
+  });
 
   /* ================= الفواتير ================= */
   async function renderSales() {
@@ -391,9 +509,12 @@
         <td class="mono">${s.items.reduce((a, i) => a + i.qty, 0)}</td>
         <td class="mono"><b>${money(s.total)}</b></td>
         <td>${tenderLabel(s.method)}</td>
-        <td><span class="badge ${s.status === 'completed' ? 'badge-ok' : 'badge-bad'}">${s.status === 'completed' ? '✓' : '↩'} ${s.status}</span></td>
+        <td><span class="badge ${s.status === 'completed' ? 'badge-ok' : 'badge-bad'}">${s.status === 'completed' ? '✓' : '↩'} ${s.status}</span>
+          ${s.method === 'credit' ? `<span class="badge ${s.paymentStatus === 'paid' ? 'badge-ok' : 'badge-warn'}">${s.paymentStatus === 'paid' ? (t('pos.paidFull') || 'مسدَّد') : (t('pos.creditDue') || 'آجل')}</span>` : ''}</td>
         <td class="row" style="gap:6px">
           <button class="btn btn-ghost btn-sm" data-view-sale="${s.id}">👁</button>
+          <button class="btn btn-ghost btn-sm" data-inv="${s.id}" title="${t('pos.printInvoice') || 'طباعة الفاتورة'}">🖨</button>
+          ${s.method === 'credit' && s.paymentStatus !== 'paid' ? `<button class="btn btn-ghost btn-sm" data-collect="${s.id}">${t('pos.collect') || 'تحصيل'}</button>` : ''}
           ${state.user.role === 'manager' && s.status !== 'returned' ? `<button class="btn btn-ghost btn-sm" data-ret="${s.id}">↩ ${t('pos.returns')}</button>` : ''}
         </td>
       </tr>`).join('') || `<tr><td colspan="7" class="center muted">${t('common.none')}</td></tr>`;
@@ -402,6 +523,34 @@
       showReceipt(sale);
     }));
     $$('#rows [data-ret]').forEach((b) => (b.onclick = () => returnModal(b.dataset.ret)));
+    $$('#rows [data-inv]').forEach((b) => (b.onclick = () => window.NSAdmin && NSAdmin.printInvoice(b.dataset.inv)));
+    $$('#rows [data-collect]').forEach((b) => (b.onclick = () => collectModal(b.dataset.collect)));
+  }
+
+  // تحصيل آجل — F-12: الدفعة تدخل الدرج إن كانت كاش، والفاتورة تتحدث من الخادم.
+  async function collectModal(saleId) {
+    const { sale } = await api('/api/sales/' + saleId);
+    const paid = (sale.payments || []).reduce((a, p) => a + p.amount, 0);
+    const due = Math.round((sale.total - paid) * 100) / 100;
+    openModal({
+      title: `${t('pos.collect') || 'تحصيل'} #${sale.no}`,
+      body: `<div class="small muted mb-2">${t('pos.remaining') || 'المتبقي'}: <b class="mono">${money(due)}</b></div>
+        <div class="field"><label class="label">${t('pos.amount') || 'المبلغ'}</label>
+          <input class="input input-lg mono" id="colAmt" type="number" min="1" max="${due}" value="${due}" /></div>
+        <div class="field"><label class="label">${t('pos.method')}</label>
+          <select class="input" id="colMethod"><option value="cash">${tenderLabel('cash')}</option><option value="card">${tenderLabel('card')}</option><option value="wallet">${tenderLabel('wallet')}</option><option value="transfer">${tenderLabel('transfer')}</option></select></div>`,
+      footer: `<button class="btn btn-ghost" id="colCancel">${t('common.cancel')}</button><button class="btn btn-success" id="colOk">${t('common.confirm')}</button>`,
+    });
+    $('#colCancel').onclick = closeModal;
+    $('#colOk').onclick = async () => {
+      try {
+        await api(`/api/sales/${saleId}/payments`, {
+          method: 'POST',
+          body: { amount: Number($('#colAmt').value) || 0, method: $('#colMethod').value },
+        });
+        closeModal(); toast(t('pos.saved'), 'ok'); renderSales();
+      } catch (err) { toast(err.message, 'bad'); }
+    };
   }
 
   /* ================= المرتجعات ================= */
@@ -538,6 +687,10 @@
         <div class="row" style="gap:6px">
           <button class="chip ${state.reportRange === 'today' ? 'active' : ''}" data-r="today">${getLang() === 'ar' ? 'النهارده' : 'Today'}</button>
           <button class="chip ${state.reportRange === 'week' ? 'active' : ''}" data-r="week">${getLang() === 'ar' ? 'الأسبوع' : 'This week'}</button>
+          ${state.user.role === 'manager' ? `<button class="btn btn-ghost btn-sm" data-csv="sales">⬇ sales.csv</button>
+          <button class="btn btn-ghost btn-sm" data-csv="returns">⬇ returns.csv</button>
+          <button class="btn btn-ghost btn-sm" data-csv="shifts">⬇ shifts.csv</button>
+          <button class="btn btn-ghost btn-sm" data-csv="stock">⬇ stock.csv</button>` : ''}
         </div>
       </div>
       <div class="kpi" id="kpis"></div>
@@ -547,6 +700,7 @@
       </div>
       <div class="card card-pad mt-3"><b>${t('pos.byMethod')}</b><div id="methodBox" class="mt-2"></div></div>`;
     $$('#content .chip[data-r]').forEach((c) => (c.onclick = () => { state.reportRange = c.dataset.r; renderReports(); }));
+    $$('#content [data-csv]').forEach((b) => (b.onclick = () => window.NSAdmin && NSAdmin.downloadCsv(b.dataset.csv)));
     const r = await api('/api/reports/summary?range=' + state.reportRange);
     // المال كما قرّره D-E: الصافي هو الرقم الرئيسي، والمرتجع سطر مستقل.
     // لا «ربح» في الشاشة: بدون تكلفة موثوقة الربح رقم مضلِّل (خطة 001 §2).
@@ -554,7 +708,8 @@
       <div class="card"><div class="lbl">${t('pos.netSales') || 'صافي المحصَّل'}</div><div class="val mono" style="color:var(--brand-600)">${money(r.net)}</div><div class="sub muted">${t('pos.todaySales')}: ${money(r.grossTotal)}</div></div>
       <div class="card"><div class="lbl">${t('pos.returns')}</div><div class="val mono" style="color:var(--bad)">− ${money(r.refundsTotal)}</div><div class="sub muted">${num(r.returns)} ${t('pos.invoices')}</div></div>
       <div class="card"><div class="lbl">${t('pos.invoices')}</div><div class="val mono">${num(r.invoices)}</div><div class="sub muted">${t('pos.avgInvoice')} ${money(r.avg)}</div></div>
-      <div class="card"><div class="lbl">${t('pos.returnedCount') || 'مرتجع بالكامل'}</div><div class="val mono">${num(r.returnedCount)}</div><div class="sub muted">${t('pos.netHint') || 'الصافي = الإجمالي − المرتجعات'}</div></div>`;
+      <div class="card"><div class="lbl">${t('pos.returnedCount') || 'مرتجع بالكامل'}</div><div class="val mono">${num(r.returnedCount)}</div><div class="sub muted">${t('pos.netHint') || 'الصافي = الإجمالي − المرتجعات'}</div></div>
+      ${r.taxTotal ? `<div class="card"><div class="lbl">${t('pos.tax') || 'ض.ق.م'} ${r.taxRate || state.settings.taxRate || 0}%</div><div class="val mono">${money(r.taxTotal)}</div><div class="sub muted">${getLang() === 'ar' ? 'محصّلة لصالح الضرائب — ليست إيراداً' : 'Collected for tax — not revenue'}</div></div>` : ''}`;
     $('#topRows').innerHTML = r.topProducts.map((p) => `<tr><td>${esc(p.name)}</td><td class="mono">${num(p.qty)}</td><td class="mono">${money(p.total)}</td></tr>`).join('')
       || `<tr><td colspan="3" class="center muted">${t('common.none')}</td></tr>`;
     const max = Math.max(1, ...r.byHour);
@@ -591,7 +746,8 @@
         <td class="mono">${money(p.cost)}</td>
         <td class="mono"><b>${money(p.price)}</b></td>
         <td class="mono">${p.cost ? Math.round(((p.price - p.cost) / p.price) * 100) : 100}%</td>
-        <td><span class="badge ${p.stock <= 0 ? 'badge-bad' : p.stock <= 5 ? 'badge-warn' : 'badge-ok'} mono">${num(p.stock)}</span></td>
+        <td><span class="badge ${p.stock <= 0 ? 'badge-bad' : p.stock <= (p.reorderLevel ?? state.settings.lowStockDefault ?? 5) ? 'badge-warn' : 'badge-ok'} mono">${num(p.stock)}</span>
+          ${p.taxExempt ? `<span class="badge badge-info" title="${t('pos.taxExempt') || 'معفى'}">0%</span>` : (p.taxRate != null ? `<span class="badge" title="tax">${p.taxRate}%</span>` : '')}</td>
         <td class="row" style="gap:6px">
           <button class="btn btn-ghost btn-sm" data-edit="${p.id}">✎</button>
           <button class="btn btn-ghost btn-sm" data-del="${p.id}">🗑</button>
@@ -617,7 +773,12 @@
           <div class="field"><label class="label">${t('pos.category')}</label><input class="input" id="fCat" value="${esc(p?.category || 'متنوع')}" /></div>
           <div class="field"><label class="label">${t('pos.barcode')}</label><input class="input mono" id="fBar" value="${esc(p?.barcode || '')}" /></div>
           <div class="field"><label class="label">Icon</label><input class="input" id="fEmo" maxlength="2" value="${esc(p?.emoji || '📦')}" /></div>
-        </div>`,
+          <div class="field"><label class="label">${t('pos.reorder') || 'حد إعادة الطلب'}</label><input class="input mono" id="fReorder" type="number" min="0" value="${p?.reorderLevel ?? ''}" placeholder="${state.settings.lowStockDefault ?? 5}" /></div>
+          <div class="field"><label class="label">${t('pos.taxRate') || 'ضريبة خاصة %'}</label><input class="input mono" id="fTaxRate" type="number" min="0" max="100" value="${p?.taxRate ?? ''}" placeholder="${state.settings.taxRate || 0}" /></div>
+        </div>
+        <div class="field"><label class="row" style="gap:8px;align-items:center">
+          <input type="checkbox" id="fExempt" ${p?.taxExempt ? 'checked' : ''} />
+          <span>${t('pos.taxExempt') || 'معفى من الضريبة (خبز، أدوية، سلع مدعومة)'}</span></label></div>`,
       footer: `<button class="btn btn-ghost" onclick="document.querySelector('.modal-back')._close()">${t('common.cancel')}</button><button class="btn btn-primary" id="pSave">${t('common.save')}</button>`,
     });
     $('#pSave').onclick = async () => {
@@ -625,6 +786,11 @@
         name: $('#fName').value.trim(), price: Number($('#fPrice').value), cost: Number($('#fCost').value) || 0,
         stock: Number($('#fStock').value) || 0, category: $('#fCat').value.trim() || 'متنوع',
         barcode: $('#fBar').value.trim(), emoji: $('#fEmo').value.trim() || '📦',
+        ...(isNew ? {} : {
+          reorderLevel: $('#fReorder').value === '' ? null : Number($('#fReorder').value),
+          taxRate: $('#fTaxRate').value === '' ? null : Number($('#fTaxRate').value),
+          taxExempt: $('#fExempt').checked,
+        }),
       };
       if (!body.name || !(body.price > 0)) return toast(t('common.save') + ' ✗', 'bad');
       try {
