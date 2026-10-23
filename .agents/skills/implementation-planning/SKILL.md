@@ -6,7 +6,8 @@ description: Plan multi-step work before writing code. Use when a task spans mor
 # Implementation Planning
 
 Decompose work into small, independently testable, reversible steps before
-writing code. Adapted from `obra/superpowers` `writing-plans`; vendor-neutral.
+writing code. Adapted from `obra/superpowers` (`writing-plans`) via the
+portfolio's own skills (nilesys); vendor-neutral.
 
 ## Use when
 
@@ -25,8 +26,8 @@ writing code. Adapted from `obra/superpowers` `writing-plans`; vendor-neutral.
 ## Workflow
 
 1. Reuse check: search the repository for an existing module or capability,
-   and consider mature libraries, before building. Respect the small-change,
-   YAGNI, and reuse rules in `AGENTS.md`.
+   and consider mature libraries, before building. Respect small-change,
+   YAGNI, and reuse rules in the repo's `AGENTS.md`.
 2. List concrete steps. Each step is one action ending in an independently
    testable result: write the failing test → verify RED → implement the
    minimal code → verify GREEN → refactor where needed. Follow
@@ -43,7 +44,8 @@ writing code. Adapted from `obra/superpowers` `writing-plans`; vendor-neutral.
 ## Required evidence / output
 
 - A written step list, each step small and independently testable, with an
-  explicit out-of-scope note.
+  explicit out-of-scope note. For the non-technical owner: a 3-line Arabic
+  summary of the plan before execution.
 
 ## Exit criteria
 
@@ -55,9 +57,5 @@ writing code. Adapted from `obra/superpowers` `writing-plans`; vendor-neutral.
 - Placeholder steps that assume implementation knowledge.
 - Planning abstractions you do not need yet (YAGNI).
 
-## References
-
-- `test-driven-development` — how each step is executed.
-- `decision-governance` — surfacing conflicts with accepted decisions.
-- `AGENTS.md` — small-change, YAGNI, and reuse rules.
-- Sources and licensing: `docs/agent-system/REFERENCES.md`.
+> 🏛️ Portfolio binding: canonical master lives in `command-center-/skills/`.
+> It overrides duplicated copies inside other repos. Answer the owner in Egyptian Arabic.

@@ -13,106 +13,60 @@ boundaries.
 
 ## Use when
 
-- Authentication, sessions, organization membership, permissions, tenant
-  context, or RLS are touched.
+- Authentication, sessions, membership, permissions, tenant/org context, or
+  RLS are touched.
 - A change handles secrets, credentials, sensitive business data, untrusted
   input, file/parser boundaries, or external services.
 - A migration or raw SQL path can affect isolation or data integrity.
 - A new network/API boundary or privileged operation is introduced.
-- A security review, threat model, or secure-by-default implementation is
-  explicitly requested.
 
 ## Do NOT use when
 
-- A general code review has no security-relevant surface.
-- The task is a trivial edit with no trust, data, or privilege boundary.
-
-## Required inputs
-
-- The diff/plan and its requirements.
-- Relevant accepted ADRs via `decision-governance`.
-- Current upstream security/API behavior via `source-driven-development`
-  whenever a control depends on a framework, library, database, or protocol.
+- A general code review has no security-relevant surface; or the edit is trivial.
 
 ## Workflow
 
-1. **Scope the security surface.** Identify the changed components, entry
-   points, data stores, external integrations, and privileged operations.
-2. **Map the relevant trust boundary.** State the asset being protected, who can
-   supply input, what identity/authority crosses the boundary, and what control
-   is expected to enforce it.
-3. **Select only applicable review lenses:**
-   - authentication and session handling;
-   - authorization, organization membership, tenant isolation, and RLS;
-   - validation/parsing/injection boundaries;
-   - secrets and configuration;
-   - database integrity, migrations, raw SQL, and transaction context;
-   - API response/error/log data exposure;
-   - external integrations and dependency trust.
-4. **Trace realistic abuse paths.** For each candidate issue, establish
-   reachability, attacker capability, the missing/bypassed control, and concrete
-   impact. Do not report purely theoretical weakness without a plausible path.
-5. **Apply repository security policy from the ADRs.** For tenant-owned data,
-   derive the required fail-closed and cross-tenant tests from ADR-0002,
-   ADR-0004, and ADR-0005 rather than importing provider-specific assumptions.
-   The runtime-role and tenant-context invariants in those ADRs are
-   authoritative.
-6. **Escalate architectural security gaps.** A new trust model, auth mechanism,
-   tenant model, or security-boundary change is consequential and goes through
-   `decision-governance`.
-7. **Classify findings by impact and exploitability:**
-   - **Critical** — credible auth/authorization bypass, cross-tenant data access,
-     severe secret exposure, arbitrary code/command execution, destructive data
-     integrity failure, or equivalent catastrophic impact.
-   - **Important** — exploitable weakness with meaningful confidentiality,
-     integrity, or availability impact, or a missing defense required by an ADR.
-   - **Minor** — hardening opportunity with limited realistic impact.
-8. **Report before fixing.** Record findings first. Do not silently mutate the
-   change during the review pass. If the task includes remediation, fix one
-   finding at a time through `test-driven-development`, then re-run the
-   relevant security review.
-9. **For a new or materially changed trust boundary, run a compact threat-model
-   pass:** assets → boundary → attacker capability → abuse path → existing
-   control → mitigation/test.
+1. **Scope the security surface.** Changed components, entry points, data
+   stores, external integrations, privileged operations.
+2. **Map the trust boundary.** Asset protected → who supplies input → what
+   identity/authority crosses → control expected to enforce it.
+3. **Select only applicable lenses:** authn/session; authorization, tenant
+   isolation, RLS; validation/parsing/injection; secrets & config; DB
+   integrity, migrations, raw SQL, transaction context; API/error/log data
+   exposure; external integrations & dependency trust.
+4. **Trace realistic abuse paths.** Reachability + attacker capability +
+   missing/bypassed control + concrete impact. No purely theoretical findings.
+5. **Apply repository security policy from the ADRs.** For tenant-owned data
+   derive fail-closed and cross-tenant tests from the repo's accepted
+   decisions — never import provider-specific assumptions.
+6. **Escalate architectural security gaps** via `decision-governance`.
+7. **Classify findings:** Critical (authz bypass, cross-tenant access, secret
+   exposure, RCE, destructive integrity failure) / Important (exploitable
+   weakness or missing ADR-required defense) / Minor (hardening opportunity).
+8. **Report before fixing.** Record findings first; if remediation is in
+   scope, fix one finding at a time via `test-driven-development`, then re-run
+   the relevant review.
+9. **New or changed trust boundary → compact threat-model pass:** assets →
+   boundary → attacker capability → abuse path → existing control →
+   mitigation/test.
 
-## Required evidence / output
+## Required evidence / output (per finding)
 
-For each finding:
+location · severity/confidence · realistic abuse path · concrete impact ·
+evidence of the existing/missing control · specific mitigation + the test that
+proves it. Also record which lenses were applied and which were N/A.
 
-- location/surface;
-- severity and confidence;
-- realistic abuse path;
-- concrete impact;
-- evidence for the existing or missing control;
-- specific mitigation and the test that would prove it.
+## Portfolio invariants (from the 2026-10-21 inventory)
 
-Also record which security lenses were applied and which were not applicable.
+- No secrets or real `.env` files in git — flag immediately if found.
+- RLS is the authorization boundary in Supabase projects; app-level filters
+  are never a substitute. Test RLS with a role that matches production, not a
+  bypassing service role.
 
 ## Exit criteria
 
-- Every applicable trust boundary in the change has been reviewed.
-- Critical findings are fixed before readiness.
-- Important findings follow the deferral rule in `code-review`.
-- Security-sensitive completion claims are backed by fresh tests/evidence via
-  `verification-before-completion`.
+- Every applicable trust boundary reviewed; Critical fixed before readiness;
+  Important follows `code-review` deferral rule; claims backed by fresh
+  evidence via `verification-before-completion`.
 
-## Common failure modes
-
-- Generic OWASP-style findings with no reachable path.
-- Treating authentication as authorization.
-- Assuming application query filters are equivalent to database-enforced tenant
-  isolation.
-- Testing RLS with a database role that bypasses the production boundary.
-- Copying Supabase-, Next.js-, or JWT-specific advice into a different accepted
-  architecture.
-- Mixing review and remediation so findings disappear without an auditable
-  review step.
-
-## References
-
-- `decision-governance` — accepted security architecture is authoritative.
-- `source-driven-development` — verify current upstream security behavior.
-- `code-review` — general review and severity/deferral workflow.
-- `test-driven-development` — regression/fail-closed tests for remediation.
-- `verification-before-completion` — final evidence gate.
-- Sources and licensing: `docs/agent-system/REFERENCES.md`.
+> 🏛️ Portfolio binding: canonical master lives in `command-center-/skills/`.
