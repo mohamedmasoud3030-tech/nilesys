@@ -17,7 +17,7 @@ tests the right thing.
 ## Do NOT use when
 
 - Throwaway prototypes, generated code, or config-only changes — and only
-  then after surfacing the exception to a human.
+  then after surfacing the exception to the owner.
 
 ## The iron law
 
@@ -47,16 +47,9 @@ If you wrote implementation code first: delete it and start from the test.
 - Tests written after implementation pass immediately and prove nothing — you
   never watched them fail.
 
-## Red flags — STOP and start from the test
-
-- Test passes immediately / cannot explain why it failed / "just this once."
-
 ## Exit criteria
 
 - Every behavior has a test that you watched fail, then pass.
 - Before claiming the work is complete, apply `verification-before-completion`.
 
-## References
-
-- `verification-before-completion` — the evidence gate for completion claims.
-- Sources and licensing: `docs/agent-system/REFERENCES.md`.
+> 🏛️ Portfolio binding: canonical master lives in `command-center-/skills/`.

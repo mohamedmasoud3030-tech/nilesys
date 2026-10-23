@@ -26,7 +26,7 @@ Find the root cause before fixing. Symptom fixes are failure.
    - Check recent changes (git log/diff, config, dependencies, environment).
    - Trace the data flow to where the bad value originates.
 2. **Pattern analysis**
-   - Find similar working examples; compare against references fully.
+   - Find similar working examples; compare fully.
    - List every difference — do not assume "that can't matter".
 3. **Hypothesis and test**
    - State ONE hypothesis ("X is the cause because Y"). Test it with the
@@ -36,20 +36,15 @@ Find the root cause before fixing. Symptom fixes are failure.
    - Write a failing regression test first (use `test-driven-development`).
    - Apply the single root-cause fix and verify. No "while I'm here" changes.
    - If three or more distinct fixes have failed: STOP and question the
-     architecture rather than attempting fix #4.
+     architecture rather than attempting fix #4 — and surface it to the owner.
 
 ## Red flags — STOP and return to phase 1
 
-- "Quick fix for now, investigate later" / "just try changing X" /
-  "I don't fully understand but this might work" / proposing fixes before
-  tracing the cause.
+- "Quick fix for now" / "just try changing X" / "I don't fully understand but
+  this might work" / proposing fixes before tracing the cause.
 
 ## Exit criteria
 
 - Root cause identified, and a regression test proves the fix (red → green).
 
-## References
-
-- `test-driven-development` — the failing regression test.
-- `verification-before-completion` — before claiming the fix works.
-- Sources and licensing: `docs/agent-system/REFERENCES.md`.
+> 🏛️ Portfolio binding: canonical master lives in `command-center-/skills/`.
