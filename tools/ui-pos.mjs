@@ -62,10 +62,39 @@ async function newPage(browser, vp) {
    نرفضه فعلًا: أخطاء JS وأي فشل تحميل موارد آخر. */
 const realConsoleErrors = (page, { allowAborted = false } = {}) =>
   page.consoleErrors.filter((t) =>
-    !/^Failed to load resource: the server responded with a status of 401/.test(t) &&
+    /* رفض أعمال مُدار بالواجهة يطبعه المتصفح كخطأ Console رغم أن الـUI يعرضه:
+       401 (فحص الجلسة) · 403 (فحص D-D/صلاحيات الكاشير المتعمد في B/E) ·
+       409 (SKU مكرر في E) · 422 (محاولة بيع صنف موقوف في E). غير ذلك فشل فعلي. */
+    !/^Failed to load resource: the server responded with a status of (401|403|409|422)/.test(t) &&
     !(allowAborted && /net::ERR_FAILED/.test(t)));
 const overflowX = (page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 const apiGet = (page, path) => page.evaluate(async (p) => { const r = await fetch(p); return { status: r.status, body: await r.json().catch(() => ({})) }; }, path);
+
+/* عدّار فواتير من حساب المدير مباشرة (بلا صفحة): مع D-D لا يملك الكاشير
+   report:read، فعدّ الفواتير في التدفقات B/D يجب أن يأتي من صلاحية مخولة. */
+let mgrCookie = null;
+async function managerReport() {
+  /* تدفق A يتضمن محاولة دخول خاطئة مقصودة وقد يفعّل حدّ محاولات Better Auth
+     مؤقتًا — عند أي فشل نصفّر الجلسة ونعيد المحاولة مرة بعد مهلة قصيرة. */
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (!mgrCookie) {
+      const r = await fetch(`${BASE}/api/auth/sign-in/email`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: BASE },
+        body: JSON.stringify({ email: 'pos-manager@nile.demo', password: 'demo1234' }),
+      });
+      if (r.ok) mgrCookie = (r.headers.getSetCookie?.() ?? []).map((c) => c.split(';')[0]).join('; ');
+    }
+    if (mgrCookie) {
+      const r = await fetch(`${BASE}/api/v1/reports/daily?from=${today}&to=${today}`, { headers: { cookie: mgrCookie } });
+      const body = await r.json().catch(() => ({}));
+      if (r.ok && body.report) return body.report;
+    }
+    mgrCookie = null;
+    if (attempt === 0) await sleep(3000);
+  }
+  throw new Error('managerReport unavailable');
+}
 
 async function login(page, email) {
   await page.goto(`${BASE}/pos`, { waitUntil: 'networkidle' });
@@ -234,11 +263,14 @@ async function flowCashierInner(browser) {
   await login(page, 'cashier@nile.demo');
   ok('الدور: كاشير', (await page.locator('#userRole').innerText()).includes('كاشير'));
   ok('قسم الإدارة مخفي عن الكاشير', await page.locator('#navAdmin').isHidden());
+  ok('قسم إدارة الأصناف مخفي عن الكاشير', await page.locator('#navCatalog').isHidden());
   ok('لا تمرير أفقي على التابلت', (await overflowX(page)) <= 1);
 
   await addByName(page, 'مشروب غازي');
   await page.screenshot({ path: `${SHOTS}after-pos-tablet-768.png` });
-  const repBefore = (await apiGet(page, `/api/v1/reports/daily?from=${today}&to=${today}`)).body.report;
+  const cashierReportProbe = await apiGet(page, `/api/v1/reports/daily?from=${today}&to=${today}`);
+  ok('D-D: الكاشير مرفوض من تقرير اليوم عبر API مباشرة (403)', cashierReportProbe.status === 403);
+  const repBefore = await managerReport();
   await page.locator('#mobileCartBar').click();
   await page.waitForSelector('#cartPane.is-open');
   await page.click('#openCheckoutBtn');
@@ -249,7 +281,7 @@ async function flowCashierInner(browser) {
   ok('الكاشير باع بالبطاقة دون وردية', (await page.locator('#receiptPaper').innerText()).includes('15.00'));
   ok('لا زر مرتجع للكاشير على الإيصال', await page.locator('#receiptRefundBtn').isHidden());
   await page.click('#newSaleBtn'); await sleep(200);
-  const repAfter = (await apiGet(page, `/api/v1/reports/daily?from=${today}&to=${today}`)).body.report;
+  const repAfter = await managerReport();
   ok('زيادة فاتورة واحدة فقط عند الخادم', repAfter.billedCount === repBefore.billedCount + 1);
 
   await page.setViewportSize({ width: 390, height: 844 }); await sleep(250);
@@ -364,8 +396,7 @@ async function flowCrossDeviceInner() {
   try {
     const page = await newPage(browser, { width: 1440, height: 900 });
     await login(page, 'cashier@nile.demo');
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Cairo' });
-    const before = (await apiGet(page, `/api/v1/reports/daily?from=${today}&to=${today}`)).body.report;
+    const before = await managerReport();
     await page.waitForFunction(() => document.getElementById('shiftChipText')?.textContent === 'وردية مفتوحة', { timeout: 20000 }).catch(() => {});
     ok('G-02: الجهاز الثاني رأى الوردية المفتوحة تلقائيًا دون فتح ثانية',
       (await page.locator('#shiftChipText').textContent()) === 'وردية مفتوحة');
@@ -395,7 +426,7 @@ async function flowCrossDeviceInner() {
     // المصالحة عند الدخول تعرض الإيصال المحفوظ خادميًا من تلقاء نفسها
     await page.waitForSelector('#receiptDialog[open]', { timeout: 25000 });
     ok('§6: المصالحة عند إعادة التحميل استردت الإيصال المحفوظ', true);
-    const after = (await apiGet(page, `/api/v1/reports/daily?from=${today}&to=${today}`)).body.report;
+    const after = await managerReport();
     ok('§6: فاتورتان فقط في هذا التدفق كله رغم الرد المفقود', after.billedCount === before.billedCount + 2, `${before.billedCount}→${after.billedCount}`);
     await page.click('#newSaleBtn'); await sleep(250);
     ok('§6: السلة فارغة بعد المصالحة (لم تبقَ بنود محفوظة قابل لإعادة بيعها)',
@@ -405,9 +436,141 @@ async function flowCrossDeviceInner() {
   } finally { await browser.close().catch(() => {}); }
 }
 
+/* ═══ E) يوم تجاري بإدارة الأصناف (G-03): إضافة → بيع → تغيير سعر → إيقاف ═══ */
+const apiSend = (page, method, path, body) => page.evaluate(async ([m, p, b]) => {
+  const r = await fetch(p, { method: m, headers: { 'content-type': 'application/json' }, body: JSON.stringify(b) });
+  return { status: r.status, body: await r.json().catch(() => ({})) };
+}, [method, path, body]);
+
+async function flowCatalogAdminInner() {
+  console.log('\nE) إدارة الأصناف (G-03) · يوم تجاري · 1440×900 ثم 390×844');
+  const browser = await launchBrowser();
+  try {
+    const page = await newPage(browser, { width: 1440, height: 900 });
+    await login(page, 'pos-manager@nile.demo');
+    const repBefore = await managerReport();
+    ok('G-03: زر «الأصناف» ظاهر للمدير', await page.locator('#navCatalog').isVisible());
+    await page.locator('.nav-btn[data-view="catalogAdmin"]').click();
+    await page.waitForSelector('#adminItemCards .admin-item-card', { timeout: 20000 });
+    ok('G-03: قائمة الإدارة تُحمَّل من الخادم', true);
+    ok('لا تمرير أفقي في الأصناف 1440', (await overflowX(page)) <= 1);
+    await page.screenshot({ path: `${SHOTS}after-catalog-admin-1440.png` });
+
+    /* إنشاء صنف جديد من الواجهة */
+    await page.click('#newItemBtn');
+    await page.waitForSelector('#itemDialog[open]');
+    await page.fill('#itemNameAr', 'عسل نحل');
+    await page.fill('#itemNameEn', 'Honey');
+    await page.fill('#itemCategory', 'groceries');
+    await page.fill('#itemPrice', '120.00');
+    const row = page.locator('#itemVariantRows .variant-row').first();
+    await row.locator('.vr-sku').fill('HON-500');
+    await row.locator('.vr-label-ar').fill('برطمان 500غ');
+    await row.locator('.vr-label-en').fill('500g jar');
+    await row.locator('.vr-stock').fill('10');
+    await page.screenshot({ path: `${SHOTS}after-item-dialog-1440.png` });
+    await page.click('#itemSaveBtn');
+    await page.waitForFunction(() => !document.getElementById('itemDialog')?.open, { timeout: 20000 });
+    const card = () => page.locator('#adminItemCards .admin-item-card', { hasText: 'عسل نحل' });
+    ok('G-03: الصنف الجديد ظهر في قائمة الإدارة', await card().isVisible());
+
+    /* SKU مكرر → خطأ واضح لا حفظ */
+    await page.click('#newItemBtn');
+    await page.fill('#itemNameAr', 'عسل آخر');
+    await page.fill('#itemNameEn', 'Other Honey');
+    await page.fill('#itemCategory', 'groceries');
+    await page.fill('#itemPrice', '50.00');
+    const dupRow = page.locator('#itemVariantRows .variant-row').first();
+    await dupRow.locator('.vr-sku').fill('HON-500');
+    await dupRow.locator('.vr-label-ar').fill('x');
+    await dupRow.locator('.vr-label-en').fill('x');
+    await dupRow.locator('.vr-stock').fill('1');
+    await page.click('#itemSaveBtn');
+    await page.waitForSelector('#itemErr:not([hidden])', { timeout: 20000 });
+    ok('G-03: SKU مكرر يعرض خطأً واضحًا ويبقى الحوار مفتوحًا', (await page.locator('#itemErr').innerText()).includes('SKU'));
+    await page.locator('#itemDialog [data-close-dialog]').first().click(); await sleep(200);
+
+    /* البيع بالسعر الأول (الوردية متبنّاة من تدفق D — نقدي) */
+    await page.locator('.nav-btn[data-view="sale"]').click();
+    await page.waitForSelector('#catalog .item-card', { timeout: 20000 });
+    ok('G-03: الصنف الجديد يظهر في شاشة البيع بعد التحديث', await page.locator('.item-card', { hasText: 'عسل نحل' }).isVisible());
+    await addByName(page, 'عسل نحل');
+    await page.click('#openCheckoutBtn');
+    await page.waitForSelector('#checkoutDialog[open]');
+    await page.click('#confirmCheckoutBtn');
+    await page.waitForSelector('#receiptDialog[open]', { timeout: 20000 });
+    ok('G-03: بيع الصنف الجديد بسعر إنشائه 120.00', (await page.locator('#receiptPaper').innerText()).includes('120.00'));
+    await page.click('#newSaleBtn'); await sleep(250);
+
+    /* تغيير السعر ثم بيع جديد بالسعر الجديد */
+    await page.locator('.nav-btn[data-view="catalogAdmin"]').click();
+    await card().locator('button', { hasText: 'تعديل' }).click();
+    await page.waitForSelector('#itemDialog[open]');
+    await page.fill('#itemPrice', '150.00');
+    await page.click('#itemSaveBtn');
+    await page.waitForFunction(() => !document.getElementById('itemDialog')?.open, { timeout: 20000 });
+    ok('G-03: السعر المُحدَّث ظاهر في بطاقة الإدارة', (await card().innerText()).includes('150.00'));
+    await page.locator('.nav-btn[data-view="sale"]').click();
+    await addByName(page, 'عسل نحل');
+    await page.click('#openCheckoutBtn');
+    await page.waitForSelector('#checkoutDialog[open]');
+    await page.click('#confirmCheckoutBtn');
+    await page.waitForSelector('#receiptDialog[open]', { timeout: 20000 });
+    ok('G-03: البيع اللاحق بالسعر الجديد 150.00 (القديمة تبقى كما هي — مُثبت بالاختبارات الخادمية)',
+      (await page.locator('#receiptPaper').innerText()).includes('150.00'));
+    await page.click('#newSaleBtn'); await sleep(250);
+
+    /* إيقاف → يختفي من البيع ويرفضه الخادم صراحة */
+    await page.locator('.nav-btn[data-view="catalogAdmin"]').click();
+    await card().locator('button', { hasText: 'إيقاف البيع' }).click();
+    await page.waitForSelector('#confirmDialog[open]');
+    await page.click('#confirmOk');
+    await page.waitForFunction(() => document.querySelector('#adminItemCards .admin-item-card.is-inactive'), { timeout: 20000 });
+    ok('G-03: الصنف مُعلَّم موقوفًا في الإدارة', (await card().innerText()).includes('موقوف'));
+    await page.locator('.nav-btn[data-view="sale"]').click(); await sleep(400);
+    ok('G-03: الصنف الموقوف اختفى من شاشة البيع', (await page.locator('.item-card', { hasText: 'عسل نحل' }).count()) === 0);
+    const adminList = (await apiGet(page, '/api/v1/catalog/items/admin')).body.items;
+    const honey = adminList.find((i) => i.nameAr === 'عسل نحل');
+    const shiftNow = (await apiGet(page, '/api/v1/shifts/current')).body.shift;
+    const blocked = await apiSend(page, 'POST', '/api/v1/checkout', {
+      idempotencyKey: `g03-browser-blocked-${Date.now()}`, shiftId: shiftNow.id,
+      lines: [{ variantId: honey.variants[0].id, quantity: '1' }],
+      tenders: [{ method: 'cash', amountMinor: 15000, tenderedMinor: 15000 }],
+    });
+    ok('G-03: الخادم يرفض بيع صنف موقوف (unknown_item) حتى عبر API مباشرة', blocked.body?.error === 'unknown_item');
+
+    const repAfter = await managerReport();
+    ok('التقرير يعكس بيعتَي الصنف الجديد فقط (+270.00 فوتر)',
+      repAfter.billedMinor === repBefore.billedMinor + 27000,
+      `${repBefore.billedMinor}→${repAfter.billedMinor}`);
+
+    await page.locator('.nav-btn[data-view="catalogAdmin"]').click(); await sleep(300);
+    await page.setViewportSize({ width: 390, height: 844 }); await sleep(250);
+    ok('لا تمرير أفقي في إدارة الأصناف 390', (await overflowX(page)) <= 1);
+    await page.screenshot({ path: `${SHOTS}after-catalog-admin-390.png` });
+    ok('صفر أخطاء Console في تدفق الأصناف (عدا رفضي الاختبار المتعمدين)', realConsoleErrors(page).length === 0, page.consoleErrors.join(' | '));
+    await page.close();
+  } finally { await browser.close().catch(() => {}); }
+
+  /* الكاشير: محاولة API مباشرة لإدارة الأصناف → 403 خادمي */
+  const browser2 = await launchBrowser();
+  try {
+    const page = await newPage(browser2, { width: 768, height: 1024 });
+    await login(page, 'cashier@nile.demo');
+    const forbidden = await apiSend(page, 'POST', '/api/v1/catalog/items', {
+      nameAr: 'x', nameEn: 'x', category: 'x', priceMinor: 100,
+      variants: [{ sku: 'CASH-HACK', labelAr: 'x', labelEn: 'x', stock: '1' }],
+    });
+    ok('G-03: الكاشير مرفوض من إنشاء صنف عبر API مباشرة (403)', forbidden.status === 403);
+    const adminRead = await apiGet(page, '/api/v1/catalog/items/admin');
+    ok('G-03: الكاشير مرفوض من قائمة الإدارة عبر API (403)', adminRead.status === 403);
+    await page.close();
+  } finally { await browser2.close().catch(() => {}); }
+}
+
 /* متصفح جديد لكل تدفق: كروميوم المدمج (sparticuz) أحادي العملية وقد يسقط
    بين الصفحات الطويلة — العزل يجعل أي سقوط فشلًا مسجلًا لا انهيار تشغيل. */
-for (const [name, flow] of [['المدير', flowManager], ['الكاشير', flowCashier], ['الشبكة', flowNetworkSafety], ['الأجهزة/المصالحة', flowCrossDeviceInner]]) {
+for (const [name, flow] of [['المدير', flowManager], ['الكاشير', flowCashier], ['الشبكة', flowNetworkSafety], ['الأجهزة/المصالحة', flowCrossDeviceInner], ['إدارة الأصناف', flowCatalogAdminInner]]) {
   try { await flow(); }
   catch (e) { ok(`اكتمال تدفق ${name} دون استثناء`, false, String(e).slice(0, 300)); }
 }
