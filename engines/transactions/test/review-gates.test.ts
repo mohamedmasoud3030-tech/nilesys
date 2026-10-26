@@ -241,8 +241,8 @@ describe('Gate 5 — DB integrity', () => {
 
   it('migration journal and snapshots in sync', async () => {
     const journal = await import('../../db/migrations/meta/_journal.json');
-    expect(journal.entries.length).toBe(6); // 0..5
-    expect(journal.entries.map((e:any)=>e.tag)).toEqual(['0000_nile_engines','0001_security_hardening','0002_ledger_append_only','0003_vengeful_zuras','0004_payments_append_only','0005_money_constraints']);
+    expect(journal.entries.length).toBe(7); // 0..6 — 0006 adds shift-close idempotency (G-17)
+    expect(journal.entries.map((e:any)=>e.tag)).toEqual(['0000_nile_engines','0001_security_hardening','0002_ledger_append_only','0003_vengeful_zuras','0004_payments_append_only','0005_money_constraints','0006_open_black_widow']);
   });
 });
 

@@ -118,4 +118,23 @@ describe.skipIf(!ADMIN_URL)('shift close vs cash operations (real PostgreSQL)', 
     }
     console.log(`shift-close race: ${ITER} iterations, ${raced} operations refused with shift_closed`);
   }, 180_000);
+
+  it('G-17: concurrent closes with the same idempotency key produce exactly one closure, both callers get it', async () => {
+    for (let i = 0; i < 10; i++) {
+      const shiftId = await newShift();
+      const k = key('close-idem');
+      const [a, b] = await Promise.all([
+        closeShift(db, actor(), { shiftId, countedMinor: OPENING, idempotencyKey: k }),
+        closeShift(db, actor(), { shiftId, countedMinor: OPENING, idempotencyKey: k }),
+      ]);
+      expect(a.closure.id).toBe(b.closure.id);
+      expect([a.replayed, b.replayed].sort()).toEqual([false, true]);
+      const l = await ledgerOf(shiftId);
+      expect(l.closures).toHaveLength(1);
+      // same key, different counted → conflict, never a second closure
+      await expect(closeShift(db, actor(), { shiftId, countedMinor: 1, idempotencyKey: k })).rejects.toMatchObject({ code: 'idempotency_conflict' });
+      const after = await ledgerOf(shiftId);
+      expect(after.closures).toHaveLength(1);
+    }
+  }, 60_000);
 });
