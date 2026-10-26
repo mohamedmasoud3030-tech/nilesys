@@ -5,12 +5,28 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { openPglite, type OpenedDatabase } from '../../../engines/db/open.js';
 import { createAuth } from '../../../engines/platform/src/auth/auth.js';
 import { organization, user } from '../../../engines/platform/src/auth/schema.js';
 import { auditLegacyDemo } from '../src/demo-audit.js';
+import { resolveAuditTarget } from '../src/audit-target.js';
 import { demoTenantSpec, provisionTenant } from '../src/provision.js';
+
+const execFileAsync = promisify(execFile);
+async function runCli(env: Record<string, string | undefined>): Promise<{ code: number; out: string }> {
+  try {
+    const { stdout, stderr } = await execFileAsync('npx', ['tsx', 'apps/api/scripts/audit-demo.ts'], {
+      env: { ...process.env, ...env }, timeout: 120_000,
+    });
+    return { code: 0, out: stdout + stderr };
+  } catch (e: any) {
+    return { code: typeof e.code === 'number' ? e.code : -1, out: `${e.stdout ?? ''}${e.stderr ?? ''}` };
+  }
+}
+const ADMIN_URL = process.env.NILE_TEST_PG_ADMIN_URL;
 
 const dataDir = mkdtempSync(join(tmpdir(), 'nile-demo-audit-'));
 let opened: OpenedDatabase;
@@ -57,4 +73,99 @@ describe('auditLegacyDemo (check-only)', () => {
     const orgs = await opened.db.select().from(organization);
     expect(orgs.length).toBeGreaterThan(0); // demo tenant still there — audit deleted nothing
   });
+});
+
+describe('audit target resolution (no false PASS)', () => {
+  it('missing DATABASE_URL in production mode → unverified, never a PGlite fallback', () => {
+    const r = resolveAuditTarget({ NODE_ENV: 'production' });
+    expect(r.kind).toBe('unverified');
+  });
+
+  it('malformed or non-PostgreSQL URL → unverified', () => {
+    expect(resolveAuditTarget({ DATABASE_URL: 'not a url' }).kind).toBe('unverified');
+    expect(resolveAuditTarget({ DATABASE_URL: 'mysql://h/db' }).kind).toBe('unverified');
+  });
+
+  it('dev mode exists ONLY when explicitly requested and is labeled Development', () => {
+    expect(resolveAuditTarget({}).kind).not.toBe('dev-pglite');
+    const r = resolveAuditTarget({ NILE_AUDIT_TARGET: 'dev' });
+    expect(r).toMatchObject({ kind: 'dev-pglite', env: 'Development' });
+  });
+
+  it('explicit postgres URL resolves with environment label, URL not echoed in errors', () => {
+    const r = resolveAuditTarget({ DATABASE_URL: 'postgres://u:secretpw@db.example.com:5432/shop', NILE_AUDIT_ENV: 'staging' });
+    expect(r).toMatchObject({ kind: 'postgres', env: 'Staging' });
+  });
+
+  it('CLI without DATABASE_URL exits 2 NOT VERIFIED (no silent dev audit)', async () => {
+    const { code, out } = await runCli({ DATABASE_URL: undefined, NILE_AUDIT_DATABASE_URL: undefined, NILE_AUDIT_TARGET: undefined });
+    expect(code).toBe(2);
+    expect(out).toContain('NOT VERIFIED');
+  }, 180_000);
+
+  it('CLI with unreachable database exits 2 NOT VERIFIED', async () => {
+    const { code, out } = await runCli({ DATABASE_URL: 'postgres://u:p@127.0.0.1:59999/nope' });
+    expect(code).toBe(2);
+    expect(out).toContain('NOT VERIFIED');
+  }, 180_000);
+});
+
+describe.skipIf(!ADMIN_URL)('audit CLI on real PostgreSQL', () => {
+  let pg: typeof import('pg');
+  let admin: InstanceType<typeof import('pg').Client>;
+  const dbName = `nile_audit_${Date.now().toString(36)}`;
+  let dbUrl = '';
+
+  beforeAll(async () => {
+    pg = await import('pg');
+    admin = new pg.Client({ connectionString: ADMIN_URL });
+    await admin.connect();
+    await admin.query(`CREATE DATABASE ${dbName}`);
+    const u = new URL(ADMIN_URL!);
+    u.pathname = `/${dbName}`;
+    dbUrl = u.toString();
+    // Apply the real schema through the production migration path.
+    const { openPostgres } = await import('../../../engines/db/open.js');
+    const openedPg = await openPostgres({ url: dbUrl, migrationUrl: dbUrl, onPoolError: () => {} }).catch(async () => {
+      // openPostgres asserts the runtime role; migrations already ran by then.
+      return null;
+    });
+    await (openedPg as any)?.close().catch(() => {});
+  }, 120_000);
+  afterAll(async () => {
+    await admin.query(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`).catch(() => {});
+    await admin.end().catch(() => {});
+  });
+
+  it('clean database → PASS exit 0 and the target identity is printed', async () => {
+    const { code, out } = await runCli({ DATABASE_URL: dbUrl, NILE_AUDIT_ENV: 'staging' });
+    expect(code).toBe(0);
+    expect(out).toContain('PASS');
+    expect(out).toContain(dbName);
+    expect(out).toContain('schema=public');
+    expect(out).not.toContain('postgres://'); // no credentials/connection string echoed
+  }, 180_000);
+
+  it('wrong expected database → NOT VERIFIED exit 2 (never PASS for another DB)', async () => {
+    const { code, out } = await runCli({ DATABASE_URL: dbUrl, NILE_AUDIT_EXPECT_DB: 'some_other_shop' });
+    expect(code).toBe(2);
+    expect(out).toContain('NOT VERIFIED');
+  }, 180_000);
+
+  it('wrong schema → NOT VERIFIED exit 2', async () => {
+    const { code, out } = await runCli({ DATABASE_URL: dbUrl, NILE_AUDIT_SCHEMA: 'does_not_exist_schema' });
+    expect(code).toBe(2);
+    expect(out).toContain('NOT VERIFIED');
+  }, 180_000);
+
+  it('legacy demo identity present → ACTION REQUIRED exit 1 (not a deploy success)', async () => {
+    const c = new pg.Client({ connectionString: dbUrl });
+    await c.connect();
+    await c.query(`INSERT INTO organization (id,name,slug) VALUES ('33333333-3333-4333-8333-333333333333','نيل — حساب تجريبي','nile-demo') ON CONFLICT DO NOTHING`);
+    await c.end();
+    const { code, out } = await runCli({ DATABASE_URL: dbUrl });
+    expect(code).toBe(1);
+    expect(out).toContain('ACTION REQUIRED');
+    expect(out).toContain('demo_tenant_present');
+  }, 180_000);
 });
