@@ -220,3 +220,16 @@ export async function getRefund(db: AnyPgDatabase, tenantId: string, refundId: s
     return r ?? null;
   });
 }
+
+/** Reconciliation twin of getSaleByIdempotencyKey, for refund attempts. */
+export async function getRefundByIdempotencyKey(db: AnyPgDatabase, tenantId: string, key: string) {
+  if (!key || key.length < 8 || key.length > 200) return null;
+  return withTenant(db, tenantId, async (tx: any) => {
+    const [r] = await tx
+      .select({ id: refunds.id, amountMinor: refunds.amountMinor, transactionId: refunds.transactionId, paymentId: refunds.paymentId, createdAt: refunds.createdAt })
+      .from(refunds)
+      .where(and(eq(refunds.tenantId, tenantId), eq(refunds.idempotencyKey, key)))
+      .limit(1);
+    return r ?? null;
+  });
+}

@@ -9,11 +9,11 @@ import { z } from 'zod';
 import { DEPS, type Deps } from './deps.js';
 import { parseBody, requireContext, toHttp } from './http.js';
 import { permissionsOf } from '../../../engines/platform/src/auth/permissions.js';
-import { closeShiftSchema, createCheckoutSchema, createRefundSchema, createSaleSchema, currentShiftQuerySchema, openShiftSchema, reportQuerySchema } from '../../../engines/transactions/src/contracts.js';
-import { getSale, recordSale } from '../../../engines/transactions/src/sale-service.js';
+import { closeShiftSchema, createCheckoutSchema, createRefundSchema, createSaleSchema, currentShiftQuerySchema, openShiftSchema, reconcileQuerySchema, reportQuerySchema } from '../../../engines/transactions/src/contracts.js';
+import { getSale, getSaleByIdempotencyKey, recordSale } from '../../../engines/transactions/src/sale-service.js';
 import { checkout } from '../../../engines/transactions/src/checkout.js';
 import { closeShift, getCurrentShift, getShift, openShift } from '../../../engines/transactions/src/shifts.js';
-import { createRefund } from '../../../engines/transactions/src/refunds.js';
+import { createRefund, getRefundByIdempotencyKey } from '../../../engines/transactions/src/refunds.js';
 import { getDailyReport } from '../../../engines/transactions/src/reports.js';
 import { listCatalog } from '../../../engines/catalog/src/catalog-service.js';
 import { organization } from '../../../engines/platform/src/auth/schema.js';
@@ -67,6 +67,15 @@ export class CatalogController {
 @Controller('api/v1/checkout')
 export class CheckoutController {
   constructor(@Inject(DEPS) private readonly deps: Deps) {}
+
+  @Get('reconcile')
+  @ApiOperation({ summary: 'Resolve an uncertain checkout by idempotency key: saved (with the sale) or not_found (same key may be retried)' })
+  async reconcile(@Req() req: FastifyRequest, @Query() query: unknown) {
+    const ctx = await requireContext(this.deps, req, { sale: ['read'] });
+    const q = parseBody(reconcileQuerySchema, query);
+    const sale = await getSaleByIdempotencyKey(this.deps.db, ctx.tenantId, q.key);
+    return sale ? { state: 'saved' as const, sale } : { state: 'not_found' as const };
+  }
 
   @Post()
   @ApiOperation({ summary: 'Checkout: sale + payments in one transaction (idempotent, tender must match total)' })
@@ -135,6 +144,14 @@ export class ShiftsController {
 @Controller('api/v1/refunds')
 export class RefundsController {
   constructor(@Inject(DEPS) private readonly deps: Deps) {}
+  @Get('reconcile')
+  @ApiOperation({ summary: 'Resolve an uncertain refund by idempotency key: saved (with the refund) or not_found' })
+  async reconcile(@Req() req: FastifyRequest, @Query() query: unknown) {
+    const ctx = await requireContext(this.deps, req, { sale: ['void'] });
+    const q = parseBody(reconcileQuerySchema, query);
+    const refund = await getRefundByIdempotencyKey(this.deps.db, ctx.tenantId, q.key);
+    return refund ? { state: 'saved' as const, refund } : { state: 'not_found' as const };
+  }
   @Post()
   @ApiOperation({ summary: 'Refund (partial/full) linked to sale/payment — idempotent, stock restored' })
   @ApiBody({ schema: z.toJSONSchema(createRefundSchema) as Record<string, unknown> })
