@@ -50,6 +50,13 @@
       "when": 1793014298069,
       "tag": "0006_open_black_widow",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793020298608,
+      "tag": "0007_futuristic_night_thrasher",
+      "breakpoints": true
     }
   ]
 }

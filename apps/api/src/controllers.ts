@@ -2,7 +2,7 @@
  * Thin REST controllers (ADR-0006). Business logic lives in the engines;
  * controllers only: authenticate → authorize → validate → call engine.
  */
-import { Body, Controller, Get, Inject, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Inject, NotFoundException, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -16,6 +16,8 @@ import { closeShift, getCurrentShift, getShift, openShift } from '../../../engin
 import { createRefund, getRefundByIdempotencyKey } from '../../../engines/transactions/src/refunds.js';
 import { getDailyReport } from '../../../engines/transactions/src/reports.js';
 import { listCatalog } from '../../../engines/catalog/src/catalog-service.js';
+import { addCatalogVariant, createCatalogItem, listCatalogAdmin, updateCatalogItem, updateCatalogVariant } from '../../../engines/catalog/src/catalog-admin.js';
+import { catalogVariantInputSchema, createCatalogItemAdminSchema, updateCatalogItemSchema, updateCatalogVariantSchema } from '../../../engines/catalog/src/contracts.js';
 import { organization } from '../../../engines/platform/src/auth/schema.js';
 import { eq } from 'drizzle-orm';
 
@@ -60,6 +62,62 @@ export class CatalogController {
   async items(@Req() req: FastifyRequest) {
     const ctx = await requireContext(this.deps, req, { catalog: ['read'] });
     return { items: await listCatalog(this.deps.db, ctx.tenantId) };
+  }
+
+  /* ── G-03: catalog administration (catalog:manage, server-authorized) ── */
+  @Get('items/admin')
+  @ApiOperation({ summary: 'Full catalog incl. inactive items, for administration' })
+  async itemsAdmin(@Req() req: FastifyRequest) {
+    const ctx = await requireContext(this.deps, req, { catalog: ['manage'] });
+    return { items: await listCatalogAdmin(this.deps.db, ctx.tenantId) };
+  }
+
+  @Post('items')
+  @ApiOperation({ summary: 'Create a catalog item with variants (initial stock = opening balance)' })
+  @ApiBody({ schema: z.toJSONSchema(createCatalogItemAdminSchema) as Record<string, unknown> })
+  async createItem(@Req() req: FastifyRequest, @Body() body: unknown, @Res({ passthrough: true }) reply: FastifyReply) {
+    const ctx = await requireContext(this.deps, req, { catalog: ['manage'] });
+    const input = parseBody(createCatalogItemAdminSchema, body);
+    try {
+      const item = await createCatalogItem(this.deps.db, { tenantId: ctx.tenantId, userId: ctx.userId }, input);
+      reply.status(201);
+      return { item };
+    } catch (e) { throw toHttp(e); }
+  }
+
+  @Patch('items/:id')
+  @ApiOperation({ summary: 'Update item fields/price/active state (optimistic concurrency via expectedVersion)' })
+  @ApiBody({ schema: z.toJSONSchema(updateCatalogItemSchema) as Record<string, unknown> })
+  async updateItem(@Req() req: FastifyRequest, @Param('id') id: string, @Body() body: unknown) {
+    const ctx = await requireContext(this.deps, req, { catalog: ['manage'] });
+    const input = parseBody(updateCatalogItemSchema, body);
+    try {
+      return { item: await updateCatalogItem(this.deps.db, { tenantId: ctx.tenantId, userId: ctx.userId }, id, input) };
+    } catch (e) { throw toHttp(e); }
+  }
+
+  @Post('items/:id/variants')
+  @ApiOperation({ summary: 'Add a variant (SKU) to an item' })
+  @ApiBody({ schema: z.toJSONSchema(catalogVariantInputSchema) as Record<string, unknown> })
+  async addVariant(@Req() req: FastifyRequest, @Param('id') id: string, @Body() body: unknown, @Res({ passthrough: true }) reply: FastifyReply) {
+    const ctx = await requireContext(this.deps, req, { catalog: ['manage'] });
+    const input = parseBody(catalogVariantInputSchema, body);
+    try {
+      const item = await addCatalogVariant(this.deps.db, { tenantId: ctx.tenantId, userId: ctx.userId }, id, input);
+      reply.status(201);
+      return { item };
+    } catch (e) { throw toHttp(e); }
+  }
+
+  @Patch('variants/:id')
+  @ApiOperation({ summary: 'Update variant SKU/labels (stock is never edited here — use stock movements)' })
+  @ApiBody({ schema: z.toJSONSchema(updateCatalogVariantSchema) as Record<string, unknown> })
+  async updateVariant(@Req() req: FastifyRequest, @Param('id') id: string, @Body() body: unknown) {
+    const ctx = await requireContext(this.deps, req, { catalog: ['manage'] });
+    const input = parseBody(updateCatalogVariantSchema, body);
+    try {
+      return { item: await updateCatalogVariant(this.deps.db, { tenantId: ctx.tenantId, userId: ctx.userId }, id, input) };
+    } catch (e) { throw toHttp(e); }
   }
 }
 
