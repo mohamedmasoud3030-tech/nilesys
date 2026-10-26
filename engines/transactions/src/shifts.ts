@@ -155,29 +155,58 @@ export async function closeShift(db: AnyPgDatabase, actor: ShiftActor, input: Cl
   });
 }
 
+/** Shared shift view: header + closure (if any) + server-expected drawer cash. */
+async function loadShiftView(tx: any, tenantId: string, shift: any, closure: any) {
+  const [sums] = await tx
+    .select({
+      sumIn: sql<number>`COALESCE(SUM(CASE WHEN ${cashMovements.direction}='in' THEN ${cashMovements.amountMinor} ELSE 0 END),0)`,
+      sumOut: sql<number>`COALESCE(SUM(CASE WHEN ${cashMovements.direction}='out' THEN ${cashMovements.amountMinor} ELSE 0 END),0)`,
+    })
+    .from(cashMovements)
+    .where(and(eq(cashMovements.tenantId, tenantId), eq(cashMovements.shiftId, shift.id), eq(cashMovements.status, 'posted')));
+  const expected = (shift.openingMinor as number) + Number(sums?.sumIn ?? 0) - Number(sums?.sumOut ?? 0);
+  return {
+    id: shift.id as string,
+    registerCode: shift.registerCode as string,
+    openingMinor: shift.openingMinor as number,
+    openedAt: shift.openedAt as Date,
+    openedBy: shift.openedBy as string,
+    isClosed: !!closure,
+    closure: closure ? { countedMinor: closure.countedMinor, expectedMinor: closure.expectedMinor, differenceMinor: closure.differenceMinor, closedAt: closure.closedAt, closedBy: closure.closedBy } : null,
+    expectedMinor: expected,
+  };
+}
+
 export async function getShift(db: AnyPgDatabase, tenantId: string, shiftId: string) {
   if (!UUID_RE.test(shiftId)) return null;
   return withTenant(db, tenantId, async (tx: any) => {
     const [shift] = await tx.select().from(cashShifts).where(eq(cashShifts.id, shiftId)).limit(1);
     if (!shift) return null;
     const [closure] = await tx.select().from(cashShiftClosures).where(eq(cashShiftClosures.shiftId, shiftId)).limit(1);
-    const [sums] = await tx
-      .select({
-        sumIn: sql<number>`COALESCE(SUM(CASE WHEN ${cashMovements.direction}='in' THEN ${cashMovements.amountMinor} ELSE 0 END),0)`,
-        sumOut: sql<number>`COALESCE(SUM(CASE WHEN ${cashMovements.direction}='out' THEN ${cashMovements.amountMinor} ELSE 0 END),0)`,
-      })
-      .from(cashMovements)
-      .where(and(eq(cashMovements.tenantId, tenantId), eq(cashMovements.shiftId, shiftId), eq(cashMovements.status, 'posted')));
-    const expected = (shift.openingMinor as number) + Number(sums?.sumIn ?? 0) - Number(sums?.sumOut ?? 0);
-    return {
-      id: shift.id,
-      registerCode: shift.registerCode,
-      openingMinor: shift.openingMinor,
-      openedAt: shift.openedAt,
-      openedBy: shift.openedBy,
-      isClosed: !!closure,
-      closure: closure ? { countedMinor: closure.countedMinor, expectedMinor: closure.expectedMinor, differenceMinor: closure.differenceMinor, closedAt: closure.closedAt, closedBy: closure.closedBy } : null,
-      expectedMinor: expected,
-    };
+    return loadShiftView(tx, tenantId, shift, closure ?? null);
   });
 }
+
+/**
+ * The currently-open shift for one register (G-02) — how a fresh device or a
+ * cleared browser session re-attaches to the shift that is already open on
+ * the server instead of being locked out of cash sales. Tenant comes from
+ * the caller's server-side context only (RLS + explicit filter); the
+ * register code merely selects WHICH register of that same tenant.
+ * Returns null when no shift is open for the register.
+ */
+export async function getCurrentShift(db: AnyPgDatabase, tenantId: string, registerCode = 'main') {
+  return withTenant(db, tenantId, async (tx: any) => {
+    const rows = await tx
+      .select({ shift: cashShifts, closureId: cashShiftClosures.id })
+      .from(cashShifts)
+      .leftJoin(cashShiftClosures, eq(cashShiftClosures.shiftId, cashShifts.id))
+      .where(and(eq(cashShifts.tenantId, tenantId), eq(cashShifts.registerCode, registerCode), sql`${cashShiftClosures.id} IS NULL`))
+      .orderBy(sql`${cashShifts.openedAt} DESC`)
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    return loadShiftView(tx, tenantId, row.shift, null);
+  });
+}
+

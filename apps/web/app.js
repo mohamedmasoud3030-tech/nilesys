@@ -1120,11 +1120,31 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   $('receiptRefundBtn').addEventListener('click', () => { if (lastSale) openRefund(lastSale); });
 
   /* ── الوردية ── */
+  /*
+   * استرجاع الوردية: المحفوظ محليًا أولًا، فإن غاب (جهاز جديد/جلسة ممسوحة)
+   * أو كانت مغلقة نسأل الخادم عن الوردية المفتوحة حاليًا لهذا الجهاز/المحل
+   * (G-02) ونرتبط بها — هكذا لا يتعطل الدفع النقدي بسبب حالة متصفح ضائعة.
+   */
   async function restoreShift() {
     const id = sessionStore.get('nile-pos-shift-v1');
-    if (!id) { shift = null; return; }
-    shift = { id, openingMinor: null, openedAt: null, expectedMinor: null };
-    await refreshShiftExpected(true);
+    if (id) {
+      shift = { id, openingMinor: null, openedAt: null, expectedMinor: null };
+      await refreshShiftExpected(true);
+      if (shift) return;
+    }
+    try {
+      const { shift: current } = await api('GET', '/api/v1/shifts/current');
+      if (current && !current.isClosed) {
+        shift = { id: current.id, openingMinor: current.openingMinor, openedAt: current.openedAt, expectedMinor: current.expectedMinor };
+        sessionStore.set('nile-pos-shift-v1', shift.id);
+        renderShift();
+      } else {
+        shift = null;
+      }
+    } catch {
+      /* شبكة/خادم غير متاح الآن: نبقى «بلا وردية» محليًا ونعيد المحاولة لاحقًا. */
+      shift = null;
+    }
   }
 
   async function refreshShiftExpected(silent404 = false) {
@@ -1191,6 +1211,17 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
     } catch (e2) {
       const cls = classifyStatus(e2.status ?? 0);
       if (cls === 'definitive') { pending.clear('shift-open'); persistPending(); }
+      if (e2.code === 'shift_already_open') {
+        /* توجد وردية مفتوحة على الخادم (ربما من جهاز آخر): ارتبط بها بدل التعطل. */
+        await restoreShift().catch(() => {});
+        if (shift) {
+          msg.textContent = 'توجد وردية مفتوحة بالفعل على هذا الجهاز — تم الارتباط بها.';
+          msg.className = 'form-msg is-ok';
+          renderShift(); renderCart();
+          toast('ارتبطنا بالوردية المفتوحة حاليًا.', 'ok');
+          return;
+        }
+      }
       msg.textContent = cls === 'uncertain'
         ? 'لم تتأكد نتيجة فتح الوردية. أعد الضغط بنفس الرصيد — ستُستكمل نفس العملية دون تكرار.'
         : messageForError(e2);

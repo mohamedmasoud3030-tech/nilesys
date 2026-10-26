@@ -92,3 +92,17 @@ export const reportQuerySchema = z
   })
   .strict();
 
+/** G-02: discover the open shift for a register (defaults to `main`). */
+export const currentShiftQuerySchema = z
+  .object({
+    registerCode: z.string().min(1).max(50).optional(),
+  })
+  .strict();
+
+/** Reconcile an uncertain client operation by its idempotency key. */
+export const reconcileQuerySchema = z
+  .object({
+    key: z.string().min(8).max(200),
+  })
+  .strict();
+

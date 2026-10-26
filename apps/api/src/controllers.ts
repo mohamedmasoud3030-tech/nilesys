@@ -9,10 +9,10 @@ import { z } from 'zod';
 import { DEPS, type Deps } from './deps.js';
 import { parseBody, requireContext, toHttp } from './http.js';
 import { permissionsOf } from '../../../engines/platform/src/auth/permissions.js';
-import { closeShiftSchema, createCheckoutSchema, createRefundSchema, createSaleSchema, openShiftSchema, reportQuerySchema } from '../../../engines/transactions/src/contracts.js';
+import { closeShiftSchema, createCheckoutSchema, createRefundSchema, createSaleSchema, currentShiftQuerySchema, openShiftSchema, reportQuerySchema } from '../../../engines/transactions/src/contracts.js';
 import { getSale, recordSale } from '../../../engines/transactions/src/sale-service.js';
 import { checkout } from '../../../engines/transactions/src/checkout.js';
-import { closeShift, getShift, openShift } from '../../../engines/transactions/src/shifts.js';
+import { closeShift, getCurrentShift, getShift, openShift } from '../../../engines/transactions/src/shifts.js';
 import { createRefund } from '../../../engines/transactions/src/refunds.js';
 import { getDailyReport } from '../../../engines/transactions/src/reports.js';
 import { listCatalog } from '../../../engines/catalog/src/catalog-service.js';
@@ -110,6 +110,15 @@ export class ShiftsController {
       const { closure } = await closeShift(this.deps.db, { tenantId: ctx.tenantId, userId: ctx.userId }, { shiftId: id, countedMinor: input.countedMinor });
       return { closure };
     } catch (e) { throw toHttp(e); }
+  }
+  // MUST stay above @Get(':id') or "current" would be captured as an id.
+  @Get('current')
+  @ApiOperation({ summary: 'Current open shift for a register (device/session recovery, G-02); null when none is open' })
+  async current(@Req() req: FastifyRequest, @Query() query: unknown) {
+    const ctx = await requireContext(this.deps, req, { sale: ['read'] });
+    const q = parseBody(currentShiftQuerySchema, query);
+    const shift = await getCurrentShift(this.deps.db, ctx.tenantId, q.registerCode ?? 'main');
+    return { shift };
   }
   @Get(':id')
   @ApiOperation({ summary: 'Get shift with expected cash (for reconciliation)' })
