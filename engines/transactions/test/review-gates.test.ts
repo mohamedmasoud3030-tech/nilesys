@@ -208,6 +208,12 @@ describe('Gate 4 — Authorization (service-level, not just UI)', () => {
     expect(can('cashier', { sale: ['void'] })).toBe(false);
     expect(can('branch-manager', { sale: ['void'] })).toBe(true);
     expect(can('cashier', { audit: ['read'] })).toBe(false);
+    // D-D proposal (owner approval pending): financial reports need report:read —
+    // branch-manager only among POS roles; cashier selling rights unchanged.
+    expect(can('branch-manager', { report: ['read'] })).toBe(true);
+    expect(can('cashier', { report: ['read'] })).toBe(false);
+    expect(can('cashier', { sale: ['create', 'read'] })).toBe(true);
+    expect(can('owner', { report: ['read'] })).toBe(true);
   });
 });
 

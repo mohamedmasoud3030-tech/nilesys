@@ -1848,6 +1848,14 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   async function loadReport() {
     const from = $('reportFrom').value, to = $('reportTo').value;
     const msg = $('reportMsg');
+    /* D-D proposal (owner approval pending): التقارير المالية بصلاحية report:read —
+       الواجهة تعرض رسالة صادقة لمن لا يملكها، لكن الخادم هو الحاجز الحقيقي (403). */
+    if (!perms.has('report:read')) {
+      msg.textContent = 'حسابك لا يملك صلاحية التقارير المالية (report:read). هذا مقترح قرار D-D في انتظار اعتماد المالك — راجع الإدارة إن كنت تحتاجها.';
+      msg.className = 'form-msg is-error';
+      reportLoadedOnce = true;
+      return;
+    }
     if (!from || !to || from > to) { msg.textContent = 'اختر نطاق تاريخ صحيحًا (من ≤ إلى).'; msg.className = 'form-msg is-error'; return; }
     setBusy($('reportLoadBtn'), true, 'جارٍ جلب التقرير…');
     msg.textContent = ''; msg.className = 'form-msg';

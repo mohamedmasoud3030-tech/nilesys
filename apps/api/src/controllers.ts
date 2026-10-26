@@ -229,9 +229,9 @@ export class RefundsController {
 export class ReportsController {
   constructor(@Inject(DEPS) private readonly deps: Deps) {}
   @Get('daily')
-  @ApiOperation({ summary: 'Daily report: gross/refunds/net + by method (profit excluded)' })
+  @ApiOperation({ summary: 'Daily report: gross/refunds/net + by method (profit excluded) — requires report:read (D-D proposal, owner approval pending)' })
   async daily(@Req() req: FastifyRequest, @Query() query: unknown) {
-    const ctx = await requireContext(this.deps, req, { sale: ['read'] });
+    const ctx = await requireContext(this.deps, req, { report: ['read'] });
     const q = parseBody(reportQuerySchema, query);
     try {
       const report = await getDailyReport(this.deps.db, ctx.tenantId, q);
