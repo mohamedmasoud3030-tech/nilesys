@@ -1267,21 +1267,36 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       okLabel: 'نعم، أغلق الوردية', danger: true,
     });
     if (!ok) return;
+    /*
+     * G-17: الإغلاق يحمل مفتاح عملية مربوطًا ببصمة (الوردية + المعدود) ويُحفظ
+     * قبل الطلب — إن فُقد الرد بعد نجاح الخادم، إعادة المحاولة بنفس المعدود
+     * تُعيد نتيجة الإغلاق المحفوظة نفسها بدل أي تكرار أو تخمين.
+     */
+    const closeKey = pending.getOrCreate('shift-close', fingerprintOf({ shiftId: shift.id, countedMinor: counted }));
+    persistPending();
     inFlight.close = true; setBusy($('closeShiftBtn'), true, 'جارٍ إغلاق الوردية…');
     msg.textContent = ''; msg.className = 'form-msg';
     try {
-      const r = await api('POST', `/api/v1/shifts/${shift.id}/close`, { countedMinor: counted });
+      const r = await api('POST', `/api/v1/shifts/${shift.id}/close`, { countedMinor: counted, idempotencyKey: closeKey });
+      pending.clear('shift-close'); persistPending();
       shift = null; sessionStore.set('nile-pos-shift-v1', null);
       $('countedAmount').value = '';
       showClosure(r.closure); renderShift(); renderCart();
       toast('أُغلقت الوردية وحُفظت نتيجتها.', 'ok');
     } catch (e2) {
-      /* عقد الإغلاق بلا مفتاح تكرار: عند نتيجة غير مؤكدة نعيد القراءة بدل الافتراض. */
-      if (e2.code === 'shift_already_closed' || classifyStatus(e2.status ?? 0) === 'uncertain') {
+      /*
+       * عند نتيجة غير مؤكدة نعيد قراءة الوردية بدل الافتراض. مفتاح العملية
+       * يبقى محفوظًا ما دامت النتيجة غير مؤكدة — إعادة المحاولة بنفس المعدود
+       * تسترد نتيجة الخادم نفسها (G-17)؛ ونمسحه فقط عند رفض نهائي مؤكد.
+       */
+      const cls = classifyStatus(e2.status ?? 0);
+      if (cls === 'definitive' && e2.code !== 'shift_already_closed') { pending.clear('shift-close'); persistPending(); }
+      if (e2.code === 'shift_already_closed' || cls === 'uncertain') {
         const id = shift.id;
         try {
           const { shift: s } = await api('GET', `/api/v1/shifts/${id}`);
           if (s?.isClosed && s.closure) {
+            pending.clear('shift-close'); persistPending();
             shift = null; sessionStore.set('nile-pos-shift-v1', null);
             $('countedAmount').value = '';
             showClosure(s.closure); renderShift(); renderCart();

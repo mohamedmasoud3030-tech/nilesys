@@ -101,14 +101,15 @@ export class ShiftsController {
     } catch (e) { throw toHttp(e); }
   }
   @Post(':id/close')
-  @ApiOperation({ summary: 'Close a shift: counted vs expected + difference' })
+  @ApiOperation({ summary: 'Close a shift: counted vs expected + difference (idempotent when idempotencyKey is sent, G-17)' })
   @ApiBody({ schema: z.toJSONSchema(closeShiftSchema) as Record<string, unknown> })
-  async close(@Req() req: FastifyRequest, @Param('id') id: string, @Body() body: unknown) {
+  async close(@Req() req: FastifyRequest, @Param('id') id: string, @Body() body: unknown, @Res({ passthrough: true }) reply: FastifyReply) {
     const ctx = await requireContext(this.deps, req, { sale: ['create'] });
     const input = parseBody(closeShiftSchema, body);
     try {
-      const { closure } = await closeShift(this.deps.db, { tenantId: ctx.tenantId, userId: ctx.userId }, { shiftId: id, countedMinor: input.countedMinor });
-      return { closure };
+      const { closure, replayed } = await closeShift(this.deps.db, { tenantId: ctx.tenantId, userId: ctx.userId }, { shiftId: id, countedMinor: input.countedMinor, idempotencyKey: input.idempotencyKey });
+      reply.status(replayed ? 200 : 201);
+      return { closure, replayed };
     } catch (e) { throw toHttp(e); }
   }
   // MUST stay above @Get(':id') or "current" would be captured as an id.

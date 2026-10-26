@@ -19,6 +19,13 @@ export interface OpenShiftInput {
 export interface CloseShiftInput {
   shiftId: string;
   countedMinor: number;
+  /**
+   * G-17 (optional, backward compatible): when supplied, the close becomes
+   * safely retryable — same key + same payload returns the saved closure,
+   * same key + different payload is `idempotency_conflict`. Exactly the
+   * semantics checkout/open already use; nothing weaker is introduced.
+   */
+  idempotencyKey?: string;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -114,14 +121,45 @@ export async function openShift(db: AnyPgDatabase, actor: ShiftActor, input: Ope
   }
 }
 
+function hashClose(input: { shiftId: string; countedMinor: number }): string {
+  return createHash('sha256').update(JSON.stringify(input)).digest('hex');
+}
+
 export async function closeShift(db: AnyPgDatabase, actor: ShiftActor, input: CloseShiftInput) {
   if (!UUID_RE.test(input.shiftId)) throw new DomainError('invalid_shift', 'معرف الوردية غير صالح');
   if (input.countedMinor < 0 || input.countedMinor > 100_000_000_00) throw new DomainError('invalid_amount', 'المبلغ المعدود غير صالح');
+  const key = input.idempotencyKey ?? null;
+  if (key !== null && key.length < 8) throw new DomainError('invalid_idempotency_key', 'مفتاح العملية مطلوب');
+  const hash = key !== null ? hashClose({ shiftId: input.shiftId, countedMinor: input.countedMinor }) : null;
 
-  return withTenant(db, actor.tenantId, async (tx: any) => {
+  const findPriorByKey = async (tx: any) => {
+    if (key === null) return undefined;
+    const [h] = await tx.select().from(cashShiftClosures).where(and(eq(cashShiftClosures.tenantId, actor.tenantId), eq(cashShiftClosures.idempotencyKey, key))).limit(1);
+    return h as any;
+  };
+  const closureView = async (tx: any, c: any) => {
+    const [shift] = await tx.select({ openingMinor: cashShifts.openingMinor }).from(cashShifts).where(eq(cashShifts.id, c.shiftId)).limit(1);
+    return {
+      id: c.id as string,
+      shiftId: c.shiftId as string,
+      openingMinor: shift?.openingMinor as number,
+      expectedMinor: c.expectedMinor as number,
+      countedMinor: c.countedMinor as number,
+      differenceMinor: c.differenceMinor as number,
+      closedAt: c.closedAt as Date,
+    };
+  };
+
+  const run = () => withTenant(db, actor.tenantId, async (tx: any) => {
     await lockShift(tx, actor.tenantId, input.shiftId);
     const [shift] = await tx.select().from(cashShifts).where(and(eq(cashShifts.id, input.shiftId), eq(cashShifts.tenantId, actor.tenantId))).limit(1);
     if (!shift) throw new DomainError('shift_not_found', 'الوردية غير موجودة');
+    // Idempotent replay wins over "already closed": it IS the same close.
+    const prior = await findPriorByKey(tx);
+    if (prior) {
+      if (prior.requestHash !== hash) throw new DomainError('idempotency_conflict', 'مفتاح العملية مستخدم لطلب مختلف');
+      return { closure: await closureView(tx, prior), replayed: true };
+    }
     const [already] = await tx.select().from(cashShiftClosures).where(eq(cashShiftClosures.shiftId, input.shiftId)).limit(1);
     if (already) throw new DomainError('shift_already_closed', 'الوردية مغلقة بالفعل');
 
@@ -138,7 +176,7 @@ export async function closeShift(db: AnyPgDatabase, actor: ShiftActor, input: Cl
 
     const [closure] = await tx
       .insert(cashShiftClosures)
-      .values({ tenantId: actor.tenantId, shiftId: input.shiftId, countedMinor: input.countedMinor, expectedMinor, differenceMinor, closedBy: actor.userId })
+      .values({ tenantId: actor.tenantId, shiftId: input.shiftId, countedMinor: input.countedMinor, expectedMinor, differenceMinor, closedBy: actor.userId, idempotencyKey: key, requestHash: hash })
       .returning({ id: cashShiftClosures.id, shiftId: cashShiftClosures.shiftId, countedMinor: cashShiftClosures.countedMinor, expectedMinor: cashShiftClosures.expectedMinor, differenceMinor: cashShiftClosures.differenceMinor, closedAt: cashShiftClosures.closedAt });
 
     return {
@@ -151,8 +189,26 @@ export async function closeShift(db: AnyPgDatabase, actor: ShiftActor, input: Cl
         differenceMinor: closure.differenceMinor,
         closedAt: closure.closedAt,
       },
+      replayed: false,
     };
   });
+
+  try {
+    return await run();
+  } catch (err) {
+    // Lost a race against a concurrent close carrying the same key (the
+    // per-shift advisory lock serialises same-shift closes, but a key may
+    // also race across requests): re-read and answer as replay/conflict.
+    if (key !== null && isUniqueViolation(err, 'cash_shift_closures_tenant_idem_uq')) {
+      return withTenant(db, actor.tenantId, async (tx: any) => {
+        const prior = await findPriorByKey(tx);
+        if (!prior) throw err;
+        if (prior.requestHash !== hash) throw new DomainError('idempotency_conflict', 'مفتاح العملية مستخدم لطلب مختلف');
+        return { closure: await closureView(tx, prior), replayed: true };
+      });
+    }
+    throw err;
+  }
 }
 
 /** Shared shift view: header + closure (if any) + server-expected drawer cash. */

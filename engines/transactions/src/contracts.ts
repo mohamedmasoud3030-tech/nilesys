@@ -67,6 +67,9 @@ export type OpenShiftInput = z.infer<typeof openShiftSchema>;
 export const closeShiftSchema = z
   .object({
     countedMinor: z.number().int().min(0).max(100_000_000_00),
+    // G-17: optional — old clients keep working; new clients send it so a
+    // lost response can be retried without any duplicate-close risk.
+    idempotencyKey: z.string().min(8).max(200).optional(),
   })
   .strict();
 

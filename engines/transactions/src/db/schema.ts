@@ -132,8 +132,14 @@ export const cashShiftClosures = pgTable(
     differenceMinor: money('difference_minor').notNull(),
     closedBy: uuid('closed_by').notNull(),
     closedAt: timestamp('closed_at', { withTimezone: true }).notNull().defaultNow(),
+    // G-17: optional close idempotency (nullable for pre-existing closures).
+    // Same key + same payload replays the saved closure; same key with a
+    // different payload is a conflict — identical semantics to checkout.
+    idempotencyKey: text('idempotency_key'),
+    requestHash: text('request_hash'),
   },
   (t) => [
+    unique('cash_shift_closures_tenant_idem_uq').on(t.tenantId, t.idempotencyKey),
     foreignKey({ name: 'cash_shift_closures_shift_fk', columns: [t.tenantId, t.shiftId], foreignColumns: [cashShifts.tenantId, cashShifts.id] }),
     check('cash_shift_closures_counted_nonneg', sql`${t.countedMinor} >= 0`),
     check('cash_shift_closures_difference_adds_up', sql`${t.differenceMinor} = ${t.countedMinor} - ${t.expectedMinor}`),
