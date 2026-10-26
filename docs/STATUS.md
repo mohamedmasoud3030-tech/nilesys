@@ -3,9 +3,11 @@
 **Status:** canonical (tier 4 in `AGENTS.md`). This is the **only** live status and handoff document.
 Update it in the same change as anything that alters what is below. Do not create per-agent status files.
 
-- **Last verified:** 2026-10-25 — `main` عند `262c799` (MERGE PR #18). فوقها فرع العمل
-  `arena/c6b84734-nilesys` يحمل التحول التجاري الكامل لواجهة نقطة البيع (أسفل هذا القسم) —
-  **منفّذ ومتحقق بمتصفح فعلي، غير مدمج وغير منشور**، بانتظار مراجعة المالك.
+- **Last verified:** 2026-10-26 — `main` عند `262c799` (MERGE PR #18). فوقها فرع العمل
+  `arena/c6b84734-nilesys` (PR #19) يحمل التحول التجاري لواجهة نقطة البيع **+ إكمال
+  جاهزية البيع** (G-16 وG-02 وG-17 والمصالحة المالية وPostgreSQL حقيقي — القسم التالي
+  مباشرة): **منفّذ ومُختبر (335/335 + متصفح 62/62)، غير مدمج وغير منشور**، بانتظار
+  مراجعة المالك وإذنه. ملف بوابات الإطلاق: `docs/COMMERCIAL_RELEASE_READINESS.md`.
 - **سجل سابق (2026-10-21):** `main` عند `f3fd73d`، CI أخضر (156 فحص بروتوتايب)، إنتاج Vercel مشروع `nilesys` حي، ودمج كل الفروع/الـPRs مكتمل. الأقسام التاريخية تحت هذا السطر أرشيف مقروء فقط وتُلخَّص في الأعلى, by the LENA integration agent (Arena Agent Mode), using
   `git ls-remote https://github.com/mohamedmasoud3030-tech/nilesys.git` and the GitHub REST API.
   Earlier editions of this file referred to the repository by its old name `Mohamed-App-Factory`.
@@ -17,6 +19,38 @@ Update it in the same change as anything that alters what is below. Do not creat
 - **Agents working in an Arena sandbox:** read ``agent-system/ARENA_SANDBOX.md``
   first. The owner's guide is ``owner/AGENT_PLAYBOOK_ar.md``.
 
+
+## إكمال جاهزية البيع التجاري (2026-10-26) — OPEN للمراجعة في PR #19، غير مدمج
+
+**النطاق:** إغلاق موانع الإطلاق الأربعة الموثقة بعد التحول التجاري، فوق نفس الفرع
+وكلٌّ في commit مستقل قابل للمراجعة — بلا كسر عقود (إضافات اختيارية فقط) وبلا
+تغيير سياسات مالية/صلاحيات. التفاصيل والحكم في `docs/COMMERCIAL_RELEASE_READINESS.md`.
+
+**ما نُفّذ ومُثبت:**
+- **G-16:** الإنتاج يرفض الإقلاع مع أي زرع ديمو (`env-guard.ts`)؛ تهيئة أول عميل
+  صريحة عبر `npm run api:provision` (ترفض هوية/كلمة مرور الديمو؛ كلمات مرور
+  مميزة مولّدة عند الحاجة). اختبارات: `provisioning.test.ts` (10).
+- **G-02:** `GET /api/v1/shifts/current` + ارتباط الواجهة التلقائي بالوردية
+  المفتوحة على أجهزة/جلسات جديدة. `shift-recovery.test.ts` (6) + متصفح (تدفق D).
+- **G-17:** مفتاح Idempotency اختياري لإغلاق الوردية (ترحيل إضافي `0006`)؛
+  إعادة المحاولة تسترد نتيجة الإغلاق نفسها. `shift-close-idempotency.test.ts` (6)
+  + سباق إغلاق مزدوج على PostgreSQL حقيقي.
+- **§6 مصالحة مالية:** `GET /checkout/reconcile` و`/refunds/reconcile` بهوية
+  العملية؛ هويات الواجهة دائمة ومربوطة بالمستخدم وتُصالَح عند الدخول؛ الخروج لم
+  يعد يمسح عملية معلقة. `reconcile.test.ts` (5) + متصفح (ردّ مفقود بعد حفظ خادمي).
+- **§7 PostgreSQL حقيقي 16.2 (معزول):** الحزمة كاملة **335/335 EXIT=0** — تشمل
+  الـ22 اختبارًا التي كانت متخطاة — ومسار إنتاجي كامل أثبت على قاعدة حقيقية
+  (ترحيلات 0000–0006، عميل من `api:provision`، بيع نقدي، مصالحة، إغلاق ×2).
+  الاستنساخ: `tools/local-pg-pgserver.sh test`.
+- **متصفح:** `tools/ui-pos.mjs` صار **62/62 EXIT=0** (أضيف تدفق D: جهاز ثانٍ + مصالحة).
+
+**لم يُحسم/لم يُتحقق:** دمج/نشر (إذن مالك) · أجهزة مادية (طابعة/قارئ — SIMULATED
+موثّقة في ملف الجاهزية §8) · G-18 (جهاز ضائع بعملية معلقة) · G-03 (إدارة أصناف) ·
+D-C/D-D/ADR-0001 (خيارات وتوصية موثقة في ملف الجاهزية §9، بلا تغيير سياسة).
+**الحكم:** NOT READY للبيع بعد بمانعين إجرائيين صريحين (إذن + أجهزة) — التفاصيل في
+`docs/COMMERCIAL_RELEASE_READINESS.md` §11.
+
+---
 
 ## التحول التجاري لواجهة نقطة البيع (2026-10-25) — OPEN للمراجعة، غير مدمج
 
