@@ -43,6 +43,13 @@ function envLabel(env: Record<string, string | undefined>): AuditEnvLabel {
 /** Pure resolution of WHAT to audit — no connection is made here. */
 export function resolveAuditTarget(env: Record<string, string | undefined> = process.env): ResolvedAuditTarget {
   if ((env.NILE_AUDIT_TARGET ?? '').trim().toLowerCase() === 'dev') {
+    const requested = envLabel(env);
+    if (requested === 'Production' || requested === 'Staging') {
+      return {
+        kind: 'unverified',
+        reason: `وضع التطوير المحلي مرفوض عندما يُطلب فحص ${requested === 'Production' ? 'إنتاج' : 'staging'} — لن تصدر نتيجة عن قاعدة تطوير باسم بيئة حقيقية. أزِل NILE_AUDIT_TARGET=dev وحدّد قاعدة PostgreSQL المقصودة.`,
+      };
+    }
     return { kind: 'dev-pglite', dataDir: env.NILE_PGLITE_DIR, env: 'Development' };
   }
   const url = env.NILE_AUDIT_DATABASE_URL ?? env.DATABASE_URL;
@@ -97,11 +104,18 @@ export async function openVerifiedAuditConnection(
 
     const id = await client.query(
       `SELECT current_database() AS db, current_schema() AS schema, current_user AS usr,
-              (SELECT rolsuper FROM pg_roles WHERE rolname = current_user) AS is_super`,
+              (SELECT rolsuper FROM pg_roles WHERE rolname = current_user) AS is_super,
+              (SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user) AS bypass_rls`,
     );
-    const { db, schema, usr, is_super } = id.rows[0] as { db: string; schema: string; usr: string; is_super: boolean };
+    const { db, schema, usr, is_super, bypass_rls } = id.rows[0] as { db: string; schema: string; usr: string; is_super: boolean; bypass_rls: boolean };
 
+    // For Production/Staging audits, printing the connected name is NOT
+    // enough: the operator must DECLARE the intended database and the server
+    // must match it. Without a declaration there is no verdict at all.
     const expectDb = env.NILE_AUDIT_EXPECT_DB?.trim();
+    if ((target.env === 'Production' || target.env === 'Staging') && !expectDb) {
+      throw new Error(`فحص ${target.env} يتطلب إعلان القاعدة المقصودة صراحةً عبر NILE_AUDIT_EXPECT_DB — رفض إصدار أي حكم`);
+    }
     if (expectDb && expectDb !== db) {
       throw new Error(`القاعدة المتصل بها (${db}) لا تطابق القاعدة المتوقعة (${expectDb}) — رفض إصدار أي حكم`);
     }
@@ -117,6 +131,26 @@ export async function openVerifiedAuditConnection(
     const missing = ['organization', 'app_user', 'member'].filter((k) => !t[k]);
     if (missing.length) {
       throw new Error(`الـschema (${schema}) لا تحتوي جداول الهوية المطلوبة — غالبًا قاعدة/schema خاطئة، رفض إصدار أي حكم`);
+    }
+
+    // Completeness of scope: a PASS requires seeing ALL tenants' identities.
+    // That needs SELECT on the identity tables, and — were RLS ever enabled
+    // on them — a role that bypasses it. Anything less could hide demo rows.
+    const scope = await client.query(
+      `SELECT has_table_privilege(current_user, 'organization', 'SELECT') AS p_org,
+              has_table_privilege(current_user, '"user"', 'SELECT') AS p_user,
+              has_table_privilege(current_user, 'member', 'SELECT') AS p_member,
+              (SELECT bool_or(relrowsecurity) FROM pg_class
+                WHERE relname IN ('organization','user','member')
+                  AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = $1)) AS rls_on`,
+      [schema],
+    );
+    const s = scope.rows[0] as { p_org: boolean; p_user: boolean; p_member: boolean; rls_on: boolean | null };
+    if (!s.p_org || !s.p_user || !s.p_member) {
+      throw new Error('دور الفحص لا يملك صلاحية قراءة كل جداول الهوية — الفحص غير شامل، رفض إصدار أي حكم');
+    }
+    if (s.rls_on && !is_super && !bypass_rls) {
+      throw new Error('RLS مفعّلة على جداول الهوية ودور الفحص لا يتجاوزها — قد تُخفى صفوف مستأجرين، رفض إصدار أي حكم (استخدم دور قراءة BYPASSRLS/مالك)');
     }
 
     return {
