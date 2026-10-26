@@ -351,6 +351,33 @@ dialog::backdrop{background:rgba(8,14,11,.55)}
   *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
 
+/* ── إدارة الأصناف (G-03) ── */
+.catalog-admin-toolbar{display:flex;gap:.8rem;align-items:flex-end;flex-wrap:wrap}
+.catalog-admin-toolbar .search-box{flex:1;min-width:220px;margin:0}
+.field-inline{margin:0}
+.check-line{display:inline-flex;align-items:center;gap:.45rem;font-weight:600;min-height:44px;cursor:pointer}
+.check-line input{width:20px;height:20px;accent-color:var(--brand)}
+.admin-catalog-note{margin-top:.4rem}
+.admin-item-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem;margin-top:.8rem}
+.admin-item-card{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-lg);padding:.9rem 1rem}
+.admin-item-card.is-inactive{opacity:.78}
+.admin-item-head{display:flex;justify-content:space-between;align-items:flex-start;gap:.8rem}
+.admin-item-head h3{margin:0;font-size:1.05rem}
+.admin-price{margin:.35rem 0 .6rem}
+.admin-item-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.7rem}
+.badge-off{background:var(--surface);color:var(--muted);border:1px solid var(--line)}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.6rem .9rem}
+.variants-head{margin:.9rem 0 .4rem}
+.variant-rows{display:flex;flex-direction:column;gap:.55rem;margin-bottom:.6rem}
+.variant-row{display:grid;grid-template-columns:1fr 1fr 1fr .8fr auto;gap:.5rem;align-items:center}
+.variant-row input{padding:.6rem .7rem;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface);min-height:44px}
+.variant-row input:focus{border-color:var(--brand);outline:3px solid var(--brand-soft)}
+.variant-row input:disabled{color:var(--muted);background:var(--surface-2)}
+@media (max-width:720px){
+  .admin-item-cards{grid-template-columns:1fr}
+  .variant-row{grid-template-columns:1fr 1fr}
+}
+
 /* ── الطباعة: الإيصال فقط (مناسب لطابعات 80مم عند تقليص الهوامش من المتصفح) ── */
 @media print{
   body>*:not(#printArea){display:none!important}
