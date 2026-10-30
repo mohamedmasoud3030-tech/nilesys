@@ -75,8 +75,10 @@ export interface CustomerSpecInput {
   name?: string;
   managerEmail?: string;
   managerPassword?: string;
+  managerName?: string;
   cashierEmail?: string;
   cashierPassword?: string;
+  cashierName?: string;
   catalog?: NewCatalogItem[];
 }
 
@@ -93,7 +95,7 @@ export function customerTenantSpec(input: CustomerSpecInput): TenantSpec {
   if (managerPassword.length < 12) throw new Error('Manager password must be at least 12 characters (or let the CLI generate one)');
   if (managerPassword === DEMO_PASSWORD) throw new Error('Refusing the public demo password for a real customer.');
 
-  const accounts: TenantSpec['accounts'] = [{ role: 'branch-manager', email: managerEmail }];
+  const accounts: TenantSpec['accounts'] = [{ role: 'branch-manager', email: managerEmail, name: input.managerName?.trim() || 'مدير فرع' }];
   const cashierEmail = input.cashierEmail?.trim().toLowerCase();
   if (cashierEmail) {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cashierEmail) || cashierEmail.endsWith('@nile.demo')) throw new Error('NILE_CASHIER_EMAIL must be a valid non-demo email');
@@ -102,7 +104,7 @@ export function customerTenantSpec(input: CustomerSpecInput): TenantSpec {
     if (cashierPassword.length < 12) throw new Error('Cashier password must be at least 12 characters (or let the CLI generate one)');
     if (cashierPassword === DEMO_PASSWORD) throw new Error('Refusing the public demo password for a real customer.');
     if (cashierPassword === managerPassword) throw new Error('Cashier and manager passwords must differ');
-    accounts.push({ role: 'cashier', email: cashierEmail, password: cashierPassword });
+    accounts.push({ role: 'cashier', email: cashierEmail, password: cashierPassword, name: input.cashierName?.trim() || 'كاشير' });
   }
   return { slug, name, accounts, password: managerPassword, catalog: input.catalog ?? [] };
 }

@@ -48,8 +48,10 @@ const spec = customerTenantSpec({
   name: env.NILE_TENANT_NAME,
   managerEmail: env.NILE_MANAGER_EMAIL,
   managerPassword,
+  managerName: env.NILE_MANAGER_NAME,
   cashierEmail: env.NILE_CASHIER_EMAIL,
   cashierPassword,
+  cashierName: env.NILE_CASHIER_NAME,
   catalog,
 });
 

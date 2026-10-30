@@ -341,9 +341,73 @@ async function flowNetworkSafetyInner(browser) {
   await page.close();
 }
 
+/* ── D) استرجاع الوردية عبر الأجهزة (G-02) + رد مفقود بعد حفظ الخادم (§6) ── */
+async function flowCrossDeviceInner() {
+  console.log('\nD) جهاز ثانٍ يسترجع الوردية · وردّ مفقود بعد حفظ خادمي · 1440×900');
+  // الجهاز A: المدير يفتح وردية ثم يختفي (إغلاق المتصفح بالكامل)
+  {
+    const browserA = await launchBrowser();
+    const pageA = await newPage(browserA, { width: 1440, height: 900 });
+    await login(pageA, 'pos-manager@nile.demo');
+    await pageA.locator('.nav-btn[data-view="shift"]').click(); await sleep(300);
+    // تدفق C السابق قد يكون ترك وردية مفتوحة — عندئذٍ يكون الجهاز A قد ارتبط
+    // بها تلقائيًا أصلًا (G-02)، ولا حاجة لفتح جديدة.
+    if ((await pageA.locator('#shiftChipText').textContent()) !== 'وردية مفتوحة') {
+      await pageA.fill('#openingAmount', '100');
+      await pageA.click('#openShiftBtn');
+      await pageA.waitForFunction(() => document.getElementById('shiftChipText')?.textContent === 'وردية مفتوحة', { timeout: 20000 });
+    }
+    await browserA.close().catch(() => {});
+  }
+  // الجهاز B: كاشير بجلسة جديدة تمامًا — يجب أن يجد الوردية تلقائيًا
+  const browser = await launchBrowser();
+  try {
+    const page = await newPage(browser, { width: 1440, height: 900 });
+    await login(page, 'cashier@nile.demo');
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Cairo' });
+    const before = (await apiGet(page, `/api/v1/reports/daily?from=${today}&to=${today}`)).body.report;
+    await page.waitForFunction(() => document.getElementById('shiftChipText')?.textContent === 'وردية مفتوحة', { timeout: 20000 }).catch(() => {});
+    ok('G-02: الجهاز الثاني رأى الوردية المفتوحة تلقائيًا دون فتح ثانية',
+      (await page.locator('#shiftChipText').textContent()) === 'وردية مفتوحة');
+    await addByName(page, 'مياه معدنية');
+    await page.click('#openCheckoutBtn');
+    await page.waitForSelector('#checkoutDialog[open]');
+    ok('G-02: الدفع النقدي متاح فورًا على الجهاز الثاني', await page.locator('#checkoutShiftWarn').isHidden());
+    await page.click('#confirmCheckoutBtn');
+    await page.waitForSelector('#receiptDialog[open]', { timeout: 20000 });
+    ok('G-02: بيع نقدي ناجح على وردية الجهاز الأول', true);
+    await page.click('#newSaleBtn'); await sleep(250);
+
+    /* §6: الخادم يحفظ البيع لكن الرد لا يصل المتصفح أبدًا (fetch ثم abort).
+       بعد تحديث الصفحة يجب أن تسترد المصالحةُ الإيصالَ نفسه — لا بيع ثانٍ. */
+    await addByName(page, 'مشروب غازي');
+    let swallowed = false;
+    await page.route('**/api/v1/checkout', async (route) => {
+      if (!swallowed) { swallowed = true; await route.fetch(); await route.abort('failed'); }
+      else await route.continue();
+    });
+    await page.click('#openCheckoutBtn');
+    await page.waitForSelector('#checkoutDialog[open]');
+    await page.click('#confirmCheckoutBtn');
+    await page.waitForSelector('#checkoutUncertain:not([hidden])', { timeout: 20000 });
+    ok('§6: بعد فقدان الرد الحالة «غير مؤكدة» (لا افتراض نجاح/فشل)', true);
+    await page.reload({ waitUntil: 'networkidle' });
+    // المصالحة عند الدخول تعرض الإيصال المحفوظ خادميًا من تلقاء نفسها
+    await page.waitForSelector('#receiptDialog[open]', { timeout: 25000 });
+    ok('§6: المصالحة عند إعادة التحميل استردت الإيصال المحفوظ', true);
+    const after = (await apiGet(page, `/api/v1/reports/daily?from=${today}&to=${today}`)).body.report;
+    ok('§6: فاتورتان فقط في هذا التدفق كله رغم الرد المفقود', after.billedCount === before.billedCount + 2, `${before.billedCount}→${after.billedCount}`);
+    await page.click('#newSaleBtn'); await sleep(250);
+    ok('§6: السلة فارغة بعد المصالحة (لم تبقَ بنود محفوظة قابل لإعادة بيعها)',
+      (await page.locator('#sumTotal').innerText()).trim() === '0.00');
+    ok('صفر أخطاء Console في تدفق الأجهزة/المصالحة (عدا قطع الاختبار المتعمد)', realConsoleErrors(page, { allowAborted: true }).length === 0, page.consoleErrors.join(' | '));
+    await page.close();
+  } finally { await browser.close().catch(() => {}); }
+}
+
 /* متصفح جديد لكل تدفق: كروميوم المدمج (sparticuz) أحادي العملية وقد يسقط
    بين الصفحات الطويلة — العزل يجعل أي سقوط فشلًا مسجلًا لا انهيار تشغيل. */
-for (const [name, flow] of [['المدير', flowManager], ['الكاشير', flowCashier], ['الشبكة', flowNetworkSafety]]) {
+for (const [name, flow] of [['المدير', flowManager], ['الكاشير', flowCashier], ['الشبكة', flowNetworkSafety], ['الأجهزة/المصالحة', flowCrossDeviceInner]]) {
   try { await flow(); }
   catch (e) { ok(`اكتمال تدفق ${name} دون استثناء`, false, String(e).slice(0, 300)); }
 }
