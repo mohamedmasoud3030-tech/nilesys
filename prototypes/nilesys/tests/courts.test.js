@@ -101,6 +101,23 @@ test('K-05: العربون لا يتجاوز قيمة الحجز', async () => {
   assert.equal(fine.data.booking.deposit, 300);
 });
 
+// K-06: date and time must come from the same local instant.
+// Keep the full booking inside one calendar date, even around midnight.
+function nearFutureCourtSlot(nowMs) {
+  const start = new Date(nowMs + 2 * 3600e3);
+  start.setMinutes(start.getMinutes() < 30 ? 30 : 60, 0, 0);
+  if (start.getHours() === 23) {
+    start.setDate(start.getDate() + 1);
+    start.setHours(0, 0, 0, 0);
+  }
+  const end = new Date(start.getTime() + 3600e3);
+  const pad = (n) => String(n).padStart(2, '0');
+  const date = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
+  return { date,
+    from: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
+    to: `${pad(end.getHours())}:${pad(end.getMinutes())}` };
+}
+
 test('K-06: الإلغاء داخل 12 ساعة لا يرد العربون، وقبلها يرد بحركة درج', async () => {
   const old = (await req('GET', '/api/courts/shift', { cookie: MGR })).data.openShift;
   if (old) await req('POST', '/api/courts/shift', { cookie: MGR, body: { action: 'close', countedCash: 0 } });
@@ -112,17 +129,11 @@ test('K-06: الإلغاء داخل 12 ساعة لا يرد العربون، و�
     body: { name: `ملعب 24 ساعة ${Date.now()}`, kind: 'padel', pricePerHour: 500, openFrom: '00:00', openTo: '24:00' },
   });
   const court24 = near24.data.court;
-  const hhmm = (ms) => {
-    const d = new Date(ms);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes() < 30 ? '00' : '30').padStart(2, '0')}`;
-  };
-  const inTwo = Date.now() + 2 * 3600e3;
-  const from = hhmm(inTwo);
-  const to = hhmm(inTwo + 3600e3);
+  const { date, from, to } = nearFutureCourtSlot(Date.now());
 
   const near = await req('POST', '/api/courts/bookings', {
     cookie: REC,
-    body: { courtId: court24.id, date: day(0), from, to, customerName: 'قريب', phone: '01000000015', deposit: 200, method: 'cash' },
+    body: { courtId: court24.id, date, from, to, customerName: 'قريب', phone: '01000000015', deposit: 200, method: 'cash' },
   });
   assert.equal(near.status, 201, `${from}-${to} ${JSON.stringify(near.data)}`);
   const noRefund = await req('POST', `/api/courts/bookings/${near.data.booking.id}/cancel`, {
@@ -146,6 +157,15 @@ test('K-06: الإلغاء داخل 12 ساعة لا يرد العربون، و�
 
   const noReason = await req('POST', `/api/courts/bookings/${far.data.booking.id}/cancel`, { cookie: REC, body: {} });
   assert.equal(noReason.status, 400, 'الإلغاء يحتاج سبباً');
+});
+
+test('K-06a: الحجز القريب يطابق التاريخ والوقت حول منتصف الليل', () => {
+  const normal = nearFutureCourtSlot(new Date(2026, 9, 26, 3, 0).getTime());
+  assert.deepEqual(normal, { date: '2026-10-26', from: '05:30', to: '06:30' });
+  const evening = nearFutureCourtSlot(new Date(2026, 9, 26, 21, 38).getTime());
+  assert.deepEqual(evening, { date: '2026-10-27', from: '00:00', to: '01:00' });
+  const late = nearFutureCourtSlot(new Date(2026, 9, 26, 22, 50).getTime());
+  assert.deepEqual(late, { date: '2026-10-27', from: '01:00', to: '02:00' });
 });
 
 test('K-07: حجز held لم يُؤكَّد يظهر منتهياً بعد ساعة', async () => {
