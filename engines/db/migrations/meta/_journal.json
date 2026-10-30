@@ -57,6 +57,13 @@
       "when": 1793020298608,
       "tag": "0007_futuristic_night_thrasher",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793022837607,
+      "tag": "0008_swift_hulk",
+      "breakpoints": true
     }
   ]
 }

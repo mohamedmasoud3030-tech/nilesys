@@ -27,8 +27,13 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const STOCK_RE = /^\d{1,12}(\.\d{1,3})?$/;
 const MAX_MINOR = 100_000_000_00;
 
-function isUniqueViolation(err: unknown, constraint: string): boolean {
-  for (let e: any = err; e; e = e.cause) if (e.code === '23505' && (!e.constraint || e.constraint === constraint)) return true;
+/* Both the legacy exact-case constraint and the 0008 lower(sku) functional
+   unique index report their name in `constraint` on 23505 (PG does so for
+   unique indexes too). Either one surfacing means «duplicate SKU». */
+const SKU_UNIQUE_NAMES = ['catalog_variants_tenant_sku_uq', 'catalog_variants_tenant_sku_lower_uidx'];
+function isUniqueViolation(err: unknown, constraints: string | string[]): boolean {
+  const names = Array.isArray(constraints) ? constraints : [constraints];
+  for (let e: any = err; e; e = e.cause) if (e.code === '23505' && (!e.constraint || names.includes(e.constraint))) return true;
   return false;
 }
 const dupSku = () => new DomainError('duplicate_sku', 'كود SKU مستخدم من قبل في هذا المحل');
@@ -174,7 +179,7 @@ export async function createCatalogItem(db: AnyPgDatabase, actor: CatalogActor, 
       return (await loadAdminItem(tx, actor.tenantId, row.id))!;
     });
   } catch (err) {
-    if (isUniqueViolation(err, 'catalog_variants_tenant_sku_uq')) throw dupSku();
+    if (isUniqueViolation(err, SKU_UNIQUE_NAMES)) throw dupSku();
     throw err;
   }
 }
@@ -244,7 +249,7 @@ export async function addCatalogVariant(db: AnyPgDatabase, actor: CatalogActor, 
       return (await loadAdminItem(tx, actor.tenantId, itemId))!;
     });
   } catch (err) {
-    if (isUniqueViolation(err, 'catalog_variants_tenant_sku_uq')) throw dupSku();
+    if (isUniqueViolation(err, SKU_UNIQUE_NAMES)) throw dupSku();
     throw err;
   }
 }
@@ -282,7 +287,7 @@ export async function updateCatalogVariant(db: AnyPgDatabase, actor: CatalogActo
       return (await loadAdminItem(tx, actor.tenantId, current.itemId))!;
     });
   } catch (err) {
-    if (isUniqueViolation(err, 'catalog_variants_tenant_sku_uq')) throw dupSku();
+    if (isUniqueViolation(err, SKU_UNIQUE_NAMES)) throw dupSku();
     throw err;
   }
 }
