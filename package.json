@@ -14,6 +14,7 @@
     "api:dev": "tsx apps/api/src/main.ts",
     "api:smoke": "tsx apps/api/scripts/smoke.ts",
     "api:provision": "tsx apps/api/scripts/provision-tenant.ts",
+    "api:audit-demo": "tsx apps/api/scripts/audit-demo.ts",
     "db:generate": "drizzle-kit generate",
     "test:e2e": "vitest run apps"
   },

@@ -324,8 +324,8 @@ dialog::backdrop{background:rgba(8,14,11,.55)}
 }
 @media (max-width:720px){
   .topbar{flex-wrap:wrap;padding:.4rem .6rem;gap:.4rem}
-  .main-nav{order:3;width:100%;margin:0}
-  .nav-btn{flex:1;justify-content:center}
+  .main-nav{order:3;width:100%;margin:0;gap:.15rem}
+  .nav-btn{flex:1 1 0;justify-content:center;min-width:0;padding:.5rem .25rem;font-size:.86rem;white-space:nowrap}
   .topbar-actions{margin-inline-start:auto}
   .user-texts{display:none}
   .hide-sm{display:none!important}
@@ -359,7 +359,8 @@ dialog::backdrop{background:rgba(8,14,11,.55)}
 .check-line input{width:20px;height:20px;accent-color:var(--brand)}
 .admin-catalog-note{margin-top:.4rem}
 .admin-item-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem;margin-top:.8rem}
-.admin-item-card{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-lg);padding:.9rem 1rem}
+.admin-item-card{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-lg);padding:.9rem 1rem;min-width:0}
+.admin-item-card .table-wrap{max-width:100%}
 .admin-item-card.is-inactive{opacity:.78}
 .admin-item-head{display:flex;justify-content:space-between;align-items:flex-start;gap:.8rem}
 .admin-item-head h3{margin:0;font-size:1.05rem}
