@@ -3,7 +3,10 @@
 **Status:** canonical (tier 4 in `AGENTS.md`). This is the **only** live status and handoff document.
 Update it in the same change as anything that alters what is below. Do not create per-agent status files.
 
-- **Last verified:** 2026-10-21 — `main` عند `f3fd73d`، CI أخضر (156 فحص بروتوتايب)، إنتاج Vercel مشروع `nilesys` حي، ودمج كل الفروع/الـPRs مكتمل. الأقسام التاريخية تحت هذا السطر أرشيف مقروء فقط وتُلخَّص في الأعلى, by the LENA integration agent (Arena Agent Mode), using
+- **Last verified:** 2026-10-25 — `main` عند `262c799` (MERGE PR #18). فوقها فرع العمل
+  `arena/c6b84734-nilesys` يحمل التحول التجاري الكامل لواجهة نقطة البيع (أسفل هذا القسم) —
+  **منفّذ ومتحقق بمتصفح فعلي، غير مدمج وغير منشور**، بانتظار مراجعة المالك.
+- **سجل سابق (2026-10-21):** `main` عند `f3fd73d`، CI أخضر (156 فحص بروتوتايب)، إنتاج Vercel مشروع `nilesys` حي، ودمج كل الفروع/الـPRs مكتمل. الأقسام التاريخية تحت هذا السطر أرشيف مقروء فقط وتُلخَّص في الأعلى, by the LENA integration agent (Arena Agent Mode), using
   `git ls-remote https://github.com/mohamedmasoud3030-tech/nilesys.git` and the GitHub REST API.
   Earlier editions of this file referred to the repository by its old name `Mohamed-App-Factory`.
 - **Re-verify before acting:** run `git ls-remote origin` and list the PRs. If the remote differs from this
@@ -14,6 +17,41 @@ Update it in the same change as anything that alters what is below. Do not creat
 - **Agents working in an Arena sandbox:** read ``agent-system/ARENA_SANDBOX.md``
   first. The owner's guide is ``owner/AGENT_PLAYBOOK_ar.md``.
 
+
+## التحول التجاري لواجهة نقطة البيع (2026-10-25) — OPEN للمراجعة، غير مدمج
+
+**النطاق:** إعادة بناء واجهة الإنتاج `apps/web/` (تُقدَّم عند `/pos` من الـAPI نفسه)
+أماميًا فقط: لا مساس بـ `engines/` ولا بالعقود ولا بالصلاحيات ولا بأي حساب مالي.
+المنتج التجريبي التاريخي (`prototypes/`) لم يُطوَّر — مرجع فقط كما هو متفق.
+
+**ما نُفّذ:**
+- نظام تصميم عربي RTL كامل (فاتح + داكن) بخط IBM Plex Sans Arabic مستضاف ذاتيًا
+  (`apps/web/fonts/`)، أرقام لاتينية جدولية للمبالغ، أيقونات SVG موحدة، أهداف لمس ≥44px.
+- شاشة كاشير إنتاجية: بحث/SKU فوري (قارئ باركود لوحة مفاتيح)، تصنيفات، كميات عشرية
+  للوزن، سلة سطح مكتب/درج سفلي للجوال والتابلت، اختصارات `/` وF9 وEsc.
+- دفع كامل العقود: نقدي/بطاقة/محفظة/تحويل ودفع مقسّم حتى 10 دفعات؛ المجموع والباقي
+  النهائيان من الخادم دائمًا (الواجهة «معاينة» فقط)، وإيصال برقم الفاتورة الكامل يطبع 80mm.
+- أمان إرسال مشهود: هوية عملية (idempotency) تُحفظ قبل الطلب؛ عند قطع الشبكة حالة
+  «غير مؤكدة» مقفلة التحرير، وإعادة المحاولة/التحميل لا تصنع فاتورة ثانية أبدًا.
+- مدير: وردية (فتح/إغلاق بفرق درج خادمي)، تقرير ADR-0014 (صافي محصّل)، استرجاع
+  فاتورة ومرتجع جزئي بتأكيد؛ والكاشير لا يرى قسم الإدارة (الصلاحية خادمية أصلًا).
+- أُزيلت أي بيانات دخول تجريبية من الواجهة التجارية.
+- تغيير خادمي وحيد: تقديم خطوط `/pos/fonts/*.woff2` في `apps/api/src/app.ts`.
+
+**التحقق (بيئة معزولة PGlite، بلا أي بيانات إنتاج):**
+- `npm run typecheck` نظيف؛ `npm test` ‏285 نجاحًا و22 تخطيًا (ملفات PostgreSQL
+  حقيقية تتطلب `ADMIN_URL` — **NOT VERIFIED** في هذا الصندوق، كحال خط الأساس).
+- `apps/web/app.pure.test.ts` ‏11/11 لوحدات المال/الكمية/البصمات النقية.
+- `tools/ui-pos.mjs` (متصفح حقيقي ضد API حقيقي): **54/54، EXIT=0** على قاعدة جديدة —
+  مدير 1440، كاشير 768/390/360، قطع شبكة متعمد؛ صفر أخطاء Console عدا 401 متعمدة
+  بالتصميم وقطعَي الاختبار (موثقة في الأداة نفسها).
+- لقطات قبل/بعد: `docs/pos-ui/screenshots/`. التدقيق والتصميم والفجوات G-01…G-17:
+  `docs/pos-ui/AUDIT_AND_DESIGN.md`.
+
+**لم يُحسم/لم يُتحقق:** دمج أو نشر (بانتظار إذن المالك) · اختبار PostgreSQL الحقيقي ·
+G-02 (اكتشاف الوردية المفتوحة — يعيق تبديل الجهاز فعليًا) · D-C/D-D · ADR-0001.
+
+---
 
 ## ملف إصدار R1 — أول كاشير إنتاجي فوق المحركات (معماري إصدارات 2026-10-21)
 

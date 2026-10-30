@@ -64,7 +64,7 @@ export async function createApp(deps: Deps, opts: { logger?: boolean; serveWeb?:
   // واجهة كاشير R1 (apps/web): تُسجَّل قبل init لأن Fastify يرفض مسارات بعده.
   // ملفات ثابتة فقط على /pos — لا منطق بيزنس؛ كل شيء عبر /api/v1.
   if (opts.serveWeb) {
-    const { readFile } = await import('node:fs/promises');
+    const { readFile, readdir } = await import('node:fs/promises');
     const webDir = new URL('../../web/', import.meta.url);
     const files: Array<[string, string, string]> = [
       ['/pos', 'index.html', 'text/html; charset=utf-8'],
@@ -76,6 +76,17 @@ export async function createApp(deps: Deps, opts: { logger?: boolean; serveWeb?:
       fastify.get(route, async (_req, reply) => {
         reply.type(type);
         return readFile(new URL(file, webDir), 'utf8');
+      });
+    }
+    // خطوط الواجهة المستضافة ذاتيًا (apps/web/fonts): أسماء الملفات من قراءة
+    // المجلد نفسه — لا مسار من المستخدم، فلا سبيل لتجاوز المجلد. الخط
+    // IBM Plex Sans Arabic (OFL-1.1؛ الرخصة داخل المجلد نفسه).
+    const fontsDir = new URL('fonts/', webDir);
+    const fontFiles = (await readdir(fontsDir).catch(() => [] as string[])).filter((n) => n.endsWith('.woff2'));
+    for (const name of fontFiles) {
+      fastify.get(`/pos/fonts/${name}`, async (_req, reply) => {
+        reply.type('font/woff2').header('cache-control', 'public, max-age=31536000, immutable');
+        return readFile(new URL(name, fontsDir));
       });
     }
   }
