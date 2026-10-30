@@ -224,10 +224,10 @@ describe('refunds via HTTP (manager only)', () => {
   });
 });
 
-describe('reports via HTTP + tenant isolation', () => {
-  it('daily report shows gross/net/by method', async () => {
+describe('reports via HTTP + tenant isolation (D-D proposal: report:read)', () => {
+  it('manager with report:read sees gross/net/by method', async () => {
     const today = todayStr();
-    const r = await http('GET', `/api/v1/reports/daily?from=${today}&to=${today}`, { cookie: cashier });
+    const r = await http('GET', `/api/v1/reports/daily?from=${today}&to=${today}`, { cookie: manager });
     expect(r.status).toBe(200);
     // At least our sales above
     expect(r.body.report.grossMinor).toBeGreaterThan(0);
@@ -237,10 +237,18 @@ describe('reports via HTTP + tenant isolation', () => {
     expect(r.body.report).not.toHaveProperty('profit');
   });
 
-  it('other tenant report is zero and cannot see first tenant shifts', async () => {
+  it('cashier WITHOUT report:read is denied server-side (direct API too)', async () => {
     const today = todayStr();
+    const r = await http('GET', `/api/v1/reports/daily?from=${today}&to=${today}`, { cookie: cashier });
+    expect(r.status).toBe(403);
+    expect(r.body.error).toBe('forbidden');
+  });
+
+  it('other tenant cannot see first tenant shifts or figures', async () => {
+    const today = todayStr();
+    // other tenant's cashier: no report:read at all → 403, figures never leak
     const r = await http('GET', `/api/v1/reports/daily?from=${today}&to=${today}`, { cookie: otherCashier });
-    expect(r.body.report.grossMinor).toBe(0);
+    expect(r.status).toBe(403);
     // try to get first tenant shift — should be 404 (not found, not leaked)
     const g = await http('GET', `/api/v1/shifts/${shiftId}`, { cookie: otherCashier });
     expect(g.status).toBe(404);

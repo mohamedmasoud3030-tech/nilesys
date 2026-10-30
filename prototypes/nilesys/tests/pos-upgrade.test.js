@@ -42,16 +42,43 @@ async function login(username) {
 
 const money = (n) => Math.round(n * 100) / 100;
 
+// The demo seed assigns random stock (8..60). This suite sells more than
+// eight units across its cases, so choosing products[0] makes later tests
+// fail nondeterministically from inventory exhaustion. Pin a dedicated
+// fixture product with sufficient stock; keep production/demo seed unchanged.
+let UPGRADE_PRODUCT_ID;
+async function upgradeProduct(cookie) {
+  assert.ok(UPGRADE_PRODUCT_ID, 'test product must be provisioned in SETUP');
+  const listing = await req('GET', '/api/products', { cookie });
+  assert.equal(listing.status, 200);
+  const p = listing.data.products.find((item) => item.id === UPGRADE_PRODUCT_ID);
+  assert.ok(p, 'dedicated upgrade test product exists');
+  return p;
+}
+
 test('SETUP: reset demo data and open a shift', async () => {
   const mgr = await login('manager');
   await req('POST', '/api/reset', { cookie: mgr });
   const shift = await req('POST', '/api/shifts', { cookie: mgr, body: { action: 'open', startingCash: 100 } });
   assert.equal(shift.status, 201);
+  const fixture = await req('POST', '/api/products', {
+    cookie: mgr,
+    body: {
+      name: 'Upgrade test fixture',
+      category: 'tests',
+      barcode: '6229990000001',
+      price: 100,
+      cost: 40,
+      stock: 200,
+    },
+  });
+  assert.equal(fixture.status, 201, JSON.stringify(fixture.data));
+  UPGRADE_PRODUCT_ID = fixture.data.product.id;
 });
 
 test('TENDER-1: wallet and transfer are stored as-is, with no change', async () => {
   const cashier = await login('cashier');
-  const [p] = (await req('GET', '/api/products', { cookie: cashier })).data.products;
+  const p = await upgradeProduct(cashier);
 
   for (const method of ['wallet', 'transfer']) {
     const r = await req('POST', '/api/sales', { cookie: cashier, body: { items: [{ productId: p.id, qty: 1 }], method } });
@@ -64,7 +91,7 @@ test('TENDER-1: wallet and transfer are stored as-is, with no change', async () 
 
 test('TENDER-1: cash over-payment is stored with the exact change', async () => {
   const cashier = await login('cashier');
-  const [p] = (await req('GET', '/api/products', { cookie: cashier })).data.products;
+  const p = await upgradeProduct(cashier);
   const r = await req('POST', '/api/sales', {
     cookie: cashier,
     body: { items: [{ productId: p.id, qty: 1 }], method: 'cash', paid: p.price + 37.5 },
@@ -76,7 +103,7 @@ test('TENDER-1: cash over-payment is stored with the exact change', async () => 
 
 test('IDEM-1: same key + same body replays the sale and does not touch stock twice', async () => {
   const cashier = await login('cashier');
-  const [p] = (await req('GET', '/api/products', { cookie: cashier })).data.products;
+  const p = await upgradeProduct(cashier);
   const key = 'up-idem-0001';
   const body = { items: [{ productId: p.id, qty: 2 }], method: 'cash', idempotencyKey: key };
 
@@ -94,7 +121,7 @@ test('IDEM-1: same key + same body replays the sale and does not touch stock twi
 
 test('IDEM-1: same key with a different body is rejected with 409', async () => {
   const cashier = await login('cashier');
-  const [p] = (await req('GET', '/api/products', { cookie: cashier })).data.products;
+  const p = await upgradeProduct(cashier);
   const key = 'up-idem-0002';
   const a = await req('POST', '/api/sales', { cookie: cashier, body: { items: [{ productId: p.id, qty: 1 }], method: 'cash', idempotencyKey: key } });
   assert.equal(a.status, 201);
@@ -105,7 +132,7 @@ test('IDEM-1: same key with a different body is rejected with 409', async () => 
 test('PERM-4: a cashier cannot give more than 10% discount, a manager can', async () => {
   const cashier = await login('cashier');
   const manager = await login('manager');
-  const [p] = (await req('GET', '/api/products', { cookie: cashier })).data.products;
+  const p = await upgradeProduct(cashier);
   const subtotal = p.price;
   const big = money(subtotal * 0.5);
 
@@ -121,7 +148,7 @@ test('PERM-4: a cashier cannot give more than 10% discount, a manager can', asyn
 
 test('HELD-1: a cart is held, listed, and consumed by the sale that finishes it', async () => {
   const cashier = await login('cashier');
-  const [p] = (await req('GET', '/api/products', { cookie: cashier })).data.products;
+  const p = await upgradeProduct(cashier);
 
   const held = await req('POST', '/api/held', { cookie: cashier, body: { items: [{ productId: p.id, qty: 2 }], label: 'عميل بيجرّب' } });
   assert.equal(held.status, 201);
@@ -139,7 +166,7 @@ test('HELD-1: a cart is held, listed, and consumed by the sale that finishes it'
 
 test('HELD-1: releasing a held cart removes it without a sale', async () => {
   const cashier = await login('cashier');
-  const [p] = (await req('GET', '/api/products', { cookie: cashier })).data.products;
+  const p = await upgradeProduct(cashier);
   const held = await req('POST', '/api/held', { cookie: cashier, body: { items: [{ productId: p.id, qty: 1 }] } });
   const del = await req('DELETE', `/api/held/${held.data.held.id}`, { cookie: cashier });
   assert.equal(del.status, 200);
@@ -150,7 +177,7 @@ test('HELD-1: releasing a held cart removes it without a sale', async () => {
 test('MONEY-1: net = gross − refunds, and refunds are their own line (D-E)', async () => {
   const manager = await login('manager');
   const cashier = await login('cashier');
-  const [p] = (await req('GET', '/api/products', { cookie: cashier })).data.products;
+  const p = await upgradeProduct(cashier);
 
   const before = (await req('GET', '/api/reports/summary?range=today', { cookie: manager })).data;
 

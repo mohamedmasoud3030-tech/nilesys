@@ -219,3 +219,24 @@ export async function getSale(db: AnyPgDatabase, tenantId: string, id: string): 
   if (!UUID_RE.test(id)) return null;
   return withTenant(db, tenantId, (tx: any) => loadSale(tx, id));
 }
+
+/**
+ * Financial reconciliation lookup: resolve the outcome of a checkout
+ * attempt by its idempotency key. This is how a client that lost the
+ * response (network cut, browser restart) learns the SERVER's truth
+ * instead of guessing: a sale view means "saved", null means the server
+ * holds nothing under this key and the same key may be safely retried.
+ * Scoped by RLS (withTenant) AND an explicit tenant filter.
+ */
+export async function getSaleByIdempotencyKey(db: AnyPgDatabase, tenantId: string, key: string): Promise<SaleView | null> {
+  if (!key || key.length < 8 || key.length > 200) return null;
+  return withTenant(db, tenantId, async (tx: any) => {
+    const [row] = await tx
+      .select({ id: salesTransactions.id })
+      .from(salesTransactions)
+      .where(and(eq(salesTransactions.tenantId, tenantId), eq(salesTransactions.idempotencyKey, key)))
+      .limit(1);
+    if (!row) return null;
+    return loadSale(tx, row.id);
+  });
+}
