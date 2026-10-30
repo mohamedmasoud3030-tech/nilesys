@@ -20,11 +20,11 @@ export const statement = {
   attendance: ['record', 'read'],
   audit: ['read'],
   /*
-   * D-D PROPOSAL (owner approval pending — see docs/COMMERCIAL_RELEASE_READINESS.md):
-   * financial/admin reports get their own permission so reading a sale
-   * (sale:read, needed by cashiers for receipts) no longer implies reading
-   * store revenue figures. Prepared on an UNMERGED branch only; must not be
-   * merged/deployed until the owner adopts D-D.
+   * D-D (ADOPTED for commercial V1, owner decision 2026-10-26 — see
+   * docs/DECISIONS.md): financial/admin reports have their own permission so
+   * reading a sale (sale:read, needed by cashiers for receipts) never implies
+   * reading store revenue figures. History: prepared as a proposal in commit
+   * 4153240, adopted as V1 policy at the final release gate.
    */
   report: ['read'],
 } as const;
@@ -49,7 +49,7 @@ export const roles = {
   member: ac.newRole({ ...memberAc.statements }),
 
   // POS
-  // report:read is granted ONLY to branch-manager among POS roles (D-D proposal).
+  // report:read is granted ONLY to branch-manager among POS roles (D-D, adopted V1).
   'branch-manager': ac.newRole({ sale: ['create', 'read', 'void'], catalog: ['read', 'manage'], stock: ['read', 'adjust'], audit: ['read'], report: ['read'] }),
   cashier: ac.newRole({ sale: ['create', 'read'], catalog: ['read'], stock: ['read'] }),
   // Inventory

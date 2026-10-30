@@ -38,10 +38,19 @@ export function knownDemoIdentities(): { slug: string; emails: string[] } {
 }
 
 function seedFinding(env: Record<string, string | undefined>, findings: DemoAuditFinding[]) {
-  if (env.NODE_ENV === 'production' && (env.DEMO_SEED === 'true' || env.DEMO_SEED === '1')) {
+  // The production boot guard (env-guard.ts) reads NILE_SEED_DEMO — the audit
+  // must watch the SAME variable, never the old DEMO_SEED name.
+  const prod = env.NODE_ENV === 'production' || (env.NILE_AUDIT_ENV ?? '').toLowerCase() === 'production';
+  if (prod && env.NILE_SEED_DEMO === '1') {
     findings.push({
       code: 'demo_seed_enabled_in_production',
-      message: 'إعداد DEMO_SEED مفعّل في بيئة إنتاج — أوقفه فورًا (تشغيل الخادم نفسه يرفض الإقلاع بهذه الحالة وفق G-16).',
+      message: 'إعداد NILE_SEED_DEMO=1 في بيئة إنتاج — أوقفه فورًا (الخادم نفسه يرفض الإقلاع بهذه الحالة وفق G-16).',
+    });
+  }
+  if (env.DEMO_SEED !== undefined && env.DEMO_SEED !== '' && env.DEMO_SEED !== '0') {
+    findings.push({
+      code: 'legacy_demo_seed_var_present',
+      message: 'متغير قديم DEMO_SEED موجود في البيئة ولا يقرأه مسار الإقلاع الحالي (المستخدم فعليًا: NILE_SEED_DEMO) — وجوده يعني إعداد نشر قديمًا محتملًا؛ راجِعه وأزِله حتى لا يضلّل أي فحص قادم.',
     });
   }
 }

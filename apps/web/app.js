@@ -1848,10 +1848,10 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   async function loadReport() {
     const from = $('reportFrom').value, to = $('reportTo').value;
     const msg = $('reportMsg');
-    /* D-D proposal (owner approval pending): التقارير المالية بصلاحية report:read —
+    /* D-D (سياسة الإصدار التجاري الأول، معتمدة من المالك): التقارير المالية بصلاحية report:read —
        الواجهة تعرض رسالة صادقة لمن لا يملكها، لكن الخادم هو الحاجز الحقيقي (403). */
     if (!perms.has('report:read')) {
-      msg.textContent = 'حسابك لا يملك صلاحية التقارير المالية (report:read). هذا مقترح قرار D-D في انتظار اعتماد المالك — راجع الإدارة إن كنت تحتاجها.';
+      msg.textContent = 'حسابك لا يملك صلاحية التقارير المالية (report:read). التقارير متاحة لصاحب المحل والمدير المخوّل فقط — راجع الإدارة إن كنت تحتاجها.';
       msg.className = 'form-msg is-error';
       reportLoadedOnce = true;
       return;

@@ -46,10 +46,21 @@ describe('auditLegacyDemo (check-only)', () => {
     expect(report.status).toBe('NOT VERIFIED');
   });
 
-  it('DEMO_SEED in production env → ACTION REQUIRED even without DB rows', async () => {
-    const report = await auditLegacyDemo(opened.db, { NODE_ENV: 'production', DEMO_SEED: 'true' });
+  it('NILE_SEED_DEMO=1 in production → ACTION REQUIRED (real boot variable)', async () => {
+    const report = await auditLegacyDemo(opened.db, { NODE_ENV: 'production', NILE_SEED_DEMO: '1' });
     expect(report.status).toBe('ACTION REQUIRED');
     expect(report.findings.map((f) => f.code)).toContain('demo_seed_enabled_in_production');
+  });
+
+  it('production with demo seeding off → no seed finding', async () => {
+    const report = await auditLegacyDemo(opened.db, { NODE_ENV: 'production' });
+    expect(report.findings.map((f) => f.code)).not.toContain('demo_seed_enabled_in_production');
+  });
+
+  it('legacy DEMO_SEED present → explicit legacy finding (not silently ignored)', async () => {
+    const report = await auditLegacyDemo(opened.db, { DEMO_SEED: 'true' });
+    expect(report.status).toBe('ACTION REQUIRED');
+    expect(report.findings.map((f) => f.code)).toContain('legacy_demo_seed_var_present');
   });
 
   it('demo tenant present → ACTION REQUIRED with identity findings, never secrets', async () => {
@@ -67,7 +78,7 @@ describe('auditLegacyDemo (check-only)', () => {
 
   it('audit is read-only: row counts unchanged after running', async () => {
     const before = await opened.db.select().from(user);
-    await auditLegacyDemo(opened.db, { NODE_ENV: 'production', DEMO_SEED: 'true' });
+    await auditLegacyDemo(opened.db, { NODE_ENV: 'production', NILE_SEED_DEMO: '1' });
     const after = await opened.db.select().from(user);
     expect(after.length).toBe(before.length);
     const orgs = await opened.db.select().from(organization);
@@ -90,6 +101,19 @@ describe('audit target resolution (no false PASS)', () => {
     expect(resolveAuditTarget({}).kind).not.toBe('dev-pglite');
     const r = resolveAuditTarget({ NILE_AUDIT_TARGET: 'dev' });
     expect(r).toMatchObject({ kind: 'dev-pglite', env: 'Development' });
+  });
+
+  it('Production/Staging with dev target → refused (unverified), never a substitution', () => {
+    for (const env of ['production', 'staging', 'prod']) {
+      const r = resolveAuditTarget({ NILE_AUDIT_TARGET: 'dev', NILE_AUDIT_ENV: env });
+      expect(r.kind).toBe('unverified');
+      if (r.kind === 'unverified') expect(r.reason).toContain('مرفوض');
+    }
+  });
+
+  it('Production/Staging resolve WITHOUT NILE_AUDIT_EXPECT_DB → connection gate refuses (verified in PG suite)', () => {
+    const r = resolveAuditTarget({ DATABASE_URL: 'postgres://u:p@h/db', NILE_AUDIT_ENV: 'production' });
+    expect(r).toMatchObject({ kind: 'postgres', env: 'Production' });
   });
 
   it('explicit postgres URL resolves with environment label, URL not echoed in errors', () => {
@@ -137,14 +161,30 @@ describe.skipIf(!ADMIN_URL)('audit CLI on real PostgreSQL', () => {
     await admin.end().catch(() => {});
   });
 
+  it('Production without NILE_AUDIT_EXPECT_DB → NOT VERIFIED exit 2 (printing a name is not identity)', async () => {
+    const { code, out } = await runCli({ DATABASE_URL: dbUrl, NILE_AUDIT_ENV: 'production', NILE_AUDIT_EXPECT_DB: undefined });
+    expect(code).toBe(2);
+    expect(out).toContain('NOT VERIFIED');
+    expect(out).toContain('NILE_AUDIT_EXPECT_DB');
+  }, 180_000);
+
   it('clean database → PASS exit 0 and the target identity is printed', async () => {
-    const { code, out } = await runCli({ DATABASE_URL: dbUrl, NILE_AUDIT_ENV: 'staging' });
+    const { code, out } = await runCli({ DATABASE_URL: dbUrl, NILE_AUDIT_ENV: 'staging', NILE_AUDIT_EXPECT_DB: dbName });
     expect(code).toBe(0);
     expect(out).toContain('PASS');
     expect(out).toContain(dbName);
     expect(out).toContain('schema=public');
     expect(out).not.toContain('postgres://'); // no credentials/connection string echoed
   }, 180_000);
+
+  it('NILE_SEED_DEMO=1 in production → ACTION REQUIRED exit 1; legacy DEMO_SEED → legacy finding', async () => {
+    const boot = await runCli({ DATABASE_URL: dbUrl, NILE_AUDIT_ENV: 'production', NILE_AUDIT_EXPECT_DB: dbName, NILE_SEED_DEMO: '1' });
+    expect(boot.code).toBe(1);
+    expect(boot.out).toContain('demo_seed_enabled_in_production');
+    const legacy = await runCli({ DATABASE_URL: dbUrl, NILE_AUDIT_ENV: 'production', NILE_AUDIT_EXPECT_DB: dbName, DEMO_SEED: 'true' });
+    expect(legacy.code).toBe(1);
+    expect(legacy.out).toContain('legacy_demo_seed_var_present');
+  }, 300_000);
 
   it('wrong expected database → NOT VERIFIED exit 2 (never PASS for another DB)', async () => {
     const { code, out } = await runCli({ DATABASE_URL: dbUrl, NILE_AUDIT_EXPECT_DB: 'some_other_shop' });
@@ -163,7 +203,7 @@ describe.skipIf(!ADMIN_URL)('audit CLI on real PostgreSQL', () => {
     await c.connect();
     await c.query(`INSERT INTO organization (id,name,slug) VALUES ('33333333-3333-4333-8333-333333333333','نيل — حساب تجريبي','nile-demo') ON CONFLICT DO NOTHING`);
     await c.end();
-    const { code, out } = await runCli({ DATABASE_URL: dbUrl });
+    const { code, out } = await runCli({ DATABASE_URL: dbUrl, NILE_AUDIT_ENV: 'production', NILE_AUDIT_EXPECT_DB: dbName });
     expect(code).toBe(1);
     expect(out).toContain('ACTION REQUIRED');
     expect(out).toContain('demo_tenant_present');
