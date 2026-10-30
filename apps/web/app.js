@@ -173,6 +173,10 @@ const ERROR_AR = {
   shift_already_open: 'توجد وردية مفتوحة أصلًا لهذا الجهاز. أغلقها أولًا إن أردت فتح غيرها.',
   shift_already_closed: 'الوردية مُغلقة بالفعل — عرضنا نتيجة إغلاقها المحفوظة.',
   unknown_item: 'أحد الأصناف لم يعد متاحًا للبيع. حدّث الأصناف وراجع السلة.',
+  duplicate_sku: 'كود SKU مستخدم من قبل في هذا المحل. اختر كودًا مختلفًا.',
+  version_conflict: 'بيانات هذا الصنف تغيّرت من مكان آخر أثناء التعديل. حدّثنا القائمة — راجع القيم الجديدة ثم أعد المحاولة.',
+  item_not_found: 'هذا الصنف غير موجود (ربما في محل آخر أو حُذف). حدّث القائمة.',
+  invalid_catalog: 'بيانات الصنف غير صالحة. راجع الحقول ثم أعد المحاولة.',
   idempotency_conflict: 'هوية هذه العملية استُخدمت لعملية مختلفة. راجع العملية ثم أعد تنفيذها من جديد.',
   refund_over_limit: 'مبلغ المرتجع يتجاوز المتبقّي القابل للاسترداد من هذه الدفعة.',
   refund_quantity_exceeded: 'كمية المرتجع تتجاوز ما تبقّى من الكمية المباعة في الفاتورة.',
@@ -282,9 +286,13 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   let refundSale = null;
   let currentView = 'sale';
   let reportLoadedOnce = false;
-  const inFlight = { checkout: false, shiftOpen: false, refund: false, close: false };
+  const inFlight = { checkout: false, shiftOpen: false, refund: false, close: false, catalogSave: false };
+  let adminCatalog = []; // إدارة الأصناف: قائمة شاملة النشطة والموقوفة
+  let adminCatalogLoaded = false;
+  let editingItem = null; // { item } أثناء التعديل، null للصنف الجديد
 
   const canVoid = () => perms.has('sale:void');
+  const canManageCatalog = () => perms.has('catalog:manage');
   const sessionStore = {
     get(k) { try { return sessionStorage.getItem(k); } catch { return null; } },
     set(k, v) { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch {} },
@@ -413,6 +421,7 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
     $('userName').textContent = meData.user?.name || meData.user?.email || '—';
     $('userRole').textContent = roleLabelAr(meData.role);
     $('navAdmin').hidden = !canVoid();
+    $('navCatalog').hidden = !canManageCatalog();
     const today = todayCairo();
     $('reportFrom').value = today; $('reportTo').value = today;
     await loadCatalog().catch(() => {});
@@ -532,10 +541,12 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   /* ── التنقل ── */
   function setView(name) {
     if (name === 'admin' && !canVoid()) name = 'sale';
+    if (name === 'catalogAdmin' && !canManageCatalog()) name = 'sale';
     currentView = name;
     $('viewSale').hidden = name !== 'sale';
     $('viewShift').hidden = name !== 'shift';
     $('viewAdmin').hidden = name !== 'admin';
+    $('viewCatalogAdmin').hidden = name !== 'catalogAdmin';
     document.querySelectorAll('.nav-btn[data-view]').forEach((b) => {
       const on = b.dataset.view === name;
       b.classList.toggle('is-active', on);
@@ -544,6 +555,7 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
     if (name === 'sale') { updateMobileBar(); focusSearch(); }
     else $('mobileCartBar').hidden = true;
     if (name === 'shift' && shift) refreshShiftExpected().catch(() => {});
+    if (name === 'catalogAdmin' && !adminCatalogLoaded) loadAdminCatalog().catch(() => {});
     if (name === 'admin') {
       $('adminDenied').hidden = canVoid();
       $('adminBody').hidden = !canVoid();
@@ -553,6 +565,299 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   document.querySelectorAll('.nav-btn[data-view]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
   $('shiftChip').addEventListener('click', () => setView('shift'));
   $('cartGoShift').addEventListener('click', () => { closeCartSheet(); setView('shift'); });
+
+  /* ── إدارة الأصناف (G-03) — كتابة/قراءة من الخادم، الصلاحية catalog:manage ── */
+  async function loadAdminCatalog() {
+    const msg = $('adminCatalogMsg');
+    msg.textContent = '';
+    try {
+      const { items } = await api('GET', '/api/v1/catalog/items/admin');
+      adminCatalog = items ?? [];
+      adminCatalogLoaded = true;
+      buildAdminCategoryFilter();
+      renderAdminItems();
+      return adminCatalog;
+    } catch (e) {
+      msg.textContent = `تعذّر تحميل قائمة الإدارة: ${messageForError(e)}`;
+      msg.classList.add('is-error');
+      throw e;
+    }
+  }
+
+  function adminCategories() {
+    return [...new Set([...catalog, ...adminCatalog].map((i) => i.category))].sort();
+  }
+
+  function buildAdminCategoryFilter() {
+    const sel = $('adminCategory');
+    const current = sel.value || 'all';
+    sel.replaceChildren(
+      el('option', { attrs: { value: 'all' }, text: 'كل الأقسام' }),
+      ...adminCategories().map((c) => el('option', { attrs: { value: c }, text: CATEGORY_AR[c] ?? c })),
+    );
+    sel.value = [...sel.options].some((o) => o.value === current) ? current : 'all';
+    $('categoryList').replaceChildren(...adminCategories().map((c) => el('option', { attrs: { value: c } })));
+  }
+
+  function renderAdminItems() {
+    const q = ($('adminSearch').value ?? '').trim().toLowerCase();
+    const cat = $('adminCategory').value || 'all';
+    const showInactive = $('adminShowInactive').checked;
+    const matches = (item) => {
+      if (!item.isActive && !showInactive) return false;
+      if (cat !== 'all' && item.category !== cat) return false;
+      if (!q) return true;
+      if (item.nameAr.includes(q) || item.nameEn.toLowerCase().includes(q)) return true;
+      return item.variants.some((v) => v.sku.toLowerCase().includes(q) || v.labelAr.includes(q) || v.labelEn.toLowerCase().includes(q));
+    };
+    const visible = adminCatalog.filter(matches);
+    $('adminCatalogEmpty').hidden = visible.length !== 0;
+    $('adminCatalogMsg').textContent =
+      `${visible.length} من ${adminCatalog.length} صنف${showInactive ? ' (شاملًا الموقوفة)' : ''}`;
+    $('adminItemCards').replaceChildren(...visible.map(adminItemCard));
+  }
+
+  function adminItemCard(item) {
+    const statusBadge = el('span', {
+      class: `badge ${item.isActive ? 'badge-ok' : 'badge-off'}`,
+      text: item.isActive ? 'نشط — يُباع' : 'موقوف — لا يُباع',
+    });
+    const priceLine = el('p', { class: 'admin-price' }, [
+      el('b', { class: 'num', text: fmtMinor(item.priceMinor) }),
+      ' ج.م',
+      ...(item.compareAtMinor != null
+        ? [el('span', { class: 'muted', text: ` · قبل: ` }), el('span', { class: 'num muted', text: fmtMinor(item.compareAtMinor) }), ' ج.م']
+        : []),
+    ]);
+    const variantRows = item.variants.map((v) => el('tr', {}, [
+      el('td', {}, [el('code', { class: 'code-ltr', text: v.sku })]),
+      el('td', { text: v.labelAr }),
+      el('td', { class: 'num', text: fmtQtyString(v.stock) }),
+      el('td', { text: STOCK_AR[v.stockState] ?? v.stockState }),
+    ]));
+    const editBtn = el('button', { class: 'btn btn-secondary btn-sm', attrs: { type: 'button' } }, [iconEl('edit'), ' تعديل']);
+    editBtn.addEventListener('click', () => openItemDialog(item));
+    const addVariantBtn = el('button', { class: 'btn btn-ghost btn-sm', attrs: { type: 'button' } }, [iconEl('plus'), ' متغير']);
+    addVariantBtn.addEventListener('click', () => openItemDialog(item, true));
+    const toggleBtn = el('button', { class: item.isActive ? 'btn btn-danger-ghost btn-sm' : 'btn btn-secondary btn-sm', attrs: { type: 'button' }, text: item.isActive ? 'إيقاف البيع' : 'تفعيل البيع' });
+    toggleBtn.addEventListener('click', () => toggleItemActive(item, toggleBtn));
+    return el('article', { class: `admin-item-card${item.isActive ? '' : ' is-inactive'}` }, [
+      el('header', { class: 'admin-item-head' }, [
+        el('div', {}, [
+          el('h3', { text: item.nameAr }),
+          el('p', { class: 'muted', text: `${item.nameEn} · ${CATEGORY_AR[item.category] ?? item.category}` }),
+        ]),
+        statusBadge,
+      ]),
+      priceLine,
+      el('div', { class: 'table-wrap' }, [
+        el('table', { class: 'data-table' }, [
+          el('thead', {}, [el('tr', {}, [
+            el('th', { attrs: { scope: 'col' }, text: 'SKU' }),
+            el('th', { attrs: { scope: 'col' }, text: 'المتغير' }),
+            el('th', { attrs: { scope: 'col' }, text: 'المخزون' }),
+            el('th', { attrs: { scope: 'col' }, text: 'الحالة' }),
+          ])]),
+          el('tbody', {}, variantRows),
+        ]),
+      ]),
+      el('div', { class: 'admin-item-actions' }, [editBtn, addVariantBtn, toggleBtn]),
+    ]);
+  }
+
+  async function toggleItemActive(item, btn) {
+    const next = !item.isActive;
+    const ok = await confirmAction({
+      title: next ? 'تفعيل بيع الصنف؟' : 'إيقاف بيع الصنف؟',
+      body: next
+        ? `«${item.nameAr}» سيظهر مجددًا في شاشة البيع ويُباع بالسعر الحالي ${fmtMinor(item.priceMinor)} ج.م.`
+        : `«${item.nameAr}» سيختفي فورًا من شاشة البيع ويرفض الخادم أي محاولة بيع له. الفواتير السابقة لا تتأثر، ويمكن إعادة تفعيله في أي وقت.`,
+      okLabel: next ? 'تفعيل' : 'إيقاف البيع',
+      danger: !next,
+    });
+    if (!ok) return;
+    setBusy(btn, true, 'جارٍ الحفظ…');
+    try {
+      const { item: updated } = await api('PATCH', `/api/v1/catalog/items/${item.id}`, { isActive: next, expectedVersion: item.version });
+      replaceAdminItem(updated);
+      await syncSellingCatalog(true);
+      toast(next ? `فُعِّل «${updated.nameAr}» للبيع.` : `أُوقف بيع «${updated.nameAr}».`, 'ok');
+    } catch (e) {
+      toast(messageForError(e), 'bad');
+      if (e.code === 'version_conflict') loadAdminCatalog().catch(() => {});
+    } finally { setBusy(btn, false); }
+  }
+
+  function replaceAdminItem(updated) {
+    const ix = adminCatalog.findIndex((i) => i.id === updated.id);
+    if (ix >= 0) adminCatalog[ix] = updated; else adminCatalog.unshift(updated);
+    buildAdminCategoryFilter();
+    renderAdminItems();
+  }
+
+  /** يعكس تغييرات الإدارة على شاشة البيع + تنبيه لو تأثرت السلة الحالية. */
+  async function syncSellingCatalog(warnCart) {
+    const before = new Map([...cart.keys()].map((vid) => [vid, byVariant.get(vid)?.item.priceMinor]));
+    await loadCatalog().catch(() => {});
+    if (!warnCart) return;
+    for (const [vid, oldPrice] of before) {
+      const now = byVariant.get(vid);
+      if (!now || now.item.priceMinor !== oldPrice) {
+        toast('تغيّر سعر/توافر صنف في السلة الحالية بعد تحديث الكتالوج — راجع السلة قبل الدفع (السعر النهائي دائمًا من الخادم).', 'info');
+        return;
+      }
+    }
+  }
+
+  function variantRowEl(v) {
+    const persisted = Boolean(v?.id);
+    const row = el('div', { class: 'variant-row' });
+    row.dataset.variantId = v?.id ?? '';
+    row.dataset.variantVersion = String(v?.version ?? '');
+    const sku = el('input', { class: 'vr-sku', attrs: { type: 'text', dir: 'ltr', maxlength: '64', placeholder: 'SKU *', 'aria-label': 'كود SKU' } });
+    sku.value = v?.sku ?? '';
+    const labelAr = el('input', { class: 'vr-label-ar', attrs: { type: 'text', maxlength: '80', placeholder: 'الوصف عربي *', 'aria-label': 'وصف المتغير بالعربية' } });
+    labelAr.value = v?.labelAr ?? '';
+    const labelEn = el('input', { class: 'vr-label-en', attrs: { type: 'text', dir: 'ltr', maxlength: '80', placeholder: 'Label (EN) *', 'aria-label': 'وصف المتغير بالإنجليزية' } });
+    labelEn.value = v?.labelEn ?? '';
+    const stock = el('input', { class: 'vr-stock num-input', attrs: { type: 'text', inputmode: 'decimal', dir: 'ltr', placeholder: persisted ? '—' : 'رصيد البداية', 'aria-label': 'رصيد البداية' } });
+    stock.value = persisted ? fmtQtyString(v.stock) : '';
+    stock.disabled = persisted; // الرصيد لا يُحرَّر هنا بعد الإنشاء (حركة مخزون بدلًا منه)
+    if (persisted) stock.title = 'الرصيد الحالي — لا يُعدَّل من هنا (تصحيحه بحركة مخزون)';
+    row.append(sku, labelAr, labelEn, stock);
+    if (!persisted) {
+      const remove = el('button', { class: 'btn btn-icon', attrs: { type: 'button', 'aria-label': 'حذف هذا المتغير الجديد' } }, [iconEl('trash')]);
+      remove.addEventListener('click', () => row.remove());
+      row.appendChild(remove);
+    }
+    return row;
+  }
+
+  function openItemDialog(item, focusNewVariant = false) {
+    editingItem = item ?? null;
+    $('itemDialogTitle').replaceChildren(iconEl('box'), document.createTextNode(item ? ` تعديل «${item.nameAr}»` : ' صنف جديد'));
+    $('itemNameAr').value = item?.nameAr ?? '';
+    $('itemNameEn').value = item?.nameEn ?? '';
+    $('itemCategory').value = item?.category ?? '';
+    $('itemPrice').value = item ? minorToInput(item.priceMinor) : '';
+    $('itemCompareAt').value = item?.compareAtMinor != null ? minorToInput(item.compareAtMinor) : '';
+    $('itemActiveField').hidden = !item;
+    $('itemActive').checked = item?.isActive ?? true;
+    $('itemSaveBtn').lastChild.textContent = item ? ' حفظ التعديلات' : ' حفظ الصنف';
+    const rows = $('itemVariantRows');
+    rows.replaceChildren(...(item?.variants ?? []).map(variantRowEl));
+    if (!item?.variants?.length || focusNewVariant) rows.appendChild(variantRowEl(null));
+    buildAdminCategoryFilter();
+    $('itemErr').hidden = true;
+    if (!$('itemDialog').open) $('itemDialog').showModal();
+    (focusNewVariant ? rows.lastElementChild?.querySelector('.vr-sku') : $('itemNameAr'))?.focus();
+  }
+
+  $('newItemBtn')?.addEventListener('click', () => openItemDialog(null));
+  $('addVariantRowBtn')?.addEventListener('click', () => $('itemVariantRows').appendChild(variantRowEl(null)));
+  $('adminSearch').addEventListener('input', renderAdminItems);
+  $('adminCategory').addEventListener('change', renderAdminItems);
+  $('adminShowInactive').addEventListener('change', renderAdminItems);
+  $('adminRefresh').addEventListener('click', () => loadAdminCatalog().then(() => toast('تم تحديث قائمة الأصناف.', 'ok')).catch(() => {}));
+
+  function readVariantRow(row, needStock) {
+    const sku = row.querySelector('.vr-sku').value.trim();
+    const labelAr = row.querySelector('.vr-label-ar').value.trim();
+    const labelEn = row.querySelector('.vr-label-en').value.trim();
+    const stockRaw = row.querySelector('.vr-stock').value.trim();
+    if (!sku || /\s/.test(sku) || !labelAr || !labelEn) return { error: 'كل متغير يحتاج كود SKU (دون مسافات) ووصفًا بالعربية والإنجليزية.' };
+    const out = { sku, labelAr, labelEn };
+    if (needStock) {
+      const milli = parseQtyMilli(stockRaw === '' ? '0' : stockRaw);
+      if (milli === null || milli < 0) return { error: 'رصيد البداية يجب أن يكون رقمًا عشريًا صالحًا (حتى 3 خانات عشرية).' };
+      out.stock = milliToQtyString(milli);
+    }
+    return out;
+  }
+
+  $('itemForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (inFlight.catalogSave) return;
+    const err = $('itemErr'); err.hidden = true;
+    const showErr = (text) => { err.textContent = text; err.hidden = false; };
+    const nameAr = $('itemNameAr').value.trim();
+    const nameEn = $('itemNameEn').value.trim();
+    const category = $('itemCategory').value.trim();
+    const priceMinor = parseMoneyToMinor($('itemPrice').value);
+    const compareRaw = $('itemCompareAt').value.trim();
+    const compareAtMinor = compareRaw === '' ? null : parseMoneyToMinor(compareRaw);
+    if (!nameAr || !nameEn) return showErr('اسم الصنف بالعربية والإنجليزية مطلوب.');
+    if (!category) return showErr('القسم مطلوب (مثال: drinks أو مشروبات).');
+    if (priceMinor === null || priceMinor < 1) return showErr('سعر البيع يجب أن يكون مبلغًا صحيحًا أكبر من صفر.');
+    if (compareAtMinor !== null && (compareAtMinor === null || compareAtMinor < priceMinor)) return showErr('سعر «قبل» يجب أن يساوي سعر البيع أو يزيد عنه.');
+    const rows = [...$('itemVariantRows').children];
+    const persisted = [];
+    const fresh = [];
+    for (const row of rows) {
+      const isPersisted = Boolean(row.dataset.variantId);
+      const v = readVariantRow(row, !isPersisted);
+      if (v.error) return showErr(v.error);
+      (isPersisted ? persisted : fresh).push({ ...v, id: row.dataset.variantId, version: Number(row.dataset.variantVersion) });
+    }
+    if (!persisted.length && !fresh.length) return showErr('أضف متغيرًا واحدًا على الأقل (SKU) للصنف.');
+
+    inFlight.catalogSave = true;
+    setBusy($('itemSaveBtn'), true, 'جارٍ الحفظ…');
+    try {
+      if (!editingItem) {
+        const { item } = await api('POST', '/api/v1/catalog/items', {
+          nameAr, nameEn, category, priceMinor, compareAtMinor,
+          variants: fresh.map(({ sku, labelAr, labelEn, stock }) => ({ sku, labelAr, labelEn, stock })),
+        });
+        replaceAdminItem(item);
+        await syncSellingCatalog(false);
+        toast(`أُضيف «${item.nameAr}» وأصبح متاحًا للبيع.`, 'ok');
+      } else {
+        let item = editingItem;
+        const itemPatch = {};
+        if (nameAr !== item.nameAr) itemPatch.nameAr = nameAr;
+        if (nameEn !== item.nameEn) itemPatch.nameEn = nameEn;
+        if (category !== item.category) itemPatch.category = category;
+        if (priceMinor !== item.priceMinor) itemPatch.priceMinor = priceMinor;
+        if (compareAtMinor !== item.compareAtMinor) itemPatch.compareAtMinor = compareAtMinor;
+        if ($('itemActive').checked !== item.isActive) itemPatch.isActive = $('itemActive').checked;
+        if (Object.keys(itemPatch).length) {
+          item = (await api('PATCH', `/api/v1/catalog/items/${item.id}`, { ...itemPatch, expectedVersion: item.version })).item;
+        }
+        for (const v of persisted) {
+          const orig = editingItem.variants.find((x) => x.id === v.id);
+          const patch = {};
+          if (v.sku !== orig.sku) patch.sku = v.sku;
+          if (v.labelAr !== orig.labelAr) patch.labelAr = v.labelAr;
+          if (v.labelEn !== orig.labelEn) patch.labelEn = v.labelEn;
+          if (Object.keys(patch).length) {
+            item = (await api('PATCH', `/api/v1/catalog/variants/${v.id}`, { ...patch, expectedVersion: v.version })).item;
+          }
+        }
+        for (const v of fresh) {
+          item = (await api('POST', `/api/v1/catalog/items/${item.id}/variants`, { sku: v.sku, labelAr: v.labelAr, labelEn: v.labelEn, stock: v.stock })).item;
+        }
+        replaceAdminItem(item);
+        await syncSellingCatalog(true);
+        toast(`حُفظت تعديلات «${item.nameAr}».`, 'ok');
+      }
+      $('itemDialog').close();
+    } catch (e2) {
+      showErr(e2.code === 'validation_failed' ? 'بعض البيانات المُدخلة غير صالحة. راجع الخانات ثم أعد المحاولة.' : messageForError(e2));
+      /* تضارب نسخة/فشل جزئي: أعد جلب حقيقة الخادم وحدّث كائن التعديل لئلا تُبنى المحاولة التالية على نسخ قديمة. */
+      if (['version_conflict', 'duplicate_sku'].includes(e2.code) || editingItem) {
+        loadAdminCatalog().then((items) => {
+          if (editingItem) {
+            const freshItem = items.find((i) => i.id === editingItem.id);
+            if (freshItem && $('itemDialog').open) editingItem = freshItem;
+          }
+        }).catch(() => {});
+      }
+    } finally {
+      inFlight.catalogSave = false;
+      setBusy($('itemSaveBtn'), false);
+    }
+  });
 
   /* ── الكتالوج ── */
   async function loadCatalog() {
