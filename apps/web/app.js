@@ -111,6 +111,7 @@ function createPendingStore(keygen = newIdempotencyKey) {
       return key;
     },
     has(kind) { return store.has(kind); },
+    keyOf(kind) { return store.get(kind)?.key ?? null; },
     fingerprint(kind) { return store.get(kind)?.fingerprint ?? null; },
     clear(kind) { store.delete(kind); },
     /** تصدير/استعادة لحفظ الهويات عبر إعادة تحميل الصفحة (لا مفاتيح جديدة لنفس العملية). */
@@ -289,15 +290,38 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
     set(k, v) { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch {} },
   };
 
-  /* هويات العمليات المالية المعلّقة ومسودة الدفع تُحفظ عبر إعادة تحميل الصفحة
-     (sessionStorage: عمرها عمر نافذة المتصفح) حتى لا تولّد إعادة التحميل
-     مفاتيح تكرار جديدة لنفس العملية إذا كانت نتيجتها لم تتأكد بعد. */
-  const PENDING_KEY = 'nile-pos-pending-v1';
-  const CHECKOUT_DRAFT_KEY = 'nile-pos-checkout-draft-v1';
-  try { pending.restore(JSON.parse(sessionStore.get(PENDING_KEY) ?? '[]')); } catch {}
-  function persistPending() { sessionStore.set(PENDING_KEY, JSON.stringify(pending.snapshot())); }
-  function loadCheckoutDraft() { try { return JSON.parse(sessionStore.get(CHECKOUT_DRAFT_KEY) ?? 'null'); } catch { return null; } }
-  function saveCheckoutDraft(d) { sessionStore.set(CHECKOUT_DRAFT_KEY, d ? JSON.stringify(d) : null); }
+  /*
+   * هويات العمليات المالية المعلّقة ومسودة الدفع (§6): تُحفظ في localStorage
+   * مربوطةً بمعرف المستخدم — تعيش بعد إغلاق المتصفح وإعادة تشغيل الجهاز على
+   * نفس الجهاز، ولا يرثها مستخدم آخر على نفس الجهاز. هي ليست مرجع الحقيقة:
+   * عند الدخول تُصالَح مع الخادم (reconcilePending) فهو وحده الحَكَم.
+   * المفاتيح v1 القديمة (sessionStorage) تُهاجَر مرة واحدة ثم تُزال.
+   */
+  const PENDING_KEY = 'nile-pos-pending-v1'; // legacy (migration source only)
+  const CHECKOUT_DRAFT_KEY = 'nile-pos-checkout-draft-v1'; // legacy
+  const durableStore = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
+  };
+  let pendingScope = null; // userId — يُضبط عند الدخول
+  const pendingKeyFor = () => (pendingScope ? `nile-pos-pending-v2:${pendingScope}` : null);
+  const draftKeyFor = () => (pendingScope ? `nile-pos-checkout-draft-v2:${pendingScope}` : null);
+  function persistPending() { const k = pendingKeyFor(); if (k) durableStore.set(k, JSON.stringify(pending.snapshot())); }
+  function loadCheckoutDraft() { const k = draftKeyFor(); if (!k) return null; try { return JSON.parse(durableStore.get(k) ?? 'null'); } catch { return null; } }
+  function saveCheckoutDraft(d) { const k = draftKeyFor(); if (k) durableStore.set(k, d ? JSON.stringify(d) : null); }
+  function loadPendingForUser(userId) {
+    pendingScope = userId ?? null;
+    if (!pendingScope) { pending.restore([]); return; }
+    try {
+      const legacyPending = sessionStore.get(PENDING_KEY);
+      if (legacyPending && !durableStore.get(pendingKeyFor())) durableStore.set(pendingKeyFor(), legacyPending);
+      const legacyDraft = sessionStore.get(CHECKOUT_DRAFT_KEY);
+      if (legacyDraft && !durableStore.get(draftKeyFor())) durableStore.set(draftKeyFor(), legacyDraft);
+      sessionStore.set(PENDING_KEY, null);
+      sessionStore.set(CHECKOUT_DRAFT_KEY, null);
+    } catch {}
+    try { pending.restore(JSON.parse(durableStore.get(pendingKeyFor()) ?? '[]')); } catch { pending.restore([]); }
+  }
   function cartLinesPayload() {
     return [...cart.entries()].map(([variantId, qtyMilli]) => ({ variantId, quantity: milliToQtyString(qtyMilli) }));
   }
@@ -382,6 +406,7 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   async function enterApp(meData) {
     me = meData;
     perms = new Set(meData.permissions ?? []);
+    loadPendingForUser(meData.user?.id);
     $('loginView').hidden = true;
     $('appView').hidden = false;
     $('tenantName').textContent = meData.tenant?.name ?? 'محل';
@@ -395,6 +420,67 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
     await restoreShift().catch(() => {});
     renderCart(); renderShift();
     setView('sale');
+    // مصالحة أي عملية مالية معلقة مع الخادم قبل أي بيع جديد (§6).
+    await reconcilePending().catch(() => {});
+  }
+
+  /*
+   * المصالحة المالية (§6): لأي عملية معلقة نسأل الخادم بهوية العملية نفسها.
+   *  - محفوظة خادميًا ⇒ نسترجع نتيجتها (إيصال/مبلغ) ونغلق الملف محليًا.
+   *  - غير موجودة خادميًا ⇒ يقين بأنها لم تُحفظ: إن أمكن إعادة بنائها
+   *    (بنود المسودة) نبقيها قابلة لإعادة المحاولة بنفس الهوية، وإلا
+   *    نتخلص منها بوعي كامل لا تخمينًا.
+   *  - الخادم غير متاح ⇒ لا نمس شيئًا؛ تبقى الحالة معلقة كما هي.
+   */
+  async function reconcilePending() {
+    if (pending.has('shift-open') && shift) { pending.clear('shift-open'); persistPending(); }
+
+    if (pending.has('checkout')) {
+      const key = pending.keyOf('checkout');
+      let res = null;
+      try { res = await api('GET', `/api/v1/checkout/reconcile?key=${encodeURIComponent(key)}`); } catch { return; }
+      if (res.state === 'saved' && res.sale) {
+        const draft = loadCheckoutDraft();
+        pending.clear('checkout'); persistPending(); saveCheckoutDraft(null);
+        if (draft && cart.size && fingerprintOf(cartLinesPayload()) === draft.linesFp) {
+          cart.clear(); persistCart(); renderCart();
+        }
+        lastSale = res.sale;
+        toast('وجدنا على الخادم فاتورة محفوظة لعملية دفع سابقة لم يصلك تأكيدها — هذه هي، ولم يتكرر أي بيع.', 'ok');
+        showReceipt(res.sale, true);
+        loadCatalog().catch(() => {});
+        if (shift) refreshShiftExpected().catch(() => {});
+      } else if (res.state === 'not_found') {
+        const draft = loadCheckoutDraft();
+        if (!cart.size && draft && Array.isArray(draft.lines) && draft.lines.length) {
+          // أعد بناء السلة من بنود المحاولة الأولى لتظل إعادة المحاولة مطابقة.
+          for (const l of draft.lines) {
+            const milli = parseQtyMilli(l.quantity);
+            if (milli !== null && byVariant.has(l.variantId)) cart.set(l.variantId, (cart.get(l.variantId) ?? 0) + milli);
+          }
+          persistCart(); renderCart();
+          toast('توجد عملية دفع سابقة لم تُحفظ على الخادم. استعدنا سلتها كما كانت — راجعها ثم أكمل الدفع، وستُستكمل بنفس هوية العملية دون تكرار.', 'info');
+        } else if (!cart.size) {
+          // لا بنود قابلة للاسترجاع والخادم يؤكد عدم الحفظ: إغلاق واعٍ للملف.
+          pending.clear('checkout'); persistPending(); saveCheckoutDraft(null);
+          toast('تحققنا من الخادم: عملية دفع سابقة لم تُحفظ ولم تُخصم أي مبالغ. يمكنك بدء بيع جديد بأمان.', 'info');
+        } else {
+          toast('توجد عملية دفع سابقة لم تتأكد نتيجتها بعد (غير محفوظة على الخادم حتى الآن). أكملها من زر الدفع — لن يتكرر البيع.', 'info');
+        }
+      }
+    }
+
+    if (pending.has('refund') && canVoid()) {
+      const key = pending.keyOf('refund');
+      try {
+        const res = await api('GET', `/api/v1/refunds/reconcile?key=${encodeURIComponent(key)}`);
+        if (res.state === 'saved' && res.refund) {
+          pending.clear('refund'); persistPending();
+          toast(`وجدنا على الخادم مرتجعًا محفوظًا بمبلغ ${fmtMinor(res.refund.amountMinor)} ج.م لعملية سابقة لم يصلك تأكيدها.`, 'ok');
+          loadCatalog().catch(() => {});
+        }
+      } catch { /* غير مؤكد بعد — يبقى معلقًا */ }
+    }
   }
 
   $('loginForm').addEventListener('submit', async (e) => {
@@ -418,17 +504,27 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   });
 
   $('logoutBtn').addEventListener('click', async () => {
-    if (cart.size && !(await confirmAction({
+    /*
+     * عملية مالية معلقة لا تُمسح عند الخروج أبدًا (§6): تبقى محفوظة على هذا
+     * الجهاز مرتبطةً بحسابك، وستُصالَح مع الخادم عند دخولك القادم. الخروج
+     * مسموح لكن بعد تنبيه صريح — لا نجاح ولا فشل مفترض.
+     */
+    if (pending.has('checkout') || pending.has('refund')) {
+      const go = await confirmAction({
+        title: 'توجد عملية مالية غير مؤكدة',
+        body: 'بدأت عملية دفع/مرتجع ولم نتأكد من نتيجتها على الخادم بعد. إن خرجت الآن ستبقى العملية محفوظة على هذا الجهاز لحسابك، وعند دخولك القادم سنتحقق من نتيجتها من الخادم تلقائيًا. الأفضل إكمالها الآن إن أمكن — لا تعتبرها ناجحة ولا فاشلة.',
+        okLabel: 'خروج مع إبقاء العملية معلقة', danger: true,
+      });
+      if (!go) return;
+    } else if (cart.size && !(await confirmAction({
       title: 'تسجيل الخروج؟',
-      body: 'توجد أصناف في السلة لم تُبع بعد. الخروج سيفرّغ السلة من هذا الجهاز (الوردية المفتوحة تبقى مفتوحة بالخادم حتى تُغلق صراحةً).',
+      body: 'توجد أصناف في السلة لم تُبع بعد. الخروج سيفرّغ السلة من هذا الجهاز (الوردية المفتوحة تبقى مفتوحة بالخادم حتى تُغلق صراحةً — وستُسترجع تلقائيًا عند دخولك).',
       okLabel: 'خروج وتفريغ السلة', danger: true,
     }))) return;
     sessionStore.set('nile-pos-cart-v1', null);
     sessionStore.set('nile-pos-shift-v1', null);
-    sessionStore.set(PENDING_KEY, null);
-    saveCheckoutDraft(null);
-    sessionStore.set(PENDING_KEY, null);
-    saveCheckoutDraft(null);
+    pendingScope = null;
+    pending.restore([]);
     await api('POST', '/api/auth/sign-out', {}, { silent401: true }).catch(() => {});
     location.reload();
   });
@@ -859,6 +955,12 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
 
   async function openCheckout() {
     if (!cart.size) return;
+    // مصالحة فورية قبل فتح الدفع: ربما حُفظت المحاولة المعلقة خادميًا أثناء
+    // بقاء الشاشة مفتوحة — عندها يعرض reconcilePending الإيصال وينتهي الأمر.
+    if (pending.has('checkout')) {
+      await reconcilePending().catch(() => {});
+      if (!pending.has('checkout') && !cart.size) return; // صُولحت وفُرّغت السلة
+    }
     closeCartSheet();
     const est = cartEstimate();
     $('checkoutTotal').textContent = fmtMinor(est.totalMinor);
@@ -1001,7 +1103,9 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
     /* تُحفظ الهوية والمسودة قبل إطلاق الطلب: إعادة التحميل أثناء انتظاره
        لا يجب أن تفقدنا أثر العملية أبدًا. */
     persistPending();
-    saveCheckoutDraft({ linesFp: fingerprintOf(lines), tenders, shiftId: effectiveShiftId });
+    /* البنود نفسها تُحفظ أيضًا: بعد إعادة تشغيل المتصفح تُبنى منها السلة كما
+       كانت لتظل إعادة المحاولة مطابقة حرفيًا للمحاولة الأولى. */
+    saveCheckoutDraft({ linesFp: fingerprintOf(lines), lines, tenders, shiftId: effectiveShiftId });
     const body = { idempotencyKey: key, lines, tenders };
     if (hasCash) body.shiftId = effectiveShiftId;
 
@@ -1120,11 +1224,31 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   $('receiptRefundBtn').addEventListener('click', () => { if (lastSale) openRefund(lastSale); });
 
   /* ── الوردية ── */
+  /*
+   * استرجاع الوردية: المحفوظ محليًا أولًا، فإن غاب (جهاز جديد/جلسة ممسوحة)
+   * أو كانت مغلقة نسأل الخادم عن الوردية المفتوحة حاليًا لهذا الجهاز/المحل
+   * (G-02) ونرتبط بها — هكذا لا يتعطل الدفع النقدي بسبب حالة متصفح ضائعة.
+   */
   async function restoreShift() {
     const id = sessionStore.get('nile-pos-shift-v1');
-    if (!id) { shift = null; return; }
-    shift = { id, openingMinor: null, openedAt: null, expectedMinor: null };
-    await refreshShiftExpected(true);
+    if (id) {
+      shift = { id, openingMinor: null, openedAt: null, expectedMinor: null };
+      await refreshShiftExpected(true);
+      if (shift) return;
+    }
+    try {
+      const { shift: current } = await api('GET', '/api/v1/shifts/current');
+      if (current && !current.isClosed) {
+        shift = { id: current.id, openingMinor: current.openingMinor, openedAt: current.openedAt, expectedMinor: current.expectedMinor };
+        sessionStore.set('nile-pos-shift-v1', shift.id);
+        renderShift();
+      } else {
+        shift = null;
+      }
+    } catch {
+      /* شبكة/خادم غير متاح الآن: نبقى «بلا وردية» محليًا ونعيد المحاولة لاحقًا. */
+      shift = null;
+    }
   }
 
   async function refreshShiftExpected(silent404 = false) {
@@ -1191,6 +1315,17 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
     } catch (e2) {
       const cls = classifyStatus(e2.status ?? 0);
       if (cls === 'definitive') { pending.clear('shift-open'); persistPending(); }
+      if (e2.code === 'shift_already_open') {
+        /* توجد وردية مفتوحة على الخادم (ربما من جهاز آخر): ارتبط بها بدل التعطل. */
+        await restoreShift().catch(() => {});
+        if (shift) {
+          msg.textContent = 'توجد وردية مفتوحة بالفعل على هذا الجهاز — تم الارتباط بها.';
+          msg.className = 'form-msg is-ok';
+          renderShift(); renderCart();
+          toast('ارتبطنا بالوردية المفتوحة حاليًا.', 'ok');
+          return;
+        }
+      }
       msg.textContent = cls === 'uncertain'
         ? 'لم تتأكد نتيجة فتح الوردية. أعد الضغط بنفس الرصيد — ستُستكمل نفس العملية دون تكرار.'
         : messageForError(e2);
@@ -1236,21 +1371,36 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       okLabel: 'نعم، أغلق الوردية', danger: true,
     });
     if (!ok) return;
+    /*
+     * G-17: الإغلاق يحمل مفتاح عملية مربوطًا ببصمة (الوردية + المعدود) ويُحفظ
+     * قبل الطلب — إن فُقد الرد بعد نجاح الخادم، إعادة المحاولة بنفس المعدود
+     * تُعيد نتيجة الإغلاق المحفوظة نفسها بدل أي تكرار أو تخمين.
+     */
+    const closeKey = pending.getOrCreate('shift-close', fingerprintOf({ shiftId: shift.id, countedMinor: counted }));
+    persistPending();
     inFlight.close = true; setBusy($('closeShiftBtn'), true, 'جارٍ إغلاق الوردية…');
     msg.textContent = ''; msg.className = 'form-msg';
     try {
-      const r = await api('POST', `/api/v1/shifts/${shift.id}/close`, { countedMinor: counted });
+      const r = await api('POST', `/api/v1/shifts/${shift.id}/close`, { countedMinor: counted, idempotencyKey: closeKey });
+      pending.clear('shift-close'); persistPending();
       shift = null; sessionStore.set('nile-pos-shift-v1', null);
       $('countedAmount').value = '';
       showClosure(r.closure); renderShift(); renderCart();
       toast('أُغلقت الوردية وحُفظت نتيجتها.', 'ok');
     } catch (e2) {
-      /* عقد الإغلاق بلا مفتاح تكرار: عند نتيجة غير مؤكدة نعيد القراءة بدل الافتراض. */
-      if (e2.code === 'shift_already_closed' || classifyStatus(e2.status ?? 0) === 'uncertain') {
+      /*
+       * عند نتيجة غير مؤكدة نعيد قراءة الوردية بدل الافتراض. مفتاح العملية
+       * يبقى محفوظًا ما دامت النتيجة غير مؤكدة — إعادة المحاولة بنفس المعدود
+       * تسترد نتيجة الخادم نفسها (G-17)؛ ونمسحه فقط عند رفض نهائي مؤكد.
+       */
+      const cls = classifyStatus(e2.status ?? 0);
+      if (cls === 'definitive' && e2.code !== 'shift_already_closed') { pending.clear('shift-close'); persistPending(); }
+      if (e2.code === 'shift_already_closed' || cls === 'uncertain') {
         const id = shift.id;
         try {
           const { shift: s } = await api('GET', `/api/v1/shifts/${id}`);
           if (s?.isClosed && s.closure) {
+            pending.clear('shift-close'); persistPending();
             shift = null; sessionStore.set('nile-pos-shift-v1', null);
             $('countedAmount').value = '';
             showClosure(s.closure); renderShift(); renderCart();

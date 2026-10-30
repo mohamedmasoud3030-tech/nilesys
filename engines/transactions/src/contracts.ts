@@ -67,6 +67,9 @@ export type OpenShiftInput = z.infer<typeof openShiftSchema>;
 export const closeShiftSchema = z
   .object({
     countedMinor: z.number().int().min(0).max(100_000_000_00),
+    // G-17: optional — old clients keep working; new clients send it so a
+    // lost response can be retried without any duplicate-close risk.
+    idempotencyKey: z.string().min(8).max(200).optional(),
   })
   .strict();
 
@@ -89,6 +92,20 @@ export const reportQuerySchema = z
   .object({
     from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  })
+  .strict();
+
+/** G-02: discover the open shift for a register (defaults to `main`). */
+export const currentShiftQuerySchema = z
+  .object({
+    registerCode: z.string().min(1).max(50).optional(),
+  })
+  .strict();
+
+/** Reconcile an uncertain client operation by its idempotency key. */
+export const reconcileQuerySchema = z
+  .object({
+    key: z.string().min(8).max(200),
   })
   .strict();
 
