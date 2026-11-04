@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "catalog_variants_tenant_sku_lower_uidx" ON "catalog_variants" USING btree ("tenant_id",lower("sku"));

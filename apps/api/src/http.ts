@@ -7,6 +7,7 @@ import {
   ConflictException,
   ForbiddenException,
   HttpException,
+  NotFoundException,
   UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -77,6 +78,10 @@ const DOMAIN_STATUS: Record<string, (body: object) => HttpException> = {
   invalid_transaction: (b) => new BadRequestException(b),
   invalid_payment: (b) => new BadRequestException(b),
   invalid_date: (b) => new BadRequestException(b),
+  duplicate_sku: (b) => new ConflictException(b),
+  version_conflict: (b) => new ConflictException(b),
+  invalid_catalog: (b) => new UnprocessableEntityException(b),
+  item_not_found: (b) => new NotFoundException(b),
 };
 
 export function toHttp(e: unknown): HttpException {

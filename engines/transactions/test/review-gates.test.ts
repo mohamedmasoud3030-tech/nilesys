@@ -208,6 +208,12 @@ describe('Gate 4 — Authorization (service-level, not just UI)', () => {
     expect(can('cashier', { sale: ['void'] })).toBe(false);
     expect(can('branch-manager', { sale: ['void'] })).toBe(true);
     expect(can('cashier', { audit: ['read'] })).toBe(false);
+    // D-D proposal (owner approval pending): financial reports need report:read —
+    // branch-manager only among POS roles; cashier selling rights unchanged.
+    expect(can('branch-manager', { report: ['read'] })).toBe(true);
+    expect(can('cashier', { report: ['read'] })).toBe(false);
+    expect(can('cashier', { sale: ['create', 'read'] })).toBe(true);
+    expect(can('owner', { report: ['read'] })).toBe(true);
   });
 });
 
@@ -241,8 +247,8 @@ describe('Gate 5 — DB integrity', () => {
 
   it('migration journal and snapshots in sync', async () => {
     const journal = await import('../../db/migrations/meta/_journal.json');
-    expect(journal.entries.length).toBe(6); // 0..5
-    expect(journal.entries.map((e:any)=>e.tag)).toEqual(['0000_nile_engines','0001_security_hardening','0002_ledger_append_only','0003_vengeful_zuras','0004_payments_append_only','0005_money_constraints']);
+    expect(journal.entries.length).toBe(9); // 0..8 — 0006 G-17 shift-close idempotency; 0007 G-03 version columns; 0008 lower(sku) unique index (SKU case-insensitive uniqueness enforced by the DB, review fix)
+    expect(journal.entries.map((e:any)=>e.tag)).toEqual(['0000_nile_engines','0001_security_hardening','0002_ledger_append_only','0003_vengeful_zuras','0004_payments_append_only','0005_money_constraints','0006_open_black_widow','0007_futuristic_night_thrasher','0008_swift_hulk']);
   });
 });
 

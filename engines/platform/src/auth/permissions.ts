@@ -19,6 +19,14 @@ export const statement = {
   employee: ['read', 'manage'],
   attendance: ['record', 'read'],
   audit: ['read'],
+  /*
+   * D-D (ADOPTED for commercial V1, owner decision 2026-10-26 — see
+   * docs/DECISIONS.md): financial/admin reports have their own permission so
+   * reading a sale (sale:read, needed by cashiers for receipts) never implies
+   * reading store revenue figures. History: prepared as a proposal in commit
+   * 4153240, adopted as V1 policy at the final release gate.
+   */
+  report: ['read'],
 } as const;
 
 export const ac = createAccessControl(statement);
@@ -32,6 +40,7 @@ const all = {
   employee: ['read', 'manage'],
   attendance: ['record', 'read'],
   audit: ['read'],
+  report: ['read'],
 } as const;
 
 export const roles = {
@@ -40,7 +49,8 @@ export const roles = {
   member: ac.newRole({ ...memberAc.statements }),
 
   // POS
-  'branch-manager': ac.newRole({ sale: ['create', 'read', 'void'], catalog: ['read', 'manage'], stock: ['read', 'adjust'], audit: ['read'] }),
+  // report:read is granted ONLY to branch-manager among POS roles (D-D, adopted V1).
+  'branch-manager': ac.newRole({ sale: ['create', 'read', 'void'], catalog: ['read', 'manage'], stock: ['read', 'adjust'], audit: ['read'], report: ['read'] }),
   cashier: ac.newRole({ sale: ['create', 'read'], catalog: ['read'], stock: ['read'] }),
   // Inventory
   'inventory-manager': ac.newRole({ catalog: ['read', 'manage'], stock: ['read', 'adjust'], sale: ['read'] }),
